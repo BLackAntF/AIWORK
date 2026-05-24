@@ -577,8 +577,33 @@
 				const now = new Date()
 				const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`
 				this.alarms.unshift({ title, description, time })
+
+				// 异常报警：自动关机
+				if (this.devicePower) {
+					this.devicePower = false
+					this.deviceGear = 0
+					this.deviceStatus = 'idle'
+					this.timingMode = false
+					this.clearCountdown()
+					this.addLog('system', '异常报警，设备已自动关机')
+				}
+
+				// 震动提示
+				uni.vibrateLong()
+
+				// 发出提示音
+				const ctx = uni.createInnerAudioContext()
+				ctx.src = '/static/alarm.mp3'
+				ctx.onError(() => {
+					// 音频文件不存在时的降级方案
+					uni.showToast({ title: '⚠️⚠️ ' + title + ' ⚠️⚠️', icon: 'none', duration: 4000 })
+				})
+				ctx.play()
+
 				uni.showToast({ title: '⚠️ ' + title, icon: 'none' })
 			},
+
+
 
 			clearLogs() {
 				this.logs = []
