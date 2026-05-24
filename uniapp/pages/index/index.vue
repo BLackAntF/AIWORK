@@ -640,10 +640,11 @@
 					this.addLog('system', '异常报警，设备已自动关机')
 				}
 
-				// 震动提示（震动三下）
-				uni.vibrateShort()
-				setTimeout(() => { uni.vibrateShort() }, 200)
-				setTimeout(() => { uni.vibrateShort() }, 400)
+				// 震动提示（震动三下，等上一次震完再震下一次）
+				uni.vibrateLong()
+				setTimeout(() => { uni.vibrateLong() }, 600)
+				setTimeout(() => { uni.vibrateLong() }, 1200)
+
 
 
 				// 发出提示音
