@@ -1,7 +1,7 @@
 {
-    "name" : "智慧烹饪系统",
-    "appid" : "",
-    "description" : "家用商用智慧烹饪系统",
+    "name" : "蓝牙设备控制",
+    "appid" : "__UNI__0057521",
+    "description" : "蓝牙设备控制 - 连接、发送指令与异常报警",
     "versionName" : "1.0.0",
     "versionCode" : "100",
     "transformPx" : false,
@@ -51,7 +51,8 @@
                 "privacyDescription" : {
                     "NSBluetoothAlwaysUsageDescription" : "需要蓝牙权限连接烹饪设备",
                     "NSBluetoothPeripheralUsageDescription" : "需要蓝牙权限连接烹饪设备"
-                }
+                },
+                "dSYMs" : false
             },
             /* SDK配置 */
             "sdkConfigs" : {}

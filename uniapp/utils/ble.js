@@ -15,45 +15,73 @@ const CHARACTERISTIC_UUID = {
 	NOTIFY: '0000FFB1-0000-1000-8000-00805F9B34FB',
 }
 
-// 指令集
+/**
+ * 12KW 协议指令集
+ * 根据智慧烹饪系统PDF定义
+ * 
+ * 手机→设备：
+ *   >OK     开机/关机/设置档位
+ *   >AT?    查询温度（3路）
+ *   >AP?    查询电参数（电压/功率/电流）
+ * 
+ * 设备→手机：
+ *   >A + 12位十六进制    温度上报（每4位=1路，如 >A123456789ABC）
+ *   >A + 12位十六进制    电参数上报（电压+功率+电流）
+ *   >AE1~AE6            异常报警
+ */
 const CMD = {
-	// 基本控制
-	POWER_ON: '>A',        // 开机
-	POWER_OFF: '>B',       // 关机
-	STANDBY: '>C',         // 待机
+	// ===== 控制指令（手机→设备） =====
 	
-	// 模式选择
-	MODE_FRY: '>D',        // 煎炸模式
-	MODE_STEW: '>E',       // 炖煮模式
-	MODE_STEAM: '>F',      // 蒸模式
-	MODE_BAKE: '>G',       // 烘焙模式
-	MODE_WARM: '>H',       // 保温模式
+	/** 开机/关机/设置档位 */
+	OK: '>OK',
 	
-	// 温度控制
-	TEMP_UP: '>I',         // 升温
-	TEMP_DOWN: '>J',       // 降温
-	TEMP_SET_PREFIX: '>K', // 设置温度 + 数值 (如 >K180 表示180度)
+	/** 查询温度（3路） */
+	QUERY_TEMP: '>AT?',
 	
-	// 时间控制
-	TIME_UP: '>L',         // 时间增加
-	TIME_DOWN: '>M',       // 时间减少
-	TIME_SET_PREFIX: '>N', // 设置时间 + 数值 (如 >N30 表示30分钟)
+	/** 查询电参数（电压/功率/电流） */
+	QUERY_POWER: '>AP?',
 	
-	// 功能控制
-	START: '>O',           // 开始烹饪
-	PAUSE: '>P',           // 暂停
-	STOP: '>Q',            // 停止
-	TIMER: '>R',           // 定时
+	// ===== 档位定义（1-12档） =====
+	/** 档位1-12 */
+	GEAR_1: '>OK',   // 一档
+	GEAR_2: '>OK',   // 二档
+	GEAR_3: '>OK',   // 三档
+	GEAR_4: '>OK',   // 四档
+	GEAR_5: '>OK',   // 五档
+	GEAR_6: '>OK',   // 六档
+	GEAR_7: '>OK',   // 七档
+	GEAR_8: '>OK',   // 八档
+	GEAR_9: '>OK',   // 九档
+	GEAR_10: '>OK',  // 一十
+	GEAR_11: '>OK',  // 十一
+	GEAR_12: '>OK',  // 十二
 	
-	// 状态查询
-	QUERY_STATUS: '>S',    // 查询状态
-	QUERY_TEMP: '>T',      // 查询温度
-	QUERY_TIME: '>U',      // 查询剩余时间
-	
-	// 异常处理
-	RESET_ALARM: '>V',     // 重置警报
-	EMERGENCY_STOP: '>W',  // 紧急停止
+	// ===== 异常码（设备→手机） =====
+	ALARM_OVERTEMP: '>AE1',       // 机芯超温
+	ALARM_COIL_OVERTEMP: '>AE2',  // 线盘超温
+	ALARM_OVERCURRENT: '>AE3',    // 过流保护
+	ALARM_CURRENT_ABNORMAL: '>AE4', // 电流异常
+	ALARM_POT_ABNORMAL: '>AE5',   // 锅具异常
+	ALARM_SENSOR_OPEN: '>AE6',    // 线盘测温开路
 }
+
+/** 档位名称映射 */
+const GEAR_NAMES = {
+	1: '一档', 2: '二档', 3: '三档', 4: '四档',
+	5: '五档', 6: '六档', 7: '七档', 8: '八档',
+	9: '九档', 10: '一十', 11: '十一', 12: '十二'
+}
+
+/** 异常码描述 */
+const ALARM_DESCS = {
+	'>AE1': '机芯超温',
+	'>AE2': '线盘超温',
+	'>AE3': '过流保护',
+	'>AE4': '电流异常',
+	'>AE5': '锅具异常',
+	'>AE6': '线盘测温开路'
+}
+
 
 class BLEManager {
 	constructor() {
@@ -359,38 +387,79 @@ class BLEManager {
 	}
 
 	/**
-	 * 设置温度
+	 * 发送 >OK 指令（开机/关机/设置档位）
+	 * 设备应答 >OK 表示执行成功
 	 */
-	setTemperature(temp) {
-		const cmd = CMD.TEMP_SET_PREFIX + temp
-		return this.sendCommand(cmd)
+	sendOK() {
+		return this.sendCommand(CMD.OK)
 	}
 
 	/**
-	 * 设置时间（分钟）
+	 * 查询温度（3路）
+	 * 设备上报格式: >A + 12位十六进制（每4位=1路温度）
 	 */
-	setTime(minutes) {
-		const cmd = CMD.TIME_SET_PREFIX + minutes
-		return this.sendCommand(cmd)
+	queryTemperature() {
+		return this.sendCommand(CMD.QUERY_TEMP)
 	}
 
 	/**
-	 * 设置模式
+	 * 查询电参数（电压/功率/电流）
+	 * 设备上报格式: >A + 12位十六进制
 	 */
-	setMode(mode) {
-		return this.sendCommand(mode)
+	queryPower() {
+		return this.sendCommand(CMD.QUERY_POWER)
 	}
 
 	/**
-	 * 查询设备状态
+	 * 解析温度上报数据
+	 * 格式: >A + 12位十六进制
+	 * 每4位=1路温度，如 >A123456789ABC
+	 *   1路=0x1234=4660（需根据实际精度换算）
+	 *   2路=0x5678=22136
+	 *   3路=0x9ABC=39612
 	 */
-	queryStatus() {
-		return this.sendCommand(CMD.QUERY_STATUS)
+	parseTemperatureData(data) {
+		if (!data || !data.startsWith('>A') || data.length < 14) return null
+		const hexStr = data.substring(2, 14)
+		if (hexStr.length < 12) return null
+		return {
+			channel1: parseInt(hexStr.substring(0, 4), 16),
+			channel2: parseInt(hexStr.substring(4, 8), 16),
+			channel3: parseInt(hexStr.substring(8, 12), 16),
+			raw: data
+		}
+	}
+
+	/**
+	 * 解析电参数上报数据
+	 * 格式: >A + 12位十六进制
+	 *   电压=前4位, 功率=中间4位, 电流=后4位
+	 */
+	parsePowerData(data) {
+		if (!data || !data.startsWith('>A') || data.length < 14) return null
+		const hexStr = data.substring(2, 14)
+		if (hexStr.length < 12) return null
+		return {
+			voltage: parseInt(hexStr.substring(0, 4), 16),
+			power: parseInt(hexStr.substring(4, 8), 16),
+			current: parseInt(hexStr.substring(8, 12), 16),
+			raw: data
+		}
+	}
+
+	/**
+	 * 判断是否为异常上报
+	 */
+	isAlarm(data) {
+		return data && (data.startsWith('>AE1') || data.startsWith('>AE2') || 
+			data.startsWith('>AE3') || data.startsWith('>AE4') || 
+			data.startsWith('>AE5') || data.startsWith('>AE6'))
 	}
 
 	/**
 	 * 设置消息回调
 	 */
+
 	onMessage(callback) {
 		this.onMessageCallback = callback
 	}
@@ -425,5 +494,5 @@ class BLEManager {
 
 // 导出单例
 const bleManager = new BLEManager()
-export { bleManager, CMD, SERVICE_UUID, CHARACTERISTIC_UUID }
+export { bleManager, CMD, GEAR_NAMES, ALARM_DESCS, SERVICE_UUID, CHARACTERISTIC_UUID }
 export default bleManager

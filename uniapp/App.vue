@@ -1,7 +1,7 @@
 <script>
 	export default {
 		onLaunch: function() {
-			console.log('智慧烹饪系统启动')
+			console.log('蓝牙设备控制启动')
 		},
 		onShow: function() {
 			console.log('App Show')
@@ -13,10 +13,10 @@
 </script>
 
 <style>
-	/* 全局样式 */
+	/* 全局样式 - 蓝白主题 */
 	page {
-		background-color: #0f0f23;
-		color: #ffffff;
+		background-color: #f0f6ff;
+		color: #2c3e50;
 		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 	}
 	
@@ -26,34 +26,8 @@
 	}
 	
 	::-webkit-scrollbar-thumb {
-		background: #2a2a4a;
+		background: #c8d6e5;
 		border-radius: 4rpx;
-	}
-	
-	/* 通用按钮样式 */
-	.btn-primary {
-		background: linear-gradient(135deg, #e94560, #c23152);
-		color: #fff;
-		border: none;
-		border-radius: 24rpx;
-		padding: 20rpx 40rpx;
-		font-size: 28rpx;
-		font-weight: 600;
-		box-shadow: 0 8rpx 24rpx rgba(233, 69, 96, 0.3);
-	}
-	
-	.btn-primary:active {
-		transform: scale(0.96);
-		opacity: 0.9;
-	}
-	
-	/* 卡片样式 */
-	.card {
-		background: #1a1a2e;
-		border-radius: 24rpx;
-		padding: 32rpx;
-		margin: 16rpx 24rpx;
-		box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.3);
 	}
 	
 	/* 状态指示灯 */
@@ -70,7 +44,7 @@
 	}
 	
 	.status-dot.offline {
-		background: #666;
+		background: #b0bec5;
 	}
 	
 	.status-dot.error {
@@ -78,3 +52,5 @@
 		box-shadow: 0 0 12rpx rgba(231, 76, 60, 0.6);
 	}
 </style>
+
+

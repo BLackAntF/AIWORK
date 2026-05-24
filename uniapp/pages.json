@@ -4,73 +4,18 @@
 			"path": "pages/index/index",
 			"style": {
 				"navigationBarTitleText": "智慧烹饪系统",
-				"navigationBarBackgroundColor": "#1a1a2e",
-				"navigationBarTextStyle": "white"
-			}
-		},
-		{
-			"path": "pages/device/device",
-			"style": {
-				"navigationBarTitleText": "设备控制",
-				"navigationBarBackgroundColor": "#1a1a2e",
-				"navigationBarTextStyle": "white"
-			}
-		},
-		{
-			"path": "pages/cook/cook",
-			"style": {
-				"navigationBarTitleText": "烹饪控制",
-				"navigationBarBackgroundColor": "#1a1a2e",
-				"navigationBarTextStyle": "white"
-			}
-		},
-		{
-			"path": "pages/settings/settings",
-			"style": {
-				"navigationBarTitleText": "系统设置",
-				"navigationBarBackgroundColor": "#1a1a2e",
-				"navigationBarTextStyle": "white"
+				"navigationBarBackgroundColor": "#ffffff",
+				"navigationBarTextStyle": "black"
 			}
 		}
 	],
 	"globalStyle": {
-		"navigationBarTextStyle": "white",
+		"navigationBarTextStyle": "black",
 		"navigationBarTitleText": "智慧烹饪系统",
-		"navigationBarBackgroundColor": "#1a1a2e",
-		"backgroundColor": "#0f0f23",
-		"backgroundColorContent": "#0f0f23"
+		"navigationBarBackgroundColor": "#ffffff",
+		"backgroundColor": "#f0f6ff",
+		"backgroundColorContent": "#f0f6ff"
 	},
-	"tabBar": {
-		"color": "#666",
-		"selectedColor": "#e94560",
-		"backgroundColor": "#1a1a2e",
-		"borderStyle": "black",
-		"list": [
-			{
-				"pagePath": "pages/index/index",
-				"text": "首页",
-				"iconPath": "static/logo.png",
-				"selectedIconPath": "static/logo.png"
-			},
-			{
-				"pagePath": "pages/device/device",
-				"text": "设备",
-				"iconPath": "static/logo.png",
-				"selectedIconPath": "static/logo.png"
-			},
-			{
-				"pagePath": "pages/cook/cook",
-				"text": "烹饪",
-				"iconPath": "static/logo.png",
-				"selectedIconPath": "static/logo.png"
-			},
-			{
-				"pagePath": "pages/settings/settings",
-				"text": "设置",
-				"iconPath": "static/logo.png",
-				"selectedIconPath": "static/logo.png"
-			}
-		]
-	},
+
 	"uniIdRouter": {}
 }
