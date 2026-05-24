@@ -77,15 +77,21 @@
 
 				<!-- 中间显示屏 -->
 				<view class="panel-screen">
+					<!-- 倒计时运行中 - 显示剩余时间 -->
+					<view class="screen-timer" v-if="countdownTimer && currentTime > 0">
+						<text class="screen-timer-value">{{ timerDisplay }}</text>
+						<text class="screen-timer-label">剩余时间</text>
+					</view>
+					<!-- 定时设定模式 -->
+					<view class="screen-timer" v-else-if="timingMode">
+						<text class="screen-timer-value">{{ timerDisplay }}</text>
+						<text class="screen-timer-label">设定时间</text>
+					</view>
 					<!-- 待机/档位显示 -->
-					<view class="screen-gear" v-if="!timingMode">
+					<view class="screen-gear" v-else>
 						<text class="screen-gear-prefix">-</text>
 						<text class="screen-gear-value" :class="{ 'text-green': devicePower && deviceGear > 0 }">P{{ deviceGear }}</text>
 						<text class="screen-gear-suffix">-</text>
-					</view>
-					<!-- 定时模式显示 -->
-					<view class="screen-timer" v-else>
-						<text class="screen-timer-value">{{ timerDisplay }}</text>
 					</view>
 					
 					<!-- 档位指示灯（P1亮1个，P5亮5个...） -->
@@ -252,12 +258,14 @@
 
 
 		computed: {
-			// 定时显示（mm:ss格式）
+			// 定时显示（mm:ss格式）- 设定模式显示设定值，倒计时模式显示剩余时间
 			timerDisplay() {
-				const m = Math.floor(this.timerSetting / 60)
-				const s = this.timerSetting % 60
+				const totalSeconds = this.timingMode ? this.timerSetting * 60 : this.currentTime
+				const m = Math.floor(totalSeconds / 60)
+				const s = totalSeconds % 60
 				return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
 			},
+
 			// 状态文本
 			statusText() {
 				const map = {
@@ -593,6 +601,42 @@
 			},
 
 			/**
+			 * 开始倒计时
+			 */
+			startCountdown() {
+				this.clearCountdown()
+				// 将分钟转换为秒
+				this.currentTime = this.timerSetting * 60
+				this.countdownTimer = setInterval(() => {
+					if (this.currentTime > 0) {
+						this.currentTime--
+						// 倒计时结束时自动关机
+						if (this.currentTime <= 0) {
+							this.clearCountdown()
+							// 关机
+							this.devicePower = false
+							this.deviceGear = 0
+							this.deviceStatus = 'idle'
+							this.addLog('system', '定时结束，设备已关机')
+							uni.showToast({ title: '⏰ 定时结束，已关机', icon: 'none' })
+						}
+					}
+				}, 1000)
+			},
+
+
+			/**
+			 * 清除倒计时
+			 */
+			clearCountdown() {
+				if (this.countdownTimer) {
+					clearInterval(this.countdownTimer)
+					this.countdownTimer = null
+				}
+				this.currentTime = 0
+			},
+
+			/**
 			 * 模拟异常报警（无设备时测试用）
 			 */
 			simulateAlarm(code) {
@@ -602,6 +646,7 @@
 				this.addAlarm('设备异常', `${desc} (${code})`)
 				uni.showToast({ title: `⚠️ ${desc}`, icon: 'none' })
 			}
+
 		}
 	}
 </script>
@@ -683,8 +728,10 @@
 .screen-gear-value.text-green { color: #00ff88; text-shadow: 0 0 20rpx rgba(0,255,136,0.5); }
 
 /* 定时显示 */
-.screen-timer { }
+.screen-timer { display: flex; flex-direction: column; align-items: center; gap: 8rpx; }
 .screen-timer-value { font-size: 72rpx; font-weight: 700; color: #00ff88; font-family: 'Courier New', monospace; letter-spacing: 6rpx; text-shadow: 0 0 20rpx rgba(0,255,136,0.5); }
+.screen-timer-label { font-size: 22rpx; color: #4a7a5a; letter-spacing: 4rpx; }
+
 
 /* 档位指示灯条 */
 .screen-indicators { display: flex; gap: 6rpx; width: 100%; justify-content: center; flex-wrap: wrap; }
