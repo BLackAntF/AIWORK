@@ -27,8 +27,38 @@
 				点击"扫描设备"搜索附近的蓝牙设备
 			</view>
 
+			<!-- 测试设备（固定显示，无需蓝牙扫描） -->
+			<view class="device-list">
+				<view class="device-item test-device" :class="{ connected: isTestMode }" @click="connectTestDevice">
+					<view class="device-icon test-icon">
+						<text class="device-emoji">🧪</text>
+					</view>
+					<view class="device-info">
+						<view class="device-name-row">
+							<text class="device-name">测试设备（模拟）</text>
+							<text class="device-status-tag" v-if="isTestMode">已连接</text>
+						</view>
+						<view class="device-meta">
+							<text class="device-meta-item">
+								<text class="meta-label">类型</text>
+								<text class="meta-value" style="color:#ff8c00;">模拟测试</text>
+							</text>
+							<text class="device-meta-item">
+								<text class="meta-label">说明</text>
+								<text class="meta-value addr">无需真实设备</text>
+							</text>
+						</view>
+					</view>
+					<view class="device-action">
+						<view v-if="isTestMode" class="action-btn connected">已连接</view>
+						<view v-else class="action-btn connect" style="background:linear-gradient(135deg,#ff8c00,#e67e22);">连接</view>
+					</view>
+				</view>
+			</view>
+
 			<view class="device-list" v-if="devices.length > 0">
 				<view v-for="device in devices" :key="device.deviceId" class="device-item" :class="{ connecting: connectingId === device.deviceId, connected: deviceConnected && deviceId === device.deviceId }" @click="connectDevice(device)">
+
 					<view class="device-icon">
 						<text class="device-emoji">📡</text>
 					</view>
@@ -217,6 +247,9 @@
 				commandText: '',
 				logs: [],
 				alarms: [],
+				// 测试模式（无需真实蓝牙设备）
+				isTestMode: false,
+
 
 				// ===== 操控面板数据（真实设备模拟） =====
 				// 设备电源状态
@@ -480,18 +513,37 @@
 				}
 			},
 
+			/**
+			 * 连接测试设备（无需真实蓝牙，直接进入模拟模式）
+			 */
+			connectTestDevice() {
+				if (this.isTestMode) return
+				// 如果已连接真实设备，先断开
+				if (this.deviceConnected) {
+					this.disconnectDevice()
+				}
+				this.isTestMode = true
+				this.deviceConnected = true
+				this.deviceName = '测试设备（模拟）'
+				this.deviceId = 'test-device-001'
+				this.addLog('success', '已连接到测试设备（模拟模式）')
+				uni.showToast({ title: '测试模式已开启', icon: 'success' })
+			},
+
 			async disconnectDevice() {
 				try {
 					await bleManager.disconnect()
-					this.deviceConnected = false
-					this.deviceId = ''
-					this.deviceName = ''
-					this.addLog('system', '已断开设备连接')
-					uni.showToast({ title: '已断开', icon: 'success' })
 				} catch (err) { 
-					this.addLog('error', '断开失败: ' + (err.errMsg || err.message))
+					console.error(err)
 				}
+				this.deviceConnected = false
+				this.deviceId = ''
+				this.deviceName = ''
+				this.isTestMode = false
+				this.addLog('system', '已断开设备连接')
+				uni.showToast({ title: '已断开', icon: 'success' })
 			},
+
 
 			async sendCommand() {
 				if (!this.commandText.trim()) {
