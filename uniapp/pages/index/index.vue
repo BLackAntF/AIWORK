@@ -640,8 +640,11 @@
 					this.addLog('system', '异常报警，设备已自动关机')
 				}
 
-				// 震动提示
-				uni.vibrateLong()
+				// 震动提示（震动三下）
+				uni.vibrateShort()
+				setTimeout(() => { uni.vibrateShort() }, 200)
+				setTimeout(() => { uni.vibrateShort() }, 400)
+
 
 				// 发出提示音
 				const ctx = uni.createInnerAudioContext()
