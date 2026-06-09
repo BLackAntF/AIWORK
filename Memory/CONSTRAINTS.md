@@ -17,8 +17,14 @@
 - 禁止直接提交未检查的代码到主分支
 - 分层级约束：Hard Constraints > Design Intent > Allowed Variance
 - **自动修复规则**: 当 `D:\Develop\CODE\AIWORK\Reports\` 目录下有新的代码审查报告时，必须根据报告进行修复
+- **版本管理规则**: 前端、后端任务完成后必须进行 Git 管理（commit、push 并记录日志到 `D:\Develop\CODE\AIWORK\Logs\git\`）
 
 ## 代码质量（禁止项）
 
 - 禁止 Magic Value（用命名常量替代）
 - 禁止无限制引入第三方库（需在白名单内）
+
+## 开发职责（禁止项）
+
+- 后端开发仅编写后端代码（API、数据库逻辑、业务逻辑等），禁止编写前端代码
+- 前端开发由专门任务负责，后端开发不涉及前端实现
