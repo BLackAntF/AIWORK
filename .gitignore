@@ -31,3 +31,7 @@ Thumbs.db
 
 # 日志
 *.log
+
+# 前端依赖
+Projects/frontend/node_modules/
+Projects/backend-template/node_modules/
