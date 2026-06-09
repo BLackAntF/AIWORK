@@ -16,6 +16,7 @@
 - 必须有单元测试
 - 禁止直接提交未检查的代码到主分支
 - 分层级约束：Hard Constraints > Design Intent > Allowed Variance
+- **自动修复规则**: 当 `D:\Develop\CODE\AIWORK\Reports\` 目录下有新的代码审查报告时，必须根据报告进行修复
 
 ## 代码质量（禁止项）
 
