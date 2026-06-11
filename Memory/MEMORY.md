@@ -16,4 +16,7 @@
 
 ## 项目背景
 
+### Redis 启动
+- 启动命令: `D:\Develop\CODE\itheima\nginx-1.20.2\RedisOpen.bat`
+
 （待补充）
