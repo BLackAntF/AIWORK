@@ -1,0 +1,41 @@
+graph TB
+    subgraph 前端层
+        W[Web应用]
+        M[移动端APP]
+        A[管理后台]
+    end
+    
+    subgraph 网关层
+        GW[API网关]
+        Auth[认证服务]
+    end
+    
+    subgraph 业务服务层
+        O[订单服务]
+        P[支付服务]
+        U[用户服务]
+        N[通知服务]
+    end
+    
+    subgraph 数据层
+        DB[(主数据库)]
+        Cache[(Redis缓存)]
+        MQ[(消息队列)]
+    end
+    
+    W --> GW
+    M --> GW
+    A --> GW
+    GW --> Auth
+    Auth --> U
+    GW --> O
+    O --> P
+    O --> U
+    U --> N
+    P --> MQ
+    N --> MQ
+    O --> DB
+    P --> DB
+    U --> DB
+    O --> Cache
+    U --> Cache

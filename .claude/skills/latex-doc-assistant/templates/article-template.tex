@@ -1,0 +1,144 @@
+\documentclass{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{geometry}
+
+% Page setup
+\geometry{a4paper, margin=1in}
+
+% Code listing setup
+\lstset{
+    backgroundcolor=\color{gray!10},
+    basicstyle=\ttfamily\small,
+    numbers=left,
+    stepnumber=1,
+    showstringspaces=false,
+    tabsize=4,
+    breaklines=true,
+    frame=single
+}
+
+% Title setup
+\title{软件工程文档标题}
+\author{作者姓名}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{引言}
+这里是文档的介绍部分。
+
+\section{主要内容}
+
+\subsection{子章节}
+这是子章节的内容。
+
+\section{数学公式示例}
+\label{sec:math}
+
+\subsection{行内公式}
+圆的面积公式为 $A = \pi r^2$，其中 $r$ 是半径。
+
+\subsection{行间公式}
+均方误差（MSE）定义为：
+\begin{equation}
+    \text{MSE} = \frac{1}{n} \sum_{i=1}^{n} (y_i - \hat{y}_i)^2
+    \label{eq:mse}
+\end{equation}
+
+\subsection{多行公式}
+\begin{align}
+    \nabla \cdot \mathbf{E} &= \frac{\rho}{\varepsilon_0} \quad \text{(高斯定律)} \\
+    \nabla \cdot \mathbf{B} &= 0 \quad \text{(磁场无散度)} \\
+    \nabla \times \mathbf{E} &= -\frac{\partial \mathbf{B}}{\partial t} \quad \text{(法拉第定律)}
+    \label{eq:maxwell}
+\end{align}
+
+\subsection{矩阵表示}
+协方差矩阵：
+\[
+\Sigma = \begin{pmatrix}
+\sigma_1^2 & \rho_{12}\sigma_1\sigma_2 & \rho_{13}\sigma_1\sigma_3 \\
+\rho_{12}\sigma_1\sigma_2 & \sigma_2^2 & \rho_{23}\sigma_2\sigma_3 \\
+\rho_{13}\sigma_1\sigma_3 & \rho_{23}\sigma_2\sigma_3 & \sigma_3^2
+\end{pmatrix}
+\]
+
+\section{代码示例}
+\label{sec:code}
+
+Python 代码示例：
+\begin{lstlisting}[language=Python]
+def calculate_mse(y_true, y_pred):
+    """计算均方误差"""
+    n = len(y_true)
+    mse = sum((y - y_hat) ** 2 for y, y_hat in zip(y_true, y_pred)) / n
+    return mse
+\end{lstlisting}
+
+JavaScript 代码示例：
+\begin{lstlisting}[language=JavaScript]
+function fibonacci(n) {
+    if (n <= 1) return n;
+    return fibonacci(n - 1) + fibonacci(n - 2);
+}
+\end{lstlisting}
+
+\section{表格示例}
+\label{sec:table}
+
+\begin{table}[htbp]
+    \centering
+    \caption{复杂度分析表}
+    \begin{tabular}{|c|c|c|}
+        \hline
+        \textbf{算法} & \textbf{时间复杂度} & \textbf{空间复杂度} \\
+        \hline
+        冒泡排序 & $O(n^2)$ & $O(1)$ \\
+        \hline
+        快速排序 & $O(n \log n)$ & $O(\log n)$ \\
+        \hline
+        归并排序 & $O(n \log n)$ & $O(n)$ \\
+        \hline
+    \end{tabular}
+\end{table}
+
+\section{图片示例}
+\label{sec:figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.8\textwidth]{example-image}
+    \caption{系统架构图}
+    \label{fig:architecture}
+\end{figure}
+
+\section{结论}
+\label{sec:conclusion}
+
+本文档展示了 LaTeX 文档的各种特性，包括：
+\begin{itemize}
+    \item 数学公式（行内和行间）
+    \item 编号公式和交叉引用
+    \item 代码高亮
+    \item 表格和图片
+    \item 中文支持
+\end{itemize}
+
+\section{参考文献}
+
+\begin{thebibliography}{99}
+    \bibitem{ref1} Author Name. \textit{Book Title}. Publisher, Year.
+    \bibitem{ref2} Author Name. ``Article Title''. \textit{Journal Name}, Year.
+\end{thebibliography}
+
+\end{document}
