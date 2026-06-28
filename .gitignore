@@ -35,3 +35,6 @@ Thumbs.db
 # 前端依赖
 Projects/frontend/node_modules/
 Projects/backend-template/node_modules/
+
+# 不推送的项目
+Projects/Comprehensive Training Documentation/
