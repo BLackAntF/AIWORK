@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { Login } from './components/Login';
 import { Register } from './components/Register';
 import { Dashboard } from './components/Dashboard';
+import { ParticlesBackground } from './components/ParticlesBackground';
 
 type Page = 'login' | 'register' | 'dashboard';
 
@@ -37,23 +39,28 @@ const AppContent = () => {
   };
 
   if (isLoading) {
-    return <div className="loading">Loading...</div>;
+    return <div className="loading">加载中...</div>;
   }
 
   return (
-    <div className="app">
-      {currentPage === 'login' && <Login onNavigate={navigate} />}
-      {currentPage === 'register' && <Register onNavigate={navigate} />}
-      {currentPage === 'dashboard' && <Dashboard onNavigate={navigate} />}
-    </div>
+    <>
+      <ParticlesBackground />
+      <div className="relative z-10 min-h-screen">
+        {currentPage === 'login' && <Login onNavigate={navigate} />}
+        {currentPage === 'register' && <Register onNavigate={navigate} />}
+        {currentPage === 'dashboard' && <Dashboard onNavigate={navigate} />}
+      </div>
+    </>
   );
 };
 
 function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 
