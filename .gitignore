@@ -38,3 +38,18 @@ Projects/backend-template/node_modules/
 
 # 不推送的项目
 Projects/Comprehensive Training Documentation/
+
+# Skills目录
+Skills/
+DO_NOT_USE_pr_skill/
+
+# Office临时文件
+~$*.pptx
+~$*.docx
+~$*.xlsx
+
+# 根目录临时文件
+antLogo.ico
+azonix.zip
+test_img/
+slides_check/
