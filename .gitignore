@@ -1,5 +1,6 @@
 # 忽略所有工具和依赖
 Tools/
+Config/
 node_modules/
 *.pyc
 __pycache__/
