@@ -127,4 +127,74 @@
 
 ## 开发规范
 
-（待补充 - 由前端任务完成后生成代码报告，管理任务整理写入）
+### 项目架构
+- **技术栈**: React + TypeScript + Vite
+- **状态管理**: React Context API（AuthContext、ThemeContext）
+- **HTTP 客户端**: axios（统一配置、拦截器）
+- **路由**: 组件级 onNavigate 回调（后续可升级为 React Router）
+
+### 目录结构
+```
+src/
+├── api/              # API 层
+│   ├── axios.ts      # axios 实例配置
+│   ├── auth.ts       # 认证相关 API
+│   ├── items.ts      # 业务 API
+│   └── types.ts      # API 类型定义
+├── components/       # 页面组件
+│   ├── Login.tsx
+│   ├── Register.tsx
+│   ├── Dashboard.tsx
+│   └── ParticlesBackground.tsx
+├── context/          # Context 状态
+│   ├── AuthContext.tsx
+│   └── ThemeContext.tsx
+├── assets/           # 静态资源
+│   ├── antLogo.ico
+│   └── fonts/
+├── App.tsx           # 应用入口
+├── main.tsx          # React 挂载
+├── App.css
+└── index.css         # 全局样式（CSS 变量）
+```
+
+### Context 设计规范
+- 每个 Context 必须导出 `Provider` 组件和自定义 hook（如 `useAuth`、`useTheme`）
+- 自定义 hook 必须检查 context 是否为 `undefined`，未在 Provider 内使用时抛出明确错误
+- 状态持久化（localStorage）必须有 try-catch 保护，防止 JSON.parse 失败
+- 从 localStorage 读取的值必须进行类型验证，不能直接断言
+
+### 错误处理规范
+- axios 响应拦截器统一处理 HTTP 错误：401（清除 token + 跳转登录）、403、404、500、网络错误
+- 组件级别通过 try-catch 捕获 API 调用错误，根据状态码设置不同提示
+- 错误信息使用中文，面向最终用户
+- 错误必须通过 `Promise.reject(error)` 继续抛出，供组件级处理
+
+### 认证规范
+- Token 存储在 localStorage，key 为 `token`
+- 用户信息存储在 localStorage，key 为 `user`（JSON 字符串）
+- 请求拦截器自动添加 `Authorization: Bearer <token>`
+- 401 响应时清除本地存储并跳转登录页
+
+### 主题切换规范
+- 使用 `data-theme` 属性（`light` / `dark`）标记当前主题
+- 主题状态持久化到 localStorage，key 为 `theme`
+- 所有颜色通过 CSS 变量定义，支持主题自动切换
+- 读取 localStorage 主题值时必须验证是否为合法值（'light' 或 'dark'）
+
+### 性能与最佳实践
+- 使用 `useCallback` 优化传递给子组件的回调函数
+- 副作用必须正确清理（useEffect return）
+- 异步请求使用 `AbortController` 防止内存泄漏
+- 避免在多个页面组件中重复声明相同的状态逻辑
+
+### 类型安全
+- 所有组件 Props、API 响应、Context 类型必须完整定义
+- 禁止使用 `any` 类型
+- API 错误使用 `AxiosError<T>` 泛型指定响应数据类型
+
+### 代码质量
+- 函数保持单一职责，不超过 20 行
+- 使用语义化的组件和变量命名
+- UI 文本使用中文本地化
+- 密码强度验证：长度≥8，包含大小写字母和数字
