@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { getItems, createItem, updateItem, deleteItem } from '../api/items';
 import type { Item } from '../api/types';
 
@@ -18,6 +19,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const fetchItems = useCallback(async () => {
@@ -120,7 +122,12 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
     <div className="dashboard">
       <header className="dashboard-header">
         <h1>欢迎，{user?.email}</h1>
-        <button onClick={handleLogout} className="logout-btn">退出登录</button>
+        <div className="header-actions">
+          <button onClick={toggleTheme} className="theme-toggle">
+            {theme === 'light' ? '🌙 暗色模式' : '☀️ 亮色模式'}
+          </button>
+          <button onClick={handleLogout} className="logout-btn">退出登录</button>
+        </div>
       </header>
 
       {error && <div className="error-message">{error}</div>}

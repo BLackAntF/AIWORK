@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { login } from '../api/auth';
 import type { AxiosError } from 'axios';
 import type { ErrorResponse } from '../api/types';
@@ -14,6 +15,7 @@ export const Login = ({ onNavigate }: LoginProps) => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { login: handleLogin } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,8 +57,12 @@ export const Login = ({ onNavigate }: LoginProps) => {
 
   return (
     <div className="auth-container">
+      <div className="auth-logo-section">
+        <div className="logo-wrapper">
+          <h1 className="logo-title">BLackAnt</h1>
+        </div>
+      </div>
       <div className="auth-card">
-        <h2>登录</h2>
         {error && <div className="error-message">{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="form-group">
@@ -87,6 +93,9 @@ export const Login = ({ onNavigate }: LoginProps) => {
           还没有账号？<button onClick={() => onNavigate('/register')}>注册</button>
         </p>
       </div>
+      <button onClick={toggleTheme} className="theme-toggle-btn">
+        {theme === 'light' ? '🌙' : '☀️'}
+      </button>
     </div>
   );
 };

@@ -1,6 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { verifyToken, hasPermission, Permission } from '@/lib/auth'
-import { ApiError } from '@/lib/error'
 
 export interface AuthenticatedRequest extends NextApiRequest {
   user?: {
@@ -20,7 +19,7 @@ export function withAuth(handler: (req: AuthenticatedRequest, res: NextApiRespon
 
     try {
       const user = verifyToken(token)
-      (req as AuthenticatedRequest).user = user
+      ;(req as AuthenticatedRequest).user = user
       return handler(req as AuthenticatedRequest, res)
     } catch {
       return res.status(401).json({ error: 'Invalid token' })
@@ -44,7 +43,7 @@ export function withPermission(permission: Permission) {
           return res.status(403).json({ error: 'Insufficient permissions' })
         }
 
-        (req as AuthenticatedRequest).user = user
+        ;(req as AuthenticatedRequest).user = user
         return handler(req as AuthenticatedRequest, res)
       } catch {
         return res.status(401).json({ error: 'Invalid token' })

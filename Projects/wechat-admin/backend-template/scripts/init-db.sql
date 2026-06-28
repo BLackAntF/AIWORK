@@ -17,5 +17,5 @@ CREATE TABLE IF NOT EXISTS items (
   FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_items_created_by ON items(created_by);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_items_created_by ON items(created_by);
