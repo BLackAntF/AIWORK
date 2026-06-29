@@ -16,7 +16,7 @@
 - 启动命令: `D:\Develop\CODE\itheima\nginx-1.20.2\RedisOpen.bat`
 
 ### 项目信息
-- **项目名称**: BLackAnt
+- **项目名称**: BLackAntProject
 - **前端项目**: `D:\Develop\CODE\AIWORK\Projects\wechat-admin\frontend`
 
 ### Logo 资源

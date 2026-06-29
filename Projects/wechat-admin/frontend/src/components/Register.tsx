@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
 import { register } from '../api/auth';
 import type { AxiosError } from 'axios';
 import type { ErrorResponse } from '../api/types';
@@ -16,7 +15,6 @@ export const Register = ({ onNavigate }: RegisterProps) => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { login: handleLogin } = useAuth();
-  const { theme, toggleTheme } = useTheme();
 
   const validatePassword = (pwd: string): string | null => {
     if (pwd.length < 8) {
@@ -87,7 +85,7 @@ export const Register = ({ onNavigate }: RegisterProps) => {
     <div className="auth-container">
       <div className="auth-logo-section">
         <div className="logo-wrapper">
-          <h1 className="logo-title">BLackAnt</h1>
+          <h1 className="logo-title">BLackAntProject</h1>
         </div>
       </div>
       <div className="auth-card">
@@ -131,9 +129,6 @@ export const Register = ({ onNavigate }: RegisterProps) => {
           已有账号？<button onClick={() => onNavigate('/login')}>登录</button>
         </p>
       </div>
-      <button onClick={toggleTheme} className="theme-toggle-btn">
-        {theme === 'light' ? '🌙' : '☀️'}
-      </button>
     </div>
   );
 };
