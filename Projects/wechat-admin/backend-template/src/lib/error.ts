@@ -1,4 +1,6 @@
 import { NextApiResponse } from 'next'
+import { ZodError } from 'zod'
+import { logger } from './logger'
 
 export class ApiError extends Error {
   constructor(
@@ -20,7 +22,17 @@ export function errorHandler(error: unknown, res: NextApiResponse): void {
     return
   }
 
-  console.error('Unexpected error:', error)
+  if (error instanceof ZodError) {
+    const details = error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
+    res.status(400).json({
+      success: false,
+      error: 'Validation failed',
+      details
+    })
+    return
+  }
+
+  logger.error('Unexpected error', error as Error)
 
   res.status(500).json({
     success: false,

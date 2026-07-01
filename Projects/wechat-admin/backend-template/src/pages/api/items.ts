@@ -1,103 +1,112 @@
 import { NextApiResponse } from 'next'
+import { z } from 'zod'
+import { ResultSetHeader } from 'mysql2'
 import { withAuth, AuthenticatedRequest } from '@/middleware'
 import { query, queryOne } from '@/lib/db'
 import { getCache, setCache, deleteCache } from '@/lib/redis'
+import { errorHandler, ApiError } from '@/lib/error'
 
-async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
-  const { method } = req
+const CACHE_TTL = 300
+const ALLOWED_METHODS = ['GET', 'POST', 'PUT', 'DELETE']
 
-  switch (method) {
-    case 'GET':
-      return handleGetItems(req, res)
-    case 'POST':
-      return handleCreateItem(req, res)
-    case 'PUT':
-      return handleUpdateItem(req, res)
-    case 'DELETE':
-      return handleDeleteItem(req, res)
-    default:
-      res.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE'])
-      return res.status(405).json({ error: `Method ${method} Not Allowed` })
+const createItemSchema = z.object({
+  name: z.string().min(1, 'Name is required').max(255),
+  description: z.string().max(1000).optional()
+})
+
+const updateItemSchema = z.object({
+  name: z.string().min(1, 'Name is required').max(255).optional(),
+  description: z.string().max(1000).optional()
+})
+
+interface ItemRow {
+  id: number
+  name: string
+  description: string | null
+  created_at: Date
+}
+
+function getItemCacheKey(id: string | string[] | undefined): string {
+  return `item:${id}`
+}
+
+async function fetchItemById(id: string): Promise<ItemRow | null> {
+  return queryOne<ItemRow>(
+    'SELECT id, name, description, created_at FROM items WHERE id = ?',
+    [id]
+  )
+}
+
+async function fetchAllItems(): Promise<ItemRow[]> {
+  return query<ItemRow>(
+    'SELECT id, name, description, created_at FROM items ORDER BY created_at DESC'
+  )
+}
+
+async function getCachedOrFetch<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
+  const cached = await getCache<T>(key)
+  if (cached) return cached
+  const data = await fetcher()
+  await setCache(key, data, CACHE_TTL)
+  return data
+}
+
+async function handleGetItemById(id: string, res: NextApiResponse) {
+  const cacheKey = getItemCacheKey(id)
+  const item = await getCachedOrFetch(cacheKey, () => fetchItemById(id))
+
+  if (!item) {
+    throw new ApiError(404, 'Item not found')
   }
+
+  res.status(200).json({ success: true, data: item })
+}
+
+async function handleGetAllItems(res: NextApiResponse) {
+  const items = await getCachedOrFetch('items:all', fetchAllItems)
+  res.status(200).json({ success: true, data: items })
 }
 
 async function handleGetItems(req: AuthenticatedRequest, res: NextApiResponse) {
   const { id } = req.query
-
   if (id) {
-    const cacheKey = `item:${id}`
-    const cachedItem = await getCache(cacheKey)
-
-    if (cachedItem) {
-      return res.status(200).json({ success: true, data: cachedItem })
-    }
-
-    const item = await queryOne('SELECT id, name, description, created_at FROM items WHERE id = ?', [id])
-
-    if (!item) {
-      return res.status(404).json({ error: 'Item not found' })
-    }
-
-    await setCache(cacheKey, item, 300)
-
-    return res.status(200).json({ success: true, data: item })
+    return handleGetItemById(String(id), res)
   }
-
-  const cacheKey = 'items:all'
-  const cachedItems = await getCache(cacheKey)
-
-  if (cachedItems) {
-    return res.status(200).json({ success: true, data: cachedItems })
-  }
-
-  const items = await query('SELECT id, name, description, created_at FROM items ORDER BY created_at DESC')
-
-  await setCache(cacheKey, items, 300)
-
-  res.status(200).json({ success: true, data: items })
+  return handleGetAllItems(res)
 }
 
 async function handleCreateItem(req: AuthenticatedRequest, res: NextApiResponse) {
-  const { name, description } = req.body
+  const { name, description } = createItemSchema.parse(req.body)
+  const userId = req.user?.userId
 
-  if (!name) {
-    return res.status(400).json({ error: 'Name is required' })
-  }
-
-  const [result] = await query(
+  const [result] = await query<ResultSetHeader>(
     'INSERT INTO items (name, description, created_by) VALUES (?, ?, ?)',
-    [name, description, req.user?.userId]
+    [name, description || null, userId]
   )
-
-  const itemId = (result as any).insertId
 
   await deleteCache('items:all')
 
   res.status(201).json({
     success: true,
-    data: {
-      id: itemId,
-      name,
-      description
-    }
+    data: { id: result.insertId, name, description }
   })
 }
 
 async function handleUpdateItem(req: AuthenticatedRequest, res: NextApiResponse) {
   const { id } = req.query
-  const { name, description } = req.body
-
   if (!id) {
-    return res.status(400).json({ error: 'Item ID is required' })
+    throw new ApiError(400, 'Item ID is required')
   }
 
-  const [result] = await query(
-    'UPDATE items SET name = ?, description = ? WHERE id = ?',
-    [name, description, id]
+  const { name, description } = updateItemSchema.parse(req.body)
+
+  const [result] = await query<ResultSetHeader>(
+    'UPDATE items SET name = COALESCE(?, name), description = COALESCE(?, description) WHERE id = ?',
+    [name || null, description !== undefined ? description : null, id]
   )
 
-  if ((result as any).affectedRows === 0) {
-    return res.status(404).json({ error: 'Item not found' })
+  if (result.affectedRows === 0) {
+    throw new ApiError(404, 'Item not found')
   }
 
   await deleteCache(`item:${id}`)
@@ -105,31 +114,48 @@ async function handleUpdateItem(req: AuthenticatedRequest, res: NextApiResponse)
 
   res.status(200).json({
     success: true,
-    data: {
-      id,
-      name,
-      description
-    }
+    data: { id, name, description }
   })
 }
 
 async function handleDeleteItem(req: AuthenticatedRequest, res: NextApiResponse) {
   const { id } = req.query
-
   if (!id) {
-    return res.status(400).json({ error: 'Item ID is required' })
+    throw new ApiError(400, 'Item ID is required')
   }
 
-  const [result] = await query('DELETE FROM items WHERE id = ?', [id])
+  const [result] = await query<ResultSetHeader>('DELETE FROM items WHERE id = ?', [id])
 
-  if ((result as any).affectedRows === 0) {
-    return res.status(404).json({ error: 'Item not found' })
+  if (result.affectedRows === 0) {
+    throw new ApiError(404, 'Item not found')
   }
 
   await deleteCache(`item:${id}`)
   await deleteCache('items:all')
 
   res.status(200).json({ success: true, message: 'Item deleted successfully' })
+}
+
+async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
+  try {
+    const { method } = req
+
+    switch (method) {
+      case 'GET':
+        return handleGetItems(req, res)
+      case 'POST':
+        return handleCreateItem(req, res)
+      case 'PUT':
+        return handleUpdateItem(req, res)
+      case 'DELETE':
+        return handleDeleteItem(req, res)
+      default:
+        res.setHeader('Allow', ALLOWED_METHODS)
+        throw new ApiError(405, `Method ${method} Not Allowed`)
+    }
+  } catch (error) {
+    errorHandler(error, res)
+  }
 }
 
 export default withAuth(handler)
