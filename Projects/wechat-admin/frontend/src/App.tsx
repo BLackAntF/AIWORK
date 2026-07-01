@@ -1,12 +1,21 @@
 import { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { ThemeProvider } from './context/ThemeContext';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { Login } from './components/Login';
 import { Register } from './components/Register';
 import { Dashboard } from './components/Dashboard';
 import { ParticlesBackground } from './components/ParticlesBackground';
 
 type Page = 'login' | 'register' | 'dashboard';
+
+const FloatingThemeToggle = () => {
+  const { theme, toggleTheme } = useTheme();
+  return (
+    <button onClick={toggleTheme} className="theme-toggle-btn theme-toggle-floating">
+      {theme === 'light' ? '🌙' : '☀️'}
+    </button>
+  );
+};
 
 const AppContent = () => {
   const [currentPage, setCurrentPage] = useState<Page>('login');
@@ -42,6 +51,8 @@ const AppContent = () => {
     return <div className="loading">加载中...</div>;
   }
 
+  const isAuthPage = currentPage === 'login' || currentPage === 'register';
+
   return (
     <>
       <ParticlesBackground />
@@ -49,6 +60,7 @@ const AppContent = () => {
         {currentPage === 'login' && <Login onNavigate={navigate} />}
         {currentPage === 'register' && <Register onNavigate={navigate} />}
         {currentPage === 'dashboard' && <Dashboard onNavigate={navigate} />}
+        {isAuthPage && <FloatingThemeToggle />}
       </div>
     </>
   );

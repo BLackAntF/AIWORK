@@ -3,6 +3,9 @@ import type { ReactNode } from 'react';
 
 type Theme = 'light' | 'dark';
 
+const VALID_THEMES: Theme[] = ['light', 'dark'];
+const DEFAULT_THEME: Theme = 'light';
+
 interface ThemeContextType {
   theme: Theme;
   toggleTheme: () => void;
@@ -10,11 +13,24 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-export const ThemeProvider = ({ children }: { children: ReactNode }) => {
-  const [theme, setTheme] = useState<Theme>(() => {
+const isValidTheme = (value: string | null): value is Theme => {
+  return VALID_THEMES.includes(value as Theme);
+};
+
+const getStoredTheme = (): Theme => {
+  try {
     const stored = localStorage.getItem('theme');
-    return (stored as Theme) || 'light';
-  });
+    if (isValidTheme(stored)) {
+      return stored;
+    }
+    return DEFAULT_THEME;
+  } catch {
+    return DEFAULT_THEME;
+  }
+};
+
+export const ThemeProvider = ({ children }: { children: ReactNode }) => {
+  const [theme, setTheme] = useState<Theme>(() => getStoredTheme());
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
