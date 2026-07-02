@@ -8,13 +8,13 @@
               <el-icon :size="64"><User /></el-icon>
             </div>
             <div class="avatar-badge">
-              <el-icon :size="16"><Crown v-if="userInfo?.role === 'admin'" /><User v-else /></el-icon>
+              <el-icon :size="16"><Medal v-if="userInfo?.role === 'admin'" /><User v-else /></el-icon>
             </div>
           </div>
           <h2 class="username">{{ userInfo?.username || '未登录' }}</h2>
           <p class="email text-secondary">{{ userInfo?.email || '-' }}</p>
           <div class="role-tag" :class="{ admin: userInfo?.role === 'admin' }">
-            <el-icon><Crown v-if="userInfo?.role === 'admin'" /><User v-else /></el-icon>
+            <el-icon><Medal v-if="userInfo?.role === 'admin'" /><User v-else /></el-icon>
             <span>{{ userInfo?.role === 'admin' ? '管理员' : '普通用户' }}</span>
           </div>
           <div class="divider"></div>
@@ -27,7 +27,7 @@
               </div>
             </div>
             <div class="info-item">
-              <el-icon class="info-icon"><Message /></el-icon>
+              <el-icon class="info-icon"><Comment /></el-icon>
               <div class="info-content">
                 <span class="info-label">用户ID</span>
                 <span class="info-value">{{ userInfo?.id || '-' }}</span>
@@ -67,15 +67,6 @@
               <div class="stat-content">
                 <span class="stat-value">{{ stats.image }}</span>
                 <span class="stat-label">图片检测</span>
-              </div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-icon video">
-                <el-icon :size="24"><VideoCamera /></el-icon>
-              </div>
-              <div class="stat-content">
-                <span class="stat-value">{{ stats.video }}</span>
-                <span class="stat-label">视频检测</span>
               </div>
             </div>
           </div>
@@ -167,14 +158,13 @@ import {
   User,
   Lock,
   Key,
-  Crown,
+  Medal,
   Calendar,
-  Message,
+  Comment,
   DataAnalysis,
   TrendCharts,
   Sunny,
   Picture,
-  VideoCamera,
   SwitchButton
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/modules/user'
@@ -198,8 +188,7 @@ const passwordForm = reactive({
 const stats = reactive({
   total: 0,
   today: 0,
-  image: 0,
-  video: 0
+  image: 0
 })
 
 const validateConfirmPassword = (rule, value, callback) => {
@@ -249,12 +238,11 @@ const fetchStats = async () => {
     }).length
     
     stats.image = list.filter(item => item.type === 'image' || item.detection_type === 'image').length
-    stats.video = list.filter(item => item.type === 'video' || item.detection_type === 'video').length
     
     if (stats.total === 0 && list.length > 0) {
       stats.total = list.length
     }
-    if (stats.image === 0 && stats.video === 0 && list.length > 0) {
+    if (stats.image === 0 && list.length > 0) {
       stats.image = list.length
     }
   } catch (error) {
@@ -517,10 +505,6 @@ onMounted(() => {
 
 .stat-icon.image {
   background: linear-gradient(135deg, #4facfe, #00f2fe);
-}
-
-.stat-icon.video {
-  background: linear-gradient(135deg, #43e97b, #38f9d7);
 }
 
 .stat-content {

@@ -26,16 +26,16 @@ def init_database():
                 email='admin@example.com',
                 role='admin'
             )
-            admin.set_password('admin123')
+            admin.set_password('password123')
             db.session.add(admin)
-            print("  默认管理员创建成功: admin / admin123")
+            print("  默认管理员创建成功: admin / password123")
         else:
-            # 确保管理员角色正确
+            # 重置管理员密码（修复 scrypt 哈希兼容问题）
+            admin.set_password('password123')
             if admin.role != 'admin':
                 admin.role = 'admin'
                 print("  管理员角色已修正为 admin")
-            else:
-                print("  管理员已存在，跳过创建")
+            print("  管理员密码已重置: admin / password123")
 
         # 创建默认测试用户
         test_user = User.query.filter_by(username='testuser').first()
@@ -45,11 +45,13 @@ def init_database():
                 email='test@example.com',
                 role='user'
             )
-            test_user.set_password('123456')
+            test_user.set_password('password123')
             db.session.add(test_user)
-            print("  测试用户创建成功: testuser / 123456")
+            print("  测试用户创建成功: testuser / password123")
         else:
-            print("  测试用户已存在，跳过创建")
+            # 重置测试用户密码（修复 scrypt 哈希兼容问题）
+            test_user.set_password('password123')
+            print("  测试用户密码已重置: testuser / password123")
 
         # 初始化默认知识分类
         default_categories = [

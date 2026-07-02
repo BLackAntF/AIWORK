@@ -20,7 +20,7 @@ class User(db.Model):
 
     def set_password(self, password):
         """设置密码（哈希存储）"""
-        self.password_hash = generate_password_hash(password)
+        self.password_hash = generate_password_hash(password, method='pbkdf2:sha256')
 
     def check_password(self, password):
         """验证密码"""
