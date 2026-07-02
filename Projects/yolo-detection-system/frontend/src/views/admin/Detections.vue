@@ -32,7 +32,6 @@
         <el-select v-model="filters.type" placeholder="类型筛选" clearable @change="fetchList" style="width: 120px">
           <el-option label="全部类型" value="" />
           <el-option label="图片" value="image" />
-          <el-option label="视频" value="video" />
         </el-select>
         <el-date-picker
           v-model="dateRange"

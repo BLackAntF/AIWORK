@@ -8,11 +8,3 @@ export function detectImage(file, saveHistory = true) {
     headers: { 'Content-Type': 'multipart/form-data' }
   })
 }
-
-export function detectVideo(file) {
-  const formData = new FormData()
-  formData.append('file', file)
-  return request.post('/detect/video', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  })
-}

@@ -2,76 +2,41 @@
   <div class="detect-page">
     <div class="page-header">
       <h1 class="page-title">智能目标检测</h1>
-      <p class="page-subtitle">上传图片或视频，AI 快速识别目标</p>
+      <p class="page-subtitle">上传图片，AI 快速识别目标</p>
     </div>
 
     <div class="detect-container">
       <div class="left-panel">
         <div class="upload-section glass-card">
-          <el-tabs v-model="activeTab" class="upload-tabs">
-            <el-tab-pane label="图片检测" name="image">
-              <div
-                class="upload-area"
-                :class="{ 'drag-over': isDragOver, 'has-file': imageFile }"
-                @click="triggerImageUpload"
-                @dragover.prevent="handleDragOver"
-                @dragleave.prevent="handleDragLeave"
-                @drop.prevent="handleImageDrop"
-              >
-                <input
-                  ref="imageInput"
-                  type="file"
-                  accept="image/jpeg,image/png,image/bmp,image/webp"
-                  class="file-input"
-                  @change="handleImageChange"
-                  hidden
-                />
-                <div v-if="imagePreview" class="preview-wrapper">
-                  <img :src="imagePreview" alt="预览" class="preview-image" @click="handlePreviewImage" />
-                  <button class="remove-btn" @click.stop="removeImage">
-                    <el-icon><Close /></el-icon>
-                  </button>
-                </div>
-                <div v-else class="upload-placeholder">
-                  <el-icon :size="56" class="upload-icon"><Picture /></el-icon>
-                  <p class="upload-text">点击或拖拽图片到此处上传</p>
-                  <p class="upload-tip">支持 JPG、PNG、BMP、WEBP 格式</p>
-                  <p class="upload-info">单张图片大小不超过 10MB</p>
-                </div>
-              </div>
-            </el-tab-pane>
-            <el-tab-pane label="视频检测" name="video">
-              <div
-                class="upload-area"
-                :class="{ 'drag-over': isVideoDragOver, 'has-file': videoFile }"
-                @click="triggerVideoUpload"
-                @dragover.prevent="handleVideoDragOver"
-                @dragleave.prevent="handleVideoDragLeave"
-                @drop.prevent="handleVideoDrop"
-              >
-                <input
-                  ref="videoInput"
-                  type="file"
-                  accept="video/mp4,video/x-msvideo,video/quicktime"
-                  class="file-input"
-                  @change="handleVideoChange"
-                  hidden
-                />
-                <div v-if="videoUrl" class="preview-wrapper">
-                  <video :src="videoUrl" controls class="preview-video"></video>
-                  <button class="remove-btn" @click.stop="removeVideo">
-                    <el-icon><Close /></el-icon>
-                  </button>
-                </div>
-                <div v-else class="upload-placeholder">
-                  <el-icon :size="56" class="upload-icon"><VideoPlay /></el-icon>
-                  <p class="upload-text">点击或拖拽视频到此处上传</p>
-                  <p class="upload-tip">支持 MP4、AVI、MOV 格式</p>
-                  <p class="upload-info">单个视频大小不超过 100MB</p>
-                </div>
-              </div>
-            </el-tab-pane>
-          </el-tabs>
+          <div
+            class="upload-area"
+            :class="{ 'drag-over': isDragOver, 'has-file': imageFile }"
+            @click="triggerImageUpload"
+            @dragover.prevent="handleDragOver"
+            @dragleave.prevent="handleDragLeave"
+            @drop.prevent="handleImageDrop"
+          >
+            <input
+              ref="imageInput"
+              type="file"
+              accept="image/jpeg,image/png,image/bmp,image/webp"
+              class="file-input"
+              @change="handleImageChange"
+              hidden
+            />
+            <div v-if="imagePreview" class="preview-wrapper">
+              <img :src="imagePreview" alt="预览" class="preview-image" @click="handlePreviewImage" />
+              <button class="remove-btn" @click.stop="removeImage">
+                <el-icon><Close /></el-icon>
+              </button>
+            </div>
+            <div v-else class="upload-placeholder">
+              <el-icon :size="56" class="upload-icon"><Picture /></el-icon>
+              <p class="upload-text">点击或拖拽图片到此处上传</p>
+              <p class="upload-tip">支持 JPG、PNG、BMP、WEBP 格式</p>
+              <p class="upload-info">单张图片大小不超过 10MB</p>
+            </div>
+          </div>
 
           <div class="upload-actions">
             <div class="save-history">
@@ -226,7 +191,7 @@
         <div v-else class="empty-section glass-card">
           <el-icon :size="64" class="empty-icon"><Monitor /></el-icon>
           <h3 class="empty-title">等待检测</h3>
-          <p class="empty-text">上传图片或视频后点击开始检测</p>
+          <p class="empty-text">上传图片后点击开始检测</p>
         </div>
       </div>
     </div>
@@ -243,7 +208,6 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Picture,
-  VideoPlay,
   Close,
   Search,
   Loading,
@@ -257,12 +221,11 @@ import {
   Monitor,
   ZoomIn
 } from '@element-plus/icons-vue'
-import { detectImage, detectVideo } from '@/api/detection'
+import { detectImage } from '@/api/detection'
 import { getFullUrl } from '@/utils/format'
 
 const router = useRouter()
 
-const activeTab = ref('image')
 const saveHistory = ref(true)
 const isDetecting = ref(false)
 const isCanceling = ref(false)
@@ -275,11 +238,6 @@ const imageInput = ref(null)
 const imageFile = ref(null)
 const imagePreview = ref('')
 const isDragOver = ref(false)
-
-const videoInput = ref(null)
-const videoFile = ref(null)
-const videoUrl = ref('')
-const isVideoDragOver = ref(false)
 
 let progressTimer = null
 
@@ -311,10 +269,7 @@ function getCategoryColor(categoryName) {
 }
 
 const canDetect = computed(() => {
-  if (activeTab.value === 'image') {
-    return !!imageFile.value
-  }
-  return !!videoFile.value
+  return !!imageFile.value
 })
 
 const resultImageUrl = computed(() => {
@@ -343,26 +298,12 @@ function triggerImageUpload() {
   }
 }
 
-function triggerVideoUpload() {
-  if (!videoFile.value) {
-    videoInput.value?.click()
-  }
-}
-
 function handleDragOver() {
   isDragOver.value = true
 }
 
 function handleDragLeave() {
   isDragOver.value = false
-}
-
-function handleVideoDragOver() {
-  isVideoDragOver.value = true
-}
-
-function handleVideoDragLeave() {
-  isVideoDragOver.value = false
 }
 
 function validateImageFile(file) {
@@ -379,32 +320,10 @@ function validateImageFile(file) {
   return true
 }
 
-function validateVideoFile(file) {
-  const validTypes = ['video/mp4', 'video/x-msvideo', 'video/quicktime']
-  if (!validTypes.includes(file.type)) {
-    ElMessage.error('请上传 MP4、AVI 或 MOV 格式的视频')
-    return false
-  }
-  const maxSize = 100 * 1024 * 1024
-  if (file.size > maxSize) {
-    ElMessage.error('视频大小不能超过 100MB')
-    return false
-  }
-  return true
-}
-
 function handleImageChange(e) {
   const file = e.target.files?.[0]
   if (file) {
     handleImageFile(file)
-  }
-  e.target.value = ''
-}
-
-function handleVideoChange(e) {
-  const file = e.target.files?.[0]
-  if (file) {
-    handleVideoFile(file)
   }
   e.target.value = ''
 }
@@ -419,16 +338,6 @@ function handleImageDrop(e) {
   }
 }
 
-function handleVideoDrop(e) {
-  isVideoDragOver.value = false
-  const file = e.dataTransfer.files?.[0]
-  if (file && file.type.startsWith('video/')) {
-    handleVideoFile(file)
-  } else {
-    ElMessage.error('请上传视频文件')
-  }
-}
-
 function handleImageFile(file) {
   if (!validateImageFile(file)) return
   imageFile.value = file
@@ -440,25 +349,9 @@ function handleImageFile(file) {
   detectionResult.value = null
 }
 
-function handleVideoFile(file) {
-  if (!validateVideoFile(file)) return
-  videoFile.value = file
-  videoUrl.value = URL.createObjectURL(file)
-  detectionResult.value = null
-}
-
 function removeImage() {
   imageFile.value = null
   imagePreview.value = ''
-  detectionResult.value = null
-}
-
-function removeVideo() {
-  if (videoUrl.value) {
-    URL.revokeObjectURL(videoUrl.value)
-  }
-  videoFile.value = null
-  videoUrl.value = ''
   detectionResult.value = null
 }
 
@@ -489,12 +382,7 @@ async function handleDetect() {
   startProgressSimulation()
 
   try {
-    let result
-    if (activeTab.value === 'image') {
-      result = await detectImage(imageFile.value, saveHistory.value)
-    } else {
-      result = await detectVideo(videoFile.value)
-    }
+    const result = await detectImage(imageFile.value, saveHistory.value)
     detectionResult.value = result
     stopProgressSimulation()
     ElMessage.success('检测完成')
@@ -571,9 +459,6 @@ function handleDownload() {
 
 onUnmounted(() => {
   stopProgressSimulation()
-  if (videoUrl.value) {
-    URL.revokeObjectURL(videoUrl.value)
-  }
 })
 </script>
 
@@ -623,19 +508,6 @@ onUnmounted(() => {
 
 .upload-section {
   padding: 24px;
-}
-
-.upload-tabs :deep(.el-tabs__header) {
-  margin-bottom: 20px;
-}
-
-.upload-tabs :deep(.el-tabs__item) {
-  font-size: 16px;
-  font-weight: 500;
-}
-
-.upload-tabs :deep(.el-tabs__active-bar) {
-  background-color: var(--color-accent);
 }
 
 .upload-area {
@@ -712,12 +584,6 @@ onUnmounted(() => {
   object-fit: contain;
   border-radius: var(--radius-md);
   cursor: zoom-in;
-}
-
-.preview-video {
-  max-width: 100%;
-  max-height: 360px;
-  border-radius: var(--radius-md);
 }
 
 .remove-btn {

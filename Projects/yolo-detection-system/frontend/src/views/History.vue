@@ -23,7 +23,6 @@
           <el-radio-group v-model="filterType" @change="loadHistoryList">
             <el-radio-button value="all">全部</el-radio-button>
             <el-radio-button value="image">图片</el-radio-button>
-            <el-radio-button value="video">视频</el-radio-button>
           </el-radio-group>
         </div>
         <div class="filter-right">

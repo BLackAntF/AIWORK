@@ -37,7 +37,12 @@
         <div class="left-section">
           <div class="image-section glass-card">
             <h3 class="section-title">检测结果</h3>
-            <div class="result-image-wrapper" @click="showImagePreview = true">
+            <div v-if="detail?.type === 'video'" class="video-migration-hint">
+              <el-icon :size="48"><VideoCamera /></el-icon>
+              <p class="hint-title">视频检测功能已移至移动端App</p>
+              <p class="hint-desc">该检测记录来自旧版本视频检测功能，网页端已不再支持视频检测。请下载移动端App体验视频检测功能。</p>
+            </div>
+            <div v-else class="result-image-wrapper" @click="showImagePreview = true">
               <img
                 :src="resultImageUrl"
                 :alt="detail?.file_name"
@@ -179,7 +184,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   ArrowLeft, ChatDotRound, Refresh, Delete, DataAnalysis,
-  CollectionTag, Timer, ZoomIn, Warning
+  CollectionTag, Timer, ZoomIn, Warning, VideoCamera
 } from '@element-plus/icons-vue'
 import { getHistoryDetail, deleteHistory } from '@/api/history'
 import { getFullUrl } from '@/utils/format'
@@ -446,6 +451,35 @@ function goToKnowledge() {
 
 .image-section {
   padding: 20px;
+}
+
+.video-migration-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+.video-migration-hint .el-icon {
+  color: var(--color-accent);
+  margin-bottom: 16px;
+}
+
+.hint-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0 0 8px 0;
+}
+
+.hint-desc {
+  font-size: 14px;
+  color: var(--color-text-tertiary);
+  margin: 0;
+  max-width: 400px;
 }
 
 .result-image-wrapper {
