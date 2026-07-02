@@ -84,8 +84,9 @@
             <span class="time-text">{{ formatTime(row.created_at) }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="150" fixed="right" align="center">
+        <el-table-column label="操作" width="200" fixed="right" align="center">
           <template #default="{ row }">
+            <el-button type="primary" size="small" link @click="openViewDialog(row)">查看</el-button>
             <el-button type="primary" size="small" link @click="openEditDialog(row)">编辑</el-button>
             <el-button type="danger" size="small" link @click="handleDelete(row)">删除</el-button>
           </template>
@@ -110,30 +111,47 @@
     <el-dialog
       v-model="knowledgeDialogVisible"
       :title="isEdit ? '编辑知识' : '新增知识'"
-      width="600px"
+      width="900px"
       :close-on-click-modal="false"
+      class="knowledge-edit-dialog"
     >
       <el-form ref="knowledgeFormRef" :model="knowledgeForm" :rules="knowledgeRules" label-width="80px">
         <el-form-item label="标题" prop="title">
           <el-input v-model="knowledgeForm.title" placeholder="请输入知识标题" maxlength="200" show-word-limit />
         </el-form-item>
-        <el-form-item label="分类" prop="category">
-          <el-select v-model="knowledgeForm.category" placeholder="请选择分类" clearable style="width: 100%">
-            <el-option v-for="cat in categoryList" :key="cat" :label="cat" :value="cat" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="来源" prop="source">
-          <el-input v-model="knowledgeForm.source" placeholder="请输入来源" />
-        </el-form-item>
-        <el-form-item label="内容" prop="content">
-          <el-input
-            v-model="knowledgeForm.content"
-            type="textarea"
-            :rows="6"
-            placeholder="请输入知识内容"
-            maxlength="2000"
-            show-word-limit
-          />
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="分类" prop="category">
+              <el-select v-model="knowledgeForm.category" placeholder="请选择分类" clearable style="width: 100%">
+                <el-option v-for="cat in categoryList" :key="cat" :label="cat" :value="cat" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="来源" prop="source">
+              <el-input v-model="knowledgeForm.source" placeholder="请输入来源" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="内容" prop="content" class="content-form-item">
+          <div class="markdown-editor">
+            <div class="editor-pane">
+              <div class="pane-header">编辑</div>
+              <el-input
+                v-model="knowledgeForm.content"
+                type="textarea"
+                :rows="14"
+                placeholder="请输入知识内容（支持 Markdown）"
+                maxlength="5000"
+                show-word-limit
+                class="content-textarea"
+              />
+            </div>
+            <div class="preview-pane">
+              <div class="pane-header">预览</div>
+              <div class="markdown-preview markdown-content" v-html="renderMarkdown(knowledgeForm.content)"></div>
+            </div>
+          </div>
         </el-form-item>
         <el-form-item label="状态" prop="is_active" v-if="isEdit">
           <el-switch v-model="knowledgeForm.is_active" active-text="启用" inactive-text="禁用" />
@@ -142,6 +160,35 @@
       <template #footer>
         <el-button @click="knowledgeDialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="submitting" @click="handleSubmitKnowledge">确定</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 知识详情预览弹窗 -->
+    <el-dialog
+      v-model="viewDialogVisible"
+      title="知识详情"
+      width="700px"
+      :close-on-click-modal="false"
+      class="knowledge-view-dialog"
+    >
+      <div v-if="viewData" class="knowledge-detail">
+        <div class="detail-header">
+          <h3 class="detail-title">{{ viewData.title }}</h3>
+          <div class="detail-meta">
+            <el-tag v-if="viewData.category" type="info" effect="light" size="small">{{ viewData.category }}</el-tag>
+            <span v-if="viewData.source" class="meta-item">来源：{{ viewData.source }}</span>
+            <span class="meta-item">创建时间：{{ formatTime(viewData.created_at) }}</span>
+            <el-tag :type="viewData.is_active ? 'success' : 'info'" effect="light" size="small">
+              {{ viewData.is_active ? '启用' : '禁用' }}
+            </el-tag>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="detail-content markdown-content" v-html="renderMarkdown(viewData.content)"></div>
+      </div>
+      <template #footer>
+        <el-button @click="viewDialogVisible = false">关闭</el-button>
+        <el-button type="primary" @click="handleViewEdit">编辑</el-button>
       </template>
     </el-dialog>
 
@@ -219,6 +266,7 @@ import {
   getCategories
 } from '@/api/admin'
 import { formatTime } from '@/utils/format'
+import { renderMarkdown } from '@/utils/markdown'
 
 const loading = ref(false)
 const knowledgeList = ref([])
@@ -247,6 +295,20 @@ const knowledgeForm = reactive({
   source: '',
   is_active: true
 })
+
+// 查看详情
+const viewDialogVisible = ref(false)
+const viewData = ref(null)
+
+function openViewDialog(row) {
+  viewData.value = row
+  viewDialogVisible.value = true
+}
+
+function handleViewEdit() {
+  viewDialogVisible.value = false
+  openEditDialog(viewData.value)
+}
 
 const knowledgeRules = {
   title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
@@ -613,6 +675,199 @@ onMounted(() => {
 .category-actions {
   display: flex;
   gap: 8px;
+}
+
+/* Markdown 编辑器 */
+.markdown-editor {
+  display: flex;
+  gap: 16px;
+  width: 100%;
+}
+
+.editor-pane,
+.preview-pane {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pane-header {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  margin-bottom: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.content-textarea {
+  flex: 1;
+}
+
+:deep(.content-textarea .el-textarea__inner) {
+  font-family: var(--font-family-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  resize: none;
+  min-height: 340px;
+}
+
+.markdown-preview {
+  flex: 1;
+  padding: 12px 16px;
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-light);
+  overflow-y: auto;
+  min-height: 340px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--color-text-secondary);
+}
+
+/* Markdown 内容通用样式 */
+.markdown-content :deep(h1),
+.markdown-content :deep(h2),
+.markdown-content :deep(h3),
+.markdown-content :deep(h4) {
+  margin: 16px 0 8px 0;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.markdown-content :deep(h1) {
+  font-size: 20px;
+}
+
+.markdown-content :deep(h2) {
+  font-size: 18px;
+}
+
+.markdown-content :deep(h3) {
+  font-size: 16px;
+}
+
+.markdown-content :deep(p) {
+  margin: 8px 0;
+}
+
+.markdown-content :deep(ul),
+.markdown-content :deep(ol) {
+  margin: 8px 0;
+  padding-left: 24px;
+}
+
+.markdown-content :deep(li) {
+  margin: 4px 0;
+}
+
+.markdown-content :deep(strong) {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.markdown-content :deep(code) {
+  background: rgba(0, 0, 0, 0.06);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: var(--font-family-mono);
+}
+
+:deep(.dark .markdown-content code) {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.markdown-content :deep(pre) {
+  background: rgba(0, 0, 0, 0.06);
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+  margin: 12px 0;
+}
+
+:deep(.dark .markdown-content pre) {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.markdown-content :deep(pre code) {
+  background: none;
+  padding: 0;
+}
+
+.markdown-content :deep(blockquote) {
+  border-left: 3px solid var(--color-accent);
+  padding-left: 12px;
+  margin: 12px 0;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-tertiary);
+  padding: 8px 12px;
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+.markdown-content :deep(a) {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.markdown-content :deep(a:hover) {
+  text-decoration: underline;
+}
+
+/* 知识详情弹窗 */
+.knowledge-detail {
+  padding: 4px 0;
+}
+
+.detail-header {
+  margin-bottom: 16px;
+}
+
+.detail-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0 0 12px 0;
+}
+
+.detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+}
+
+.meta-item {
+  display: inline-block;
+}
+
+.divider {
+  height: 1px;
+  background: var(--color-border-light);
+  margin: 16px 0;
+}
+
+.detail-content {
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 8px 4px;
+  color: var(--color-text-secondary);
+  line-height: 1.8;
+}
+
+:deep(.content-form-item .el-form-item__content) {
+  width: 100%;
+}
+
+:deep(.knowledge-edit-dialog .el-dialog__body) {
+  padding-top: 10px;
+}
+
+:deep(.knowledge-view-dialog .el-dialog__body) {
+  padding-top: 10px;
 }
 
 :deep(.el-table) {

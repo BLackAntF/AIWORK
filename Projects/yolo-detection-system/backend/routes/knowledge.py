@@ -1,4 +1,6 @@
 import uuid
+import time
+from collections import defaultdict
 from flask import Blueprint, request
 from models import ChatHistory, db
 from utils.response import success, bad_request
@@ -8,11 +10,30 @@ from services.llm_service import llm_service
 
 knowledge_bp = Blueprint('knowledge', __name__, url_prefix='/api/knowledge')
 
+_rate_limit_store = defaultdict(list)
+RATE_LIMIT_PER_MINUTE = 20
+
+
+def _check_rate_limit(user_id):
+    now = time.time()
+    timestamps = _rate_limit_store[user_id]
+    timestamps[:] = [t for t in timestamps if now - t < 60]
+    if len(timestamps) >= RATE_LIMIT_PER_MINUTE:
+        return False
+    timestamps.append(now)
+    return True
+
 
 @knowledge_bp.route('/ask', methods=['POST'])
 @login_required
 def ask_question(current_user):
-    """向知识库提问"""
+    if not _check_rate_limit(current_user.id):
+        return {
+            'code': 429,
+            'message': '提问过于频繁，请稍后再试',
+            'data': None
+        }, 429
+
     data = request.get_json() or {}
     question = data.get('question', '').strip()
     detection_context = data.get('detection_context', '').strip()
@@ -21,30 +42,36 @@ def ask_question(current_user):
     if not question:
         return bad_request('问题不能为空')
 
-    # 生成 session_id（如果没有提供）
     if not session_id:
         session_id = f"session_{uuid.uuid4().hex[:12]}"
+        is_new_session = True
+    else:
+        existing = ChatHistory.query.filter_by(
+            user_id=current_user.id,
+            session_id=session_id
+        ).first()
+        is_new_session = existing is None
 
-    # 搜索相关知识
     knowledge_list = knowledge_service.search(question, top_k=3)
 
-    # 生成回答
     llm_result = llm_service.generate_answer(
         question=question,
         knowledge_list=knowledge_list,
         detection_context=detection_context
     )
 
-    # 保存用户提问记录
+    session_title = question[:20]
+
     user_msg = ChatHistory(
         user_id=current_user.id,
         session_id=session_id,
         role='user',
         content=question
     )
+    if is_new_session:
+        user_msg.set_metadata({'session_title': session_title})
     db.session.add(user_msg)
 
-    # 保存助手回答记录
     assistant_msg = ChatHistory(
         user_id=current_user.id,
         session_id=session_id,
@@ -62,7 +89,8 @@ def ask_question(current_user):
     return success(data={
         'answer': llm_result['answer'],
         'sources': llm_result.get('sources', []),
-        'session_id': session_id
+        'session_id': session_id,
+        'session_title': session_title
     })
 
 
@@ -117,31 +145,43 @@ def delete_session(current_user, session_id):
 @knowledge_bp.route('/sessions', methods=['GET'])
 @login_required
 def get_session_list(current_user):
-    """获取会话列表"""
-    # 查询所有不重复的 session_id 及其最新消息
-    subquery = db.session.query(
+    all_sessions = db.session.query(
         ChatHistory.session_id,
         db.func.max(ChatHistory.created_at).label('last_time')
     ).filter(
         ChatHistory.user_id == current_user.id,
         ChatHistory.session_id.isnot(None)
-    ).group_by(ChatHistory.session_id).subquery()
-
-    sessions = db.session.query(
-        ChatHistory.session_id,
-        ChatHistory.content,
-        ChatHistory.created_at
-    ).join(
-        subquery,
-        (ChatHistory.session_id == subquery.c.session_id) &
-        (ChatHistory.created_at == subquery.c.last_time)
-    ).order_by(subquery.c.last_time.desc()).all()
+    ).group_by(ChatHistory.session_id).order_by(db.text('last_time DESC')).all()
 
     session_list = []
-    for session_id, last_content, last_time in sessions:
+    for session_id, last_time in all_sessions:
+        first_user_msg = ChatHistory.query.filter_by(
+            user_id=current_user.id,
+            session_id=session_id,
+            role='user'
+        ).order_by(ChatHistory.created_at.asc()).first()
+
+        title = ''
+        if first_user_msg:
+            meta = first_user_msg.get_metadata()
+            if meta and meta.get('session_title'):
+                title = meta['session_title']
+            else:
+                title = first_user_msg.content[:20]
+
+        last_msg = ChatHistory.query.filter_by(
+            user_id=current_user.id,
+            session_id=session_id
+        ).order_by(ChatHistory.created_at.desc()).first()
+
+        last_message = ''
+        if last_msg:
+            last_message = last_msg.content[:50] + '...' if len(last_msg.content) > 50 else last_msg.content
+
         session_list.append({
             'session_id': session_id,
-            'last_message': last_content[:50] + '...' if len(last_content) > 50 else last_content,
+            'title': title,
+            'last_message': last_message,
             'last_time': last_time.isoformat() if last_time else None
         })
 

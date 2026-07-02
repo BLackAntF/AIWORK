@@ -53,6 +53,25 @@
         </div>
 
         <div class="chat-messages" ref="messagesContainer" v-loading="messagesLoading">
+          <div v-if="messages.length === 0 && !isTyping" class="welcome-section">
+            <div class="welcome-icon">
+              <el-icon :size="64"><ChatDotRound /></el-icon>
+            </div>
+            <h2 class="welcome-title">AI 知识问答</h2>
+            <p class="welcome-desc">有什么问题可以直接问我，我会基于知识库为您解答</p>
+            <div class="faq-list">
+              <div
+                v-for="(q, index) in faqQuestions"
+                :key="index"
+                class="faq-item"
+                @click="sendFaqQuestion(q)"
+              >
+                <el-icon><QuestionFilled /></el-icon>
+                <span>{{ q }}</span>
+              </div>
+            </div>
+          </div>
+
           <div
             v-for="(msg, index) in messages"
             :key="index"
@@ -67,9 +86,17 @@
               <div class="message-content" v-if="msg.role === 'user'">
                 {{ msg.content }}
               </div>
-              <div class="message-content" v-else>
-                <div v-if="msg.displayContent">{{ msg.displayContent }}</div>
-                <div v-else>{{ msg.content }}</div>
+              <div class="message-content markdown-content" v-else v-html="msg.displayHtml || msg.html || msg.content">
+              </div>
+              <div v-if="msg.role === 'assistant' && msg.isTypingDone" class="message-actions">
+                <el-button text size="small" @click="copyAnswer(msg.content)">
+                  <el-icon><CopyDocument /></el-icon>
+                  <span>复制</span>
+                </el-button>
+                <el-button v-if="index === messages.length - 1" text size="small" @click="regenerateLast">
+                  <el-icon><Refresh /></el-icon>
+                  <span>重新生成</span>
+                </el-button>
               </div>
               <div v-if="msg.role === 'assistant' && msg.sources && msg.sources.length > 0" class="message-sources">
                 <div class="sources-title">引用来源：</div>
@@ -92,10 +119,9 @@
               <el-icon><Cpu /></el-icon>
             </div>
             <div class="message-bubble">
-              <div class="typing-indicator">
-                <span></span>
-                <span></span>
-                <span></span>
+              <div class="thinking-indicator">
+                <el-icon class="thinking-icon"><Loading /></el-icon>
+                <span>正在思考...</span>
               </div>
             </div>
           </div>
@@ -139,15 +165,23 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Plus, Delete, ChatDotRound, Menu, User, Cpu,
-  Document, Close, Promotion, Picture
+  Document, Close, Promotion, Picture,
+  QuestionFilled, CopyDocument, Refresh, Loading
 } from '@element-plus/icons-vue'
 import { askQuestion, getChatHistory, getSessions, deleteSession } from '@/api/knowledge'
-import { formatRelativeTime } from '@/utils/format'
+import { renderMarkdown } from '@/utils/markdown'
+
+const faqQuestions = [
+  '番茄叶斑病怎么防治？',
+  '如何识别植物病害？',
+  '常见病虫害有哪些？',
+  '病害防治的基本原则是什么？'
+]
 
 const route = useRoute()
 const router = useRouter()
@@ -163,6 +197,8 @@ const currentSessionId = ref(null)
 const messages = ref([])
 const inputMessage = ref('')
 const detectionContext = ref(null)
+
+let typewriterTimer = null
 
 const currentSession = computed(() => {
   return sessions.value.find(s => s.id === currentSessionId.value)
@@ -207,12 +243,18 @@ async function loadSessions() {
 }
 
 async function switchSession(sessionId) {
+  stopTypewriter()
   currentSessionId.value = sessionId
   sidebarOpen.value = false
   messagesLoading.value = true
   try {
     const res = await getChatHistory({ session_id: sessionId })
-    messages.value = res.data?.messages || res.data || []
+    const msgs = res.data?.messages || res.data || []
+    messages.value = msgs.map(msg => ({
+      ...msg,
+      html: msg.role === 'assistant' ? renderMarkdown(msg.content) : null,
+      isTypingDone: true
+    }))
   } catch (error) {
     ElMessage.error('加载聊天记录失败')
   } finally {
@@ -222,6 +264,7 @@ async function switchSession(sessionId) {
 }
 
 async function createNewSession() {
+  stopTypewriter()
   currentSessionId.value = null
   messages.value = []
   inputMessage.value = ''
@@ -238,6 +281,7 @@ async function handleDeleteSession(sessionId) {
     await deleteSession(sessionId)
     ElMessage.success('删除成功')
     if (currentSessionId.value === sessionId) {
+      stopTypewriter()
       currentSessionId.value = null
       messages.value = []
     }
@@ -256,6 +300,7 @@ async function handleClearChat() {
       cancelButtonText: '取消',
       type: 'warning'
     })
+    stopTypewriter()
     messages.value = []
     ElMessage.success('已清空对话')
   } catch (error) {
@@ -268,9 +313,16 @@ function handleKeyDown(e) {
   }
 }
 
+function sendFaqQuestion(question) {
+  inputMessage.value = question
+  sendMessage()
+}
+
 async function sendMessage() {
   const content = inputMessage.value.trim()
   if (!content || isTyping.value) return
+
+  stopTypewriter()
 
   const userMsg = {
     role: 'user',
@@ -293,12 +345,16 @@ async function sendMessage() {
     const aiMsg = {
       role: 'assistant',
       content: res.data?.answer || res.data?.content || '抱歉，我无法回答这个问题。',
-      sources: res.data?.sources || []
+      sources: res.data?.sources || [],
+      displayHtml: '',
+      html: '',
+      isTypingDone: false
     }
     if (res.data?.session_id && !currentSessionId.value) {
       currentSessionId.value = res.data.session_id
       loadSessions()
     }
+    aiMsg.html = renderMarkdown(aiMsg.content)
     messages.value.push(aiMsg)
     startTypewriterEffect(aiMsg)
   } catch (error) {
@@ -310,19 +366,66 @@ async function sendMessage() {
 }
 
 function startTypewriterEffect(msg) {
-  if (!msg.content) return
-  msg.displayContent = ''
+  if (!msg.content) {
+    msg.isTypingDone = true
+    msg.displayHtml = msg.html
+    return
+  }
+  msg.displayHtml = ''
+  msg.isTypingDone = false
   let index = 0
   const speed = 30
-  const timer = setInterval(() => {
+  typewriterTimer = setInterval(() => {
     if (index < msg.content.length) {
-      msg.displayContent += msg.content[index]
+      const partial = msg.content.slice(0, index + 1)
+      msg.displayHtml = renderMarkdown(partial)
       index++
       scrollToBottom()
     } else {
-      clearInterval(timer)
+      stopTypewriter()
+      msg.displayHtml = msg.html
+      msg.isTypingDone = true
+      scrollToBottom()
     }
   }, speed)
+}
+
+function stopTypewriter() {
+  if (typewriterTimer) {
+    clearInterval(typewriterTimer)
+    typewriterTimer = null
+  }
+}
+
+async function regenerateLast() {
+  const lastUserMsgIndex = [...messages.value].reverse().findIndex(m => m.role === 'user')
+  if (lastUserMsgIndex === -1) return
+
+  const actualIndex = messages.value.length - 1 - lastUserMsgIndex
+  const lastUserMsg = messages.value[actualIndex]
+
+  stopTypewriter()
+  messages.value = messages.value.slice(0, actualIndex)
+
+  inputMessage.value = lastUserMsg.content
+  await sendMessage()
+}
+
+function copyAnswer(content) {
+  if (!content) return
+  navigator.clipboard.writeText(content).then(() => {
+    ElMessage.success('已复制到剪贴板')
+  }).catch(() => {
+    const textarea = document.createElement('textarea')
+    textarea.value = content
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.appendChild(textarea)
+    textarea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textarea)
+    ElMessage.success('已复制到剪贴板')
+  })
 }
 
 function scrollToBottom() {
@@ -481,6 +584,73 @@ function clearDetectionContext() {
   gap: 20px;
 }
 
+.welcome-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.welcome-icon {
+  color: var(--color-accent);
+  margin-bottom: 20px;
+  opacity: 0.8;
+}
+
+.welcome-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0 0 8px 0;
+  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-light));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.welcome-desc {
+  font-size: 14px;
+  color: var(--color-text-tertiary);
+  margin: 0 0 32px 0;
+}
+
+.faq-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 500px;
+}
+
+.faq-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  text-align: left;
+}
+
+.faq-item:hover {
+  border-color: var(--color-accent);
+  background: var(--color-accent-glow);
+  color: var(--color-accent);
+  transform: translateY(-2px);
+}
+
+.faq-item .el-icon {
+  flex-shrink: 0;
+  color: var(--color-accent);
+}
+
 .message-item {
   display: flex;
   gap: 12px;
@@ -536,6 +706,120 @@ function clearDetectionContext() {
   word-break: break-word;
 }
 
+.markdown-content {
+  white-space: normal;
+}
+
+.markdown-content :deep(h1),
+.markdown-content :deep(h2),
+.markdown-content :deep(h3),
+.markdown-content :deep(h4) {
+  margin: 16px 0 8px 0;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.markdown-content :deep(h1) {
+  font-size: 20px;
+}
+
+.markdown-content :deep(h2) {
+  font-size: 18px;
+}
+
+.markdown-content :deep(h3) {
+  font-size: 16px;
+}
+
+.markdown-content :deep(p) {
+  margin: 8px 0;
+}
+
+.markdown-content :deep(ul),
+.markdown-content :deep(ol) {
+  margin: 8px 0;
+  padding-left: 24px;
+}
+
+.markdown-content :deep(li) {
+  margin: 4px 0;
+}
+
+.markdown-content :deep(strong) {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.markdown-content :deep(code) {
+  background: var(--color-bg-tertiary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: var(--font-family-mono);
+}
+
+.markdown-content :deep(pre) {
+  background: var(--color-bg-tertiary);
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+  margin: 12px 0;
+}
+
+.markdown-content :deep(pre code) {
+  background: none;
+  padding: 0;
+}
+
+.markdown-content :deep(blockquote) {
+  border-left: 3px solid var(--color-accent);
+  padding-left: 12px;
+  margin: 12px 0;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-tertiary);
+  padding: 8px 12px;
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+.markdown-content :deep(a) {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.markdown-content :deep(a:hover) {
+  text-decoration: underline;
+}
+
+.message-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border-light);
+}
+
+.message-actions .el-button {
+  font-size: 12px;
+}
+
+.thinking-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  color: var(--color-text-tertiary);
+  font-size: 14px;
+}
+
+.thinking-icon {
+  animation: spin 1.5s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .message-sources {
   margin-top: 12px;
   padding-top: 12px;
@@ -573,39 +857,6 @@ function clearDetectionContext() {
 .source-title {
   flex: 1;
   min-width: 0;
-}
-
-.typing-indicator {
-  display: flex;
-  gap: 4px;
-  padding: 8px 0;
-}
-
-.typing-indicator span {
-  width: 8px;
-  height: 8px;
-  background: var(--color-text-tertiary);
-  border-radius: 50%;
-  animation: typing 1.4s infinite;
-}
-
-.typing-indicator span:nth-child(2) {
-  animation-delay: 0.2s;
-}
-
-.typing-indicator span:nth-child(3) {
-  animation-delay: 0.4s;
-}
-
-@keyframes typing {
-  0%, 60%, 100% {
-    transform: translateY(0);
-    opacity: 0.4;
-  }
-  30% {
-    transform: translateY(-6px);
-    opacity: 1;
-  }
 }
 
 .chat-input-area {
