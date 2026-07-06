@@ -11,9 +11,13 @@ export const useUserStore = defineStore('user', {
   actions: {
     async login(loginForm) {
       const res = await loginApi(loginForm)
-      this.token = res.access_token
-      setToken(res.access_token)
-      this.userInfo = res.user
+      const token = res.access_token
+      if (!token) {
+        throw new Error('登录失败，未返回token')
+      }
+      this.token = token
+      setToken(token)
+      this.userInfo = res.user || null
       return res
     },
 

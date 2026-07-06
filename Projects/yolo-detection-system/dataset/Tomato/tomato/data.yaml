@@ -1,0 +1,16 @@
+path: /kaggle/input/datasets/yusufmurtaza01/tomato-leaf-disease/tomato
+train: images/train
+val: images/val
+test: ''
+nc: 10
+names:
+- Tomato__BacterialSpot
+- Tomato__EarlyBlight
+- Tomato__Healthy
+- Tomato__LateBlight
+- Tomato__LeafMold
+- Tomato__MosaicVirus
+- Tomato__SeptoriaLeafSpot
+- Tomato__SpiderMites
+- Tomato__TargetSpot
+- Tomato__YellowLeafCurlVirus

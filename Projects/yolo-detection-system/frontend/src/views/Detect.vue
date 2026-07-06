@@ -168,6 +168,54 @@
                   <el-icon><Position /></el-icon>
                   <span>坐标: [{{ item.bbox?.join(', ') || '-' }}]</span>
                 </div>
+
+                <div v-if="item.disease_profile && item.class_name !== 'Healthy'" class="disease-profile-section">
+                  <div class="profile-header">
+                    <el-icon><Document /></el-icon>
+                    <span>病害档案</span>
+                    <el-tag type="warning" effect="light" size="small">{{ item.disease_profile.disease_name }}</el-tag>
+                  </div>
+                  <div class="profile-content">
+                    <div class="profile-item">
+                      <span class="profile-label">诱因</span>
+                      <span class="profile-value">{{ item.disease_profile.causes }}</span>
+                    </div>
+                    <div class="profile-item">
+                      <span class="profile-label">典型症状</span>
+                      <span class="profile-value">{{ item.disease_profile.symptoms }}</span>
+                    </div>
+                    <div class="profile-item" v-if="item.disease_profile.occurrence">
+                      <span class="profile-label">发生规律</span>
+                      <span class="profile-value">{{ item.disease_profile.occurrence }}</span>
+                    </div>
+                    <div class="profile-item">
+                      <span class="profile-label">预防措施</span>
+                      <span class="profile-value">{{ item.disease_profile.prevention }}</span>
+                    </div>
+                    <div class="profile-item">
+                      <span class="profile-label">治疗方案</span>
+                      <span class="profile-value">{{ item.disease_profile.treatment }}</span>
+                    </div>
+                    <div class="profile-item">
+                      <span class="profile-label">推荐药剂</span>
+                      <span class="profile-value">{{ item.disease_profile.pesticides }}</span>
+                    </div>
+                  </div>
+                  <div class="profile-actions">
+                    <el-button type="primary" class="ask-btn" @click="askAboutDisease(item)">
+                      <el-icon><ChatDotRound /></el-icon>
+                      咨询此病害
+                    </el-button>
+                  </div>
+                </div>
+
+                <div v-else-if="item.class_name === 'Healthy'" class="healthy-section">
+                  <el-tag type="success" effect="light" size="large">
+                    <el-icon><CircleCheck /></el-icon>
+                    健康叶片
+                  </el-tag>
+                  <p class="healthy-hint">该叶片未检测到病害特征，继续保持良好管理。</p>
+                </div>
               </div>
             </div>
           </div>
@@ -219,12 +267,16 @@ import {
   Refresh,
   Download,
   Monitor,
-  ZoomIn
+  ZoomIn,
+  Document,
+  CircleCheck
 } from '@element-plus/icons-vue'
 import { detectImage } from '@/api/detection'
+import { useChatStore } from '@/store/modules/chat'
 import { getFullUrl } from '@/utils/format'
 
 const router = useRouter()
+const chatStore = useChatStore()
 
 const saveHistory = ref(true)
 const isDetecting = ref(false)
@@ -433,11 +485,21 @@ function handleAiConsult() {
     ElMessage.warning('请先完成检测')
     return
   }
+  chatStore.setDetectionResult(detectionResult.value)
   const resultData = encodeURIComponent(JSON.stringify(detectionResult.value))
   router.push({
     path: '/knowledge',
     query: { result: resultData }
   })
+}
+
+function askAboutDisease(item) {
+  chatStore.setDetectionContext({
+    class_id: item.class_id,
+    disease_name: item.disease_profile?.disease_name || item.class_name,
+    detection_context: `${item.class_name} (${(item.confidence * 100).toFixed(1)}%)`
+  })
+  router.push('/knowledge')
 }
 
 function handleReset() {
@@ -949,6 +1011,76 @@ onUnmounted(() => {
   font-size: 12px;
   color: var(--color-text-tertiary);
   font-family: var(--font-family-mono);
+}
+
+.disease-profile-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--color-border);
+}
+
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.profile-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.profile-item {
+  display: flex;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.profile-label {
+  flex-shrink: 0;
+  width: 72px;
+  color: var(--color-text-tertiary);
+  font-weight: 500;
+}
+
+.profile-value {
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.profile-actions {
+  margin-top: 12px;
+  text-align: center;
+}
+
+.ask-btn {
+  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-light));
+  border: none;
+  color: #fff;
+}
+
+.ask-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.healthy-section {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.healthy-hint {
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+  margin: 0;
+  text-align: center;
 }
 
 .action-buttons {

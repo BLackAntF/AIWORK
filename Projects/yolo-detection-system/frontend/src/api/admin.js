@@ -22,6 +22,10 @@ export function deleteUser(id) {
   return request.delete(`/admin/users/${id}`)
 }
 
+export function batchDeleteUser(ids) {
+  return request.delete('/admin/users', { data: { ids } })
+}
+
 export function getUserStats() {
   return request.get('/admin/users/stats')
 }
@@ -131,6 +135,12 @@ export function getConfigList() {
 
 export function updateConfig(key, value) {
   return request.put(`/admin/config/${key}`, { value })
+}
+
+// ========== 操作日志 ==========
+
+export function getOperationLogList(params) {
+  return request.get('/admin/logs', { params })
 }
 
 // ========== 模型管理 ==========

@@ -7,6 +7,7 @@ from utils.response import success, bad_request
 from middleware.auth_middleware import login_required
 from services.knowledge_service import knowledge_service
 from services.llm_service import llm_service
+from services.disease_profile_service import disease_profile_service
 
 knowledge_bp = Blueprint('knowledge', __name__, url_prefix='/api/knowledge')
 
@@ -38,6 +39,7 @@ def ask_question(current_user):
     question = data.get('question', '').strip()
     detection_context = data.get('detection_context', '').strip()
     session_id = data.get('session_id', '').strip()
+    detected_class_id = data.get('detected_class_id')
 
     if not question:
         return bad_request('问题不能为空')
@@ -52,12 +54,17 @@ def ask_question(current_user):
         ).first()
         is_new_session = existing is None
 
+    disease_profile = None
+    if detected_class_id is not None:
+        disease_profile = disease_profile_service.get_profile_for_llm(int(detected_class_id))
+
     knowledge_list = knowledge_service.search(question, top_k=3)
 
     llm_result = llm_service.generate_answer(
         question=question,
         knowledge_list=knowledge_list,
-        detection_context=detection_context
+        detection_context=detection_context,
+        disease_profile=disease_profile
     )
 
     session_title = question[:20]
@@ -90,7 +97,8 @@ def ask_question(current_user):
         'answer': llm_result['answer'],
         'sources': llm_result.get('sources', []),
         'session_id': session_id,
-        'session_title': session_title
+        'session_title': session_title,
+        'disease_profile': disease_profile
     })
 
 

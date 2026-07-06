@@ -61,6 +61,62 @@
           </div>
         </div>
       </div>
+
+      <div class="stat-card glass-card glow-border">
+        <div class="stat-icon success-icon">
+          <el-icon :size="28"><CircleCheck /></el-icon>
+        </div>
+        <div class="stat-info">
+          <div class="stat-value">{{ dashboardData.detections?.success_rate || '0%' }}</div>
+          <div class="stat-label">检测成功率</div>
+          <div class="stat-trend">
+            <el-icon class="trend-icon"><Search /></el-icon>
+            <span>今日成功 {{ dashboardData.detections?.success_today || 0 }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="stat-card glass-card glow-border">
+        <div class="stat-icon active-icon">
+          <el-icon :size="28"><User /></el-icon>
+        </div>
+        <div class="stat-info">
+          <div class="stat-value">{{ dashboardData.users?.active_today || 0 }}</div>
+          <div class="stat-label">今日活跃用户</div>
+          <div class="stat-trend">
+            <el-icon class="trend-icon up"><TrendCharts /></el-icon>
+            <span>7日活跃 {{ dashboardData.users?.active_7days || 0 }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="stat-card glass-card glow-border">
+        <div class="stat-icon model-icon">
+          <el-icon :size="28"><Cpu /></el-icon>
+        </div>
+        <div class="stat-info">
+          <div class="stat-value">{{ dashboardData.models?.total || 0 }}</div>
+          <div class="stat-label">模型数量</div>
+          <div class="stat-trend">
+            <el-icon class="trend-icon"><Setting /></el-icon>
+            <span>{{ dashboardData.models?.active || '-' }} 个激活</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="stat-card glass-card glow-border">
+        <div class="stat-icon logs-icon">
+          <el-icon :size="28"><Clock /></el-icon>
+        </div>
+        <div class="stat-info">
+          <div class="stat-value">{{ dashboardData.logs?.error_count || 0 }}</div>
+          <div class="stat-label">今日异常日志</div>
+          <div class="stat-trend">
+            <el-icon class="trend-icon down"><Warning /></el-icon>
+            <span>总日志 {{ dashboardData.logs?.total || 0 }}</span>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="quick-actions">
@@ -116,7 +172,8 @@ import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import * as echarts from 'echarts'
 import {
-  User, Search, Document, ChatDotRound, TrendCharts, Folder, DataLine
+  User, Search, Document, ChatDotRound, TrendCharts, Folder, DataLine,
+  CircleCheck, Cpu, Setting, Clock, Warning
 } from '@element-plus/icons-vue'
 import {
   getDashboardStats, getUsersTrend, getDetectionsTrend
@@ -217,10 +274,12 @@ async function fetchDashboard() {
     dashboardData.value = await getDashboardStats()
   } catch (e) {
     dashboardData.value = {
-      users: { total: 0, new_today: 0 },
-      detections: { total: 0, today: 0 },
+      users: { total: 0, new_today: 0, active_today: 0, active_7days: 0 },
+      detections: { total: 0, today: 0, success_rate: '0%', success_today: 0 },
       knowledge: { total: 0, categories: 0 },
-      chats: { total: 0, today: 0 }
+      chats: { total: 0, today: 0 },
+      models: { total: 0, active: 0 },
+      logs: { error_count: 0, total: 0 }
     }
   }
 }
@@ -285,7 +344,7 @@ onUnmounted(() => {
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 20px;
   margin-bottom: 24px;
 }
@@ -332,6 +391,26 @@ onUnmounted(() => {
 .chats-icon {
   background: var(--color-accent-glow);
   color: var(--color-accent);
+}
+
+.success-icon {
+  background: rgba(103, 194, 58, 0.15);
+  color: #67c23a;
+}
+
+.active-icon {
+  background: rgba(64, 158, 255, 0.15);
+  color: #409eff;
+}
+
+.model-icon {
+  background: rgba(144, 147, 153, 0.15);
+  color: #909399;
+}
+
+.logs-icon {
+  background: rgba(245, 108, 108, 0.15);
+  color: #f56c6c;
 }
 
 .stat-info {

@@ -54,3 +54,14 @@ antLogo.ico
 azonix.zip
 test_img/
 slides_check/
+
+# 项目特定忽略
+Projects/yolo-detection-system/backend/app.db
+Projects/yolo-detection-system/backend/data/chroma/
+Projects/yolo-detection-system/backend/static/uploads/*
+Projects/yolo-detection-system/backend/static/results/*
+Projects/yolo-detection-system/frontend/node_modules/
+Projects/yolo-detection-system/dataset/Tomato/images/
+Projects/yolo-detection-system/dataset/Tomato/tomato/images/
+Projects/yolo-detection-system/dataset/Tomato/tomato/labels/
+Projects/yolo-detection-system/dataset/Tomato_Leaf_Disease.zip

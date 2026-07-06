@@ -73,10 +73,28 @@ class LLMService:
         best_categories = [c for c, s in category_scores.items() if s == max_score]
         return random.choice(best_categories)
 
-    def _generate_mock_answer(self, question, knowledge_list=None, detection_context=''):
+    def _generate_mock_answer(self, question, knowledge_list=None, detection_context='', disease_profile=None):
         time.sleep(random.uniform(1.0, 2.0))
 
-        context_text = detection_context or "植物病害"
+        if disease_profile:
+            profile_text = f"""【病害档案】
+病害名称：{disease_profile.get('disease_name', '未知')}
+诱因：{disease_profile.get('causes', '未知')}
+症状：{disease_profile.get('symptoms', '未知')}
+预防措施：{disease_profile.get('prevention', '未知')}
+治疗方案：{disease_profile.get('treatment', '未知')}
+推荐药剂：{disease_profile.get('pesticides', '未知')}"""
+            context_parts = [profile_text]
+            if knowledge_list:
+                context_parts.append(f"【相关知识】\n{chr(10).join(knowledge_list)}")
+            if detection_context:
+                context_parts.append(f"【检测结果】{detection_context}")
+            full_context = chr(10).join(context_parts)
+            context_text = disease_profile.get('disease_name', '植物病害')
+        else:
+            context_text = detection_context or "植物病害"
+            full_context = context_text
+
         category = self._classify_question(question)
         templates = self.MOCK_ANSWERS_BY_CATEGORY.get(category, self.MOCK_ANSWERS_BY_CATEGORY['general'])
         answer_template = random.choice(templates)
@@ -85,6 +103,8 @@ class LLMService:
         sources = []
         if knowledge_list:
             sources = [k[:30] + '...' if len(k) > 30 else k for k in knowledge_list[:3]]
+        elif disease_profile:
+            sources = [f"{disease_profile.get('disease_name', '病害档案')} - 病害详细资料"]
         else:
             sources = [
                 "植物病害防治手册 - 常见病害识别与防治",
@@ -95,56 +115,77 @@ class LLMService:
         return {
             'answer': answer,
             'sources': sources,
-            'category': category
+            'category': category,
+            'disease_profile': disease_profile
         }
 
-    def generate_answer(self, question, knowledge_list=None, detection_context=''):
+    def generate_answer(self, question, knowledge_list=None, detection_context='', disease_profile=None):
         """生成回答
 
         Args:
             question: 用户问题
             knowledge_list: 参考知识列表
             detection_context: 检测结果上下文
+            disease_profile: 病害档案信息
 
         Returns:
-            dict: {'answer': str, 'sources': list}
+            dict: {'answer': str, 'sources': list, 'disease_profile': dict}
         """
         if self._use_mock():
-            return self._generate_mock_answer(question, knowledge_list, detection_context)
+            return self._generate_mock_answer(question, knowledge_list, detection_context, disease_profile)
 
         # 真实 LLM 调用
         client = self._get_client()
 
         # 构建提示词
-        knowledge_text = '\n'.join(knowledge_list) if knowledge_list else ''
         context_parts = []
-        if knowledge_text:
-            context_parts.append(f"参考知识：\n{knowledge_text}")
-        if detection_context:
-            context_parts.append(f"检测结果：{detection_context}")
 
-        system_prompt = f"""你是一个专业的植物病害诊断助手，请根据参考知识回答用户的问题。
-回答要准确、专业，尽量结合提供的参考知识。
-如果参考知识中没有相关内容，请如实说明。
-{chr(10).join(context_parts)}
+        # 1. 优先添加病害档案
+        if disease_profile:
+            profile_text = f"""【病害档案】
+病害名称：{disease_profile.get('disease_name', '未知')}
+诱因：{disease_profile.get('causes', '未知')}
+症状：{disease_profile.get('symptoms', '未知')}
+预防措施：{disease_profile.get('prevention', '未知')}
+治疗方案：{disease_profile.get('treatment', '未知')}
+推荐药剂：{disease_profile.get('pesticides', '未知')}"""
+            context_parts.append(profile_text)
+
+        # 2. 添加知识库内容
+        if knowledge_list:
+            context_parts.append(f"【相关知识】\n{chr(10).join(knowledge_list)}")
+
+        # 3. 添加检测结果
+        if detection_context:
+            context_parts.append(f"【检测结果】{detection_context}")
+
+        system_prompt = f"""你是一个专业的番茄病害诊断助手。
+请根据以下信息回答用户问题，回答要准确、专业、一致。
+{chr(10).join(context_parts) if context_parts else '你是一个专业的番茄病害诊断助手，请根据你的知识回答用户问题。'}
 """
 
-        response = client.chat.completions.create(
-            model=current_app.config['LLM_MODEL'],
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": question}
-            ],
-            temperature=0.7,
-            max_tokens=1000
-        )
+        try:
+             response = client.chat.completions.create(
+                 model=current_app.config['LLM_MODEL'],
+                 messages=[
+                     {"role": "system", "content": system_prompt},
+                     {"role": "user", "content": question}
+                 ],
+                 temperature=0.7,
+                 max_tokens=1000
+             )
+        except Exception as e:
+            current_app.logger.error(f"LLM API调用失败: {str(e)}")
+            raise RuntimeError(f"LLM API调用失败: {str(e)}")
 
         answer = response.choices[0].message.content
+
         sources = [k[:50] + '...' for k in knowledge_list] if knowledge_list else []
 
         return {
             'answer': answer,
-            'sources': sources
+            'sources': sources,
+            'disease_profile': disease_profile
         }
 
 

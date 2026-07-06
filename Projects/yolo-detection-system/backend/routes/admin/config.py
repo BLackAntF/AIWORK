@@ -5,6 +5,7 @@ from routes.admin import admin_bp
 from models import SystemConfig, ModelInfo, db
 from utils.response import success, bad_request, not_found, error
 from middleware.auth_middleware import admin_required
+from utils.audit import log_config_action, log_model_action
 
 
 @admin_bp.route('/config', methods=['GET'])
@@ -32,9 +33,17 @@ def update_config(current_user, config_key):
     if value is None:
         return bad_request('value 参数不能为空')
 
+    old_value = config.config_value
     config.config_value = str(value)
     config.updated_at = datetime.utcnow()
     db.session.commit()
+
+    log_config_action(
+        user_id=current_user.id,
+        username=current_user.username,
+        config_key=config_key,
+        detail=f"{old_value} -> {value}"
+    )
 
     return success(data=config.to_dict(), message='配置已更新')
 
@@ -82,6 +91,14 @@ def upload_model(current_user):
         db.session.add(model)
         db.session.commit()
 
+        log_model_action(
+            user_id=current_user.id,
+            username=current_user.username,
+            action='upload_model',
+            model_id=model.id,
+            detail=f"上传模型: {name} ({version})"
+        )
+
         return success(data=model.to_dict(), message='模型上传成功')
 
     except Exception as e:
@@ -106,12 +123,18 @@ def set_active_model(current_user):
     if not model:
         return not_found('模型不存在')
 
-    # 先将所有模型设为非激活
     ModelInfo.query.update({ModelInfo.is_active: False})
     db.session.flush()
 
-    # 激活选中的模型
     model.is_active = True
     db.session.commit()
+
+    log_model_action(
+        user_id=current_user.id,
+        username=current_user.username,
+        action='switch_model',
+        model_id=model_id,
+        detail=f"切换激活模型: {model.name} ({model.version})"
+    )
 
     return success(message='模型已激活')

@@ -5,6 +5,7 @@ from routes.admin import admin_bp
 from models import DetectionHistory, db
 from utils.response import success, bad_request, not_found, error
 from middleware.auth_middleware import admin_required
+from utils.audit import log_detection_action
 
 
 @admin_bp.route('/detections/stats', methods=['GET'])
@@ -123,8 +124,17 @@ def delete_detection(current_user, det_id):
     if not det:
         return not_found('检测记录不存在')
 
+    filename = det.original_filename
     db.session.delete(det)
     db.session.commit()
+
+    log_detection_action(
+        user_id=current_user.id,
+        username=current_user.username,
+        action='delete_detection',
+        detection_id=det_id,
+        detail=f"删除检测记录: {filename}"
+    )
 
     return success(message='检测记录已删除')
 
@@ -146,5 +156,13 @@ def batch_delete_detections(current_user):
         synchronize_session=False
     )
     db.session.commit()
+
+    log_detection_action(
+        user_id=current_user.id,
+        username=current_user.username,
+        action='batch_delete_detections',
+        detection_id=None,
+        detail=f"批量删除 {count} 条检测记录, IDs: {ids}"
+    )
 
     return success(message=f'已删除 {count} 条检测记录')

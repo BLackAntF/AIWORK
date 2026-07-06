@@ -5,6 +5,7 @@ from utils.response import success, bad_request
 from utils.file_utils import allowed_file, save_uploaded_file, get_file_size, get_relative_url
 from middleware.auth_middleware import login_required
 from services.yolo_service import yolo_service
+from services.disease_profile_service import disease_profile_service
 
 detection_bp = Blueprint('detection', __name__, url_prefix='/api/detect')
 
@@ -66,6 +67,14 @@ def detect_image(current_user):
         db.session.add(history)
         db.session.commit()
         history_id = history.id
+
+    for det in detect_result['detections']:
+        class_id = det.get('class_id')
+        if class_id is not None:
+            profile = disease_profile_service.get_profile_for_llm(class_id)
+            det['disease_profile'] = profile
+        else:
+            det['disease_profile'] = None
 
     return success(data={
         'id': history_id,

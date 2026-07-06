@@ -175,6 +175,7 @@ import {
 } from '@element-plus/icons-vue'
 import { askQuestion, getChatHistory, getSessions, deleteSession } from '@/api/knowledge'
 import { renderMarkdown } from '@/utils/markdown'
+import { useChatStore } from '@/store/modules/chat'
 
 const faqQuestions = [
   '番茄叶斑病怎么防治？',
@@ -185,6 +186,7 @@ const faqQuestions = [
 
 const route = useRoute()
 const router = useRouter()
+const chatStore = useChatStore()
 
 const messagesContainer = ref(null)
 const sidebarOpen = ref(false)
@@ -211,6 +213,12 @@ onMounted(() => {
     } catch (e) {
       detectionContext.value = route.query.detection_context
     }
+  } else if (chatStore.detectedClassId !== null) {
+    detectionContext.value = {
+      detected_class_id: chatStore.detectedClassId,
+      disease_name: chatStore.diseaseName,
+      detection_context: chatStore.detectionContext
+    }
   }
   loadSessions()
 })
@@ -231,7 +239,7 @@ async function loadSessions() {
   sessionsLoading.value = true
   try {
     const res = await getSessions()
-    sessions.value = res.data || res.data?.sessions || []
+    sessions.value = (res.sessions || []).map(s => ({ ...s, id: s.session_id }))
     if (sessions.value.length > 0 && !currentSessionId.value) {
       switchSession(sessions.value[0].id)
     }
@@ -249,7 +257,7 @@ async function switchSession(sessionId) {
   messagesLoading.value = true
   try {
     const res = await getChatHistory({ session_id: sessionId })
-    const msgs = res.data?.messages || res.data || []
+    const msgs = res.list || []
     messages.value = msgs.map(msg => ({
       ...msg,
       html: msg.role === 'assistant' ? renderMarkdown(msg.content) : null,
@@ -339,19 +347,22 @@ async function sendMessage() {
       session_id: currentSessionId.value
     }
     if (detectionContext.value) {
-      data.detection_context = detectionContext.value
+      data.detection_context = detectionContext.value.detection_context || detectionContext.value
+      if (detectionContext.value.detected_class_id !== undefined) {
+        data.detected_class_id = detectionContext.value.detected_class_id
+      }
     }
     const res = await askQuestion(data)
     const aiMsg = {
       role: 'assistant',
-      content: res.data?.answer || res.data?.content || '抱歉，我无法回答这个问题。',
-      sources: res.data?.sources || [],
+      content: res.answer || res.content || '抱歉，我无法回答这个问题。',
+      sources: res.sources || [],
       displayHtml: '',
       html: '',
       isTypingDone: false
     }
-    if (res.data?.session_id && !currentSessionId.value) {
-      currentSessionId.value = res.data.session_id
+    if (res.session_id && !currentSessionId.value) {
+      currentSessionId.value = res.session_id
       loadSessions()
     }
     aiMsg.html = renderMarkdown(aiMsg.content)
@@ -438,6 +449,7 @@ function scrollToBottom() {
 
 function clearDetectionContext() {
   detectionContext.value = null
+  chatStore.clearContext()
   router.replace({ query: {} })
 }
 </script>

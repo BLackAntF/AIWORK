@@ -31,6 +31,10 @@
           <el-icon><Setting /></el-icon>
           <template #title>系统配置</template>
         </el-menu-item>
+        <el-menu-item index="/admin/operation-logs">
+          <el-icon><Clock /></el-icon>
+          <template #title>操作日志</template>
+        </el-menu-item>
       </el-menu>
     </div>
     <div class="sidebar-toggle" @click="$emit('toggle-sidebar')">
@@ -45,7 +49,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Odometer, User, Document, Search, DataLine, Setting, Fold, Expand } from '@element-plus/icons-vue'
+import { Odometer, User, Document, Search, DataLine, Setting, Fold, Expand, Clock } from '@element-plus/icons-vue'
 
 defineProps({
   collapsed: {

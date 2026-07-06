@@ -14,6 +14,15 @@ def _get_secret_key(key_name, default_value):
     return value or default_value
 
 
+def _str_to_bool(value):
+    """将字符串转换为布尔值"""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.lower() in ('true', '1', 'yes', 'on')
+    return bool(value)
+
+
 class Config:
     # 安全密钥（生产环境必须通过环境变量设置）
     SECRET_KEY = _get_secret_key('SECRET_KEY', 'dev-secret-key-yolo-detection')
@@ -43,7 +52,7 @@ class Config:
     LLM_API_KEY = os.environ.get('LLM_API_KEY') or ''
     LLM_BASE_URL = os.environ.get('LLM_BASE_URL') or ''
     LLM_MODEL = os.environ.get('LLM_MODEL') or 'qwen-turbo'
-    LLM_USE_MOCK = True
+    LLM_USE_MOCK = _str_to_bool(os.environ.get('LLM_USE_MOCK', 'true'))
 
     CHROMA_PATH = os.path.join(BASE_DIR, 'data', 'chroma')
     CHROMA_COLLECTION = 'knowledge'

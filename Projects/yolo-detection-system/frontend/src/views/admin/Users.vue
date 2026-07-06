@@ -39,6 +39,15 @@
         <h3 class="table-title">用户列表</h3>
         <div class="table-actions">
           <span class="total-text">共 {{ total }} 条</span>
+          <el-button
+            v-if="selectedIds.length > 0"
+            type="danger"
+            :icon="Delete"
+            size="small"
+            @click="handleBatchDelete"
+          >
+            批量删除 ({{ selectedIds.length }})
+          </el-button>
         </div>
       </div>
 
@@ -48,7 +57,9 @@
         stripe
         style="width: 100%"
         :row-class-name="tableRowClassName"
+        @selection-change="handleSelectionChange"
       >
+        <el-table-column type="selection" width="55" align="center" />
         <el-table-column prop="id" label="ID" width="80" align="center" />
         <el-table-column prop="username" label="用户名" min-width="120">
           <template #default="{ row }">
@@ -85,8 +96,16 @@
             <span class="time-text">{{ formatTime(row.created_at) }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="280" fixed="right" align="center">
+        <el-table-column label="操作" width="320" fixed="right" align="center">
           <template #default="{ row }">
+            <el-button
+              type="primary"
+              size="small"
+              link
+              @click="handleViewDetail(row)"
+            >
+              详情
+            </el-button>
             <el-button
               v-if="row.role === 'user'"
               type="warning"
@@ -138,19 +157,67 @@
         />
       </div>
     </div>
+
+    <!-- 用户详情弹窗 -->
+    <el-dialog
+      v-model="detailDialogVisible"
+      title="用户详情"
+      width="500px"
+      :close-on-click-modal="false"
+    >
+      <div v-if="userDetail" class="user-detail">
+        <div class="detail-avatar">
+          <el-avatar :size="80" class="big-avatar">
+            {{ userDetail.username?.charAt(0)?.toUpperCase() }}
+          </el-avatar>
+          <h3 class="detail-username">{{ userDetail.username }}</h3>
+        </div>
+        <el-descriptions :column="2" border size="small" class="detail-descriptions">
+          <el-descriptions-item label="用户ID">{{ userDetail.id }}</el-descriptions-item>
+          <el-descriptions-item label="邮箱">{{ userDetail.email || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="角色">
+            <el-tag :type="userDetail.role === 'admin' ? 'danger' : 'primary'" effect="light" size="small">
+              {{ userDetail.role === 'admin' ? '管理员' : '普通用户' }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="状态">
+            <el-tag :type="userDetail.is_active ? 'success' : 'info'" effect="light" size="small">
+              {{ userDetail.is_active ? '已启用' : '已禁用' }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="检测次数" :span="2">
+            <span class="count-badge">{{ userDetail.detection_count || 0 }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="注册时间" :span="2">
+            {{ formatTime(userDetail.created_at) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="最后登录" :span="2">
+            {{ userDetail.last_login_at ? formatTime(userDetail.last_login_at) : '从未登录' }}
+          </el-descriptions-item>
+        </el-descriptions>
+      </div>
+      <template #footer>
+        <el-button @click="detailDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh } from '@element-plus/icons-vue'
-import { getUserList, updateUserStatus, updateUserRole, deleteUser } from '@/api/admin'
+import { Search, Refresh, Delete } from '@element-plus/icons-vue'
+import { getUserList, updateUserStatus, updateUserRole, deleteUser, batchDeleteUser, getUserDetail } from '@/api/admin'
 import { formatTime } from '@/utils/format'
 
 const loading = ref(false)
 const userList = ref([])
 const total = ref(0)
+const selectedIds = ref([])
+
+// 用户详情
+const detailDialogVisible = ref(false)
+const userDetail = ref(null)
 
 const filters = reactive({
   page: 1,
@@ -162,6 +229,34 @@ const filters = reactive({
 
 function tableRowClassName() {
   return 'table-row-custom'
+}
+
+function handleSelectionChange(val) {
+  selectedIds.value = val.map(item => item.id)
+}
+
+async function handleViewDetail(row) {
+  try {
+    const res = await getUserDetail(row.id)
+    userDetail.value = res
+    detailDialogVisible.value = true
+  } catch (e) {
+    ElMessage.error('获取用户详情失败')
+  }
+}
+
+async function handleBatchDelete() {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除选中的 ${selectedIds.value.length} 个用户吗？此操作将同时删除这些用户的所有检测记录和对话历史，且不可恢复。`,
+      '确认批量删除',
+      { type: 'error', confirmButtonText: '确认删除' }
+    )
+    await batchDeleteUser(selectedIds.value)
+    ElMessage.success('批量删除成功')
+    selectedIds.value = []
+    fetchList()
+  } catch (e) {}
 }
 
 async function fetchList() {
@@ -332,6 +427,44 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   margin-top: 20px;
+}
+
+/* 用户详情弹窗 */
+.user-detail {
+  padding: 8px 0;
+}
+
+.detail-avatar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.big-avatar {
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 32px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.detail-username {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.detail-descriptions {
+  width: 100%;
+}
+
+.count-badge {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--color-accent);
 }
 
 :deep(.el-table) {

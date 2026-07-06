@@ -1,4 +1,7 @@
 import os
+from dotenv import load_dotenv
+load_dotenv()
+
 from flask import Flask, jsonify, send_from_directory
 from config import Config
 from extensions import db, jwt, cors

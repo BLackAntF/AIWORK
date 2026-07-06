@@ -5,6 +5,7 @@ from routes.admin import admin_bp
 from models import User, DetectionHistory, ChatHistory, db
 from utils.response import success, bad_request, not_found, error
 from middleware.auth_middleware import admin_required
+from utils.audit import log_user_action
 
 
 def _get_user_with_counts(user):
@@ -122,6 +123,14 @@ def update_user_status(current_user, user_id):
     user.is_active = bool(is_active)
     db.session.commit()
 
+    log_user_action(
+        user_id=current_user.id,
+        username=current_user.username,
+        action='toggle_user_status',
+        target_user_id=user_id,
+        detail=f"{'启用' if user.is_active else '禁用'}用户 {user.username}"
+    )
+
     message = '用户已启用' if user.is_active else '用户已禁用'
     return success(message=message)
 
@@ -146,6 +155,14 @@ def update_user_role(current_user, user_id):
     user.role = role
     db.session.commit()
 
+    log_user_action(
+        user_id=current_user.id,
+        username=current_user.username,
+        action='change_user_role',
+        target_user_id=user_id,
+        detail=f"将用户 {user.username} 的角色从 {user.role} 改为 {role}"
+    )
+
     return success(message='角色已更新')
 
 
@@ -160,12 +177,20 @@ def delete_user(current_user, user_id):
     if user.id == current_user.id:
         return bad_request('不能删除自己')
 
+    deleted_username = user.username
     try:
-        # 删除关联数据（使用事务保护）
         deleted_detections = DetectionHistory.query.filter_by(user_id=user_id).delete()
         deleted_chats = ChatHistory.query.filter_by(user_id=user_id).delete()
         db.session.delete(user)
         db.session.commit()
+
+        log_user_action(
+            user_id=current_user.id,
+            username=current_user.username,
+            action='delete_user',
+            target_user_id=user_id,
+            detail=f"删除用户 {deleted_username}，同时删除 {deleted_detections} 条检测记录和 {deleted_chats} 条对话记录"
+        )
 
         return success(message='用户已删除', data={
             'deleted_detections': deleted_detections,

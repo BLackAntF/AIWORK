@@ -214,3 +214,71 @@ class KnowledgeCategory(db.Model):
             'description': self.description,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
+
+
+class AdminLog(db.Model):
+    """管理端操作日志模型"""
+    __tablename__ = 'admin_logs'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    username = db.Column(db.String(50), nullable=False)
+    action = db.Column(db.String(50), nullable=False, index=True)
+    target_type = db.Column(db.String(50), index=True)
+    target_id = db.Column(db.Integer, index=True)
+    detail = db.Column(db.Text)
+    ip_address = db.Column(db.String(50))
+    user_agent = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+    user = db.relationship('User', backref=db.backref('admin_logs', lazy='dynamic'))
+
+    def to_dict(self):
+        """转换为字典"""
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'username': self.username,
+            'action': self.action,
+            'target_type': self.target_type,
+            'target_id': self.target_id,
+            'detail': self.detail,
+            'ip_address': self.ip_address,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+
+class DiseaseProfile(db.Model):
+    """病害档案模型"""
+    __tablename__ = 'disease_profiles'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    disease_id = db.Column(db.String(50), unique=True, nullable=False)
+    disease_name = db.Column(db.String(100), nullable=False)
+    class_id = db.Column(db.Integer, nullable=False)
+
+    causes = db.Column(db.Text)
+    symptoms = db.Column(db.Text)
+    occurrence = db.Column(db.Text)
+    prevention = db.Column(db.Text)
+    treatment = db.Column(db.Text)
+    pesticides = db.Column(db.Text)
+
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'disease_id': self.disease_id,
+            'disease_name': self.disease_name,
+            'class_id': self.class_id,
+            'causes': self.causes,
+            'symptoms': self.symptoms,
+            'occurrence': self.occurrence,
+            'prevention': self.prevention,
+            'treatment': self.treatment,
+            'pesticides': self.pesticides,
+            'is_active': self.is_active
+        }

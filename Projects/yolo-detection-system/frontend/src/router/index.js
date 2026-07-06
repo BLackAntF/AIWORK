@@ -93,6 +93,12 @@ const routes = [
         name: 'AdminConfig',
         component: () => import('@/views/admin/Config.vue'),
         meta: { title: '系统配置', icon: 'Setting' }
+      },
+      {
+        path: 'operation-logs',
+        name: 'AdminOperationLogs',
+        component: () => import('@/views/admin/OperationLog.vue'),
+        meta: { title: '操作日志', icon: 'Clock' }
       }
     ]
   }

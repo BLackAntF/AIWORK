@@ -5,6 +5,7 @@ from models import Knowledge, KnowledgeCategory, db
 from utils.response import success, bad_request, not_found, error
 from middleware.auth_middleware import admin_required
 from services.knowledge_service import knowledge_service
+from utils.audit import log_knowledge_action, log_category_action
 
 
 @admin_bp.route('/knowledge', methods=['GET'])
@@ -97,6 +98,14 @@ def create_knowledge(current_user):
         source=source
     )
 
+    log_knowledge_action(
+        user_id=current_user.id,
+        username=current_user.username,
+        action='create_knowledge',
+        knowledge_id=kb.id,
+        detail=f"创建知识: {title}"
+    )
+
     return success(data=kb.to_dict(), message='知识已创建')
 
 
@@ -128,6 +137,14 @@ def update_knowledge(current_user, kb_id):
         kb.is_active = bool(is_active)
         db.session.commit()
 
+    log_knowledge_action(
+        user_id=current_user.id,
+        username=current_user.username,
+        action='update_knowledge',
+        knowledge_id=kb_id,
+        detail=f"更新知识: {updated.title}"
+    )
+
     return success(data=updated.to_dict(), message='知识已更新')
 
 
@@ -135,9 +152,21 @@ def update_knowledge(current_user, kb_id):
 @admin_required
 def delete_knowledge(current_user, kb_id):
     """删除知识（软删除 is_active=false）"""
-    result = knowledge_service.delete_knowledge(kb_id)
-    if not result:
+    kb = Knowledge.query.get(kb_id)
+    if not kb:
         return not_found('知识不存在')
+
+    kb_title = kb.title
+    kb.is_active = False
+    db.session.commit()
+
+    log_knowledge_action(
+        user_id=current_user.id,
+        username=current_user.username,
+        action='delete_knowledge',
+        knowledge_id=kb_id,
+        detail=f"删除知识: {kb_title}"
+    )
 
     return success(message='知识已删除')
 
@@ -160,6 +189,14 @@ def batch_delete_knowledge(current_user):
         synchronize_session=False
     )
     db.session.commit()
+
+    log_knowledge_action(
+        user_id=current_user.id,
+        username=current_user.username,
+        action='batch_delete_knowledge',
+        knowledge_id=None,
+        detail=f"批量删除 {count} 条知识, IDs: {ids}"
+    )
 
     return success(message=f'已删除 {count} 条知识')
 
@@ -258,6 +295,14 @@ def create_category(current_user):
     db.session.add(category)
     db.session.commit()
 
+    log_category_action(
+        user_id=current_user.id,
+        username=current_user.username,
+        action='create_category',
+        category_id=category.id,
+        detail=f"创建分类: {name}"
+    )
+
     return success(data=category.to_dict(), message='分类已创建')
 
 
@@ -273,6 +318,7 @@ def update_category(current_user, cat_id):
     name = data.get('name')
     description = data.get('description')
 
+    old_name = category.name
     if name:
         name = name.strip()
         if not name:
@@ -286,6 +332,15 @@ def update_category(current_user, cat_id):
         category.description = description.strip() or None
 
     db.session.commit()
+
+    log_category_action(
+        user_id=current_user.id,
+        username=current_user.username,
+        action='update_category',
+        category_id=cat_id,
+        detail=f"更新分类: {old_name} -> {category.name}"
+    )
+
     return success(data=category.to_dict(), message='分类已更新')
 
 
@@ -305,5 +360,13 @@ def delete_category(current_user, cat_id):
 
     db.session.delete(category)
     db.session.commit()
+
+    log_category_action(
+        user_id=current_user.id,
+        username=current_user.username,
+        action='delete_category',
+        category_id=cat_id,
+        detail=f"删除分类: {cat_name}，更新了 {updated_count} 条知识"
+    )
 
     return success(message='分类已删除', data={'updated_knowledge': updated_count})

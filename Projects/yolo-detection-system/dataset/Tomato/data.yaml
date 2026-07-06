@@ -1,0 +1,26 @@
+# 番茄叶片病害检测 - YOLO 数据集配置
+# 用于 YOLOv8 训练
+
+# 数据集根目录（服务器上需要修改为实际路径）
+path: /root/autodl-tmp/datasets/tomato
+
+# 训练、验证、测试集图片路径
+train: images/train
+val: images/val
+test: images/val  # 暂时用验证集作为测试集
+
+# 类别数量
+nc: 10
+
+# 类别名称
+names:
+  0: Tomato_BacterialSpot      # 细菌性斑点病
+  1: Tomato_EarlyBlight       # 早疫病
+  2: Tomato_Healthy          # 健康
+  3: Tomato_LateBlight        # 晚疫病
+  4: Tomato_LeafMold          # 叶霉病
+  5: Tomato_MosaicVirus       # 花叶病毒
+  6: Tomato_SeptoriaLeafSpot  # 斑枯病
+  7: Tomato_SpiderMites       # 蜘蛛螨
+  8: Tomato_TargetSpot        # 靶斑病
+  9: Tomato_YellowLeafCurlVirus  # 黄化曲叶病毒

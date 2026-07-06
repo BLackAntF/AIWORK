@@ -43,6 +43,10 @@
           <el-icon><Setting /></el-icon>
           <span>配置</span>
         </el-menu-item>
+        <el-menu-item index="/admin/operation-logs">
+          <el-icon><Clock /></el-icon>
+          <span>日志</span>
+        </el-menu-item>
       </el-menu>
     </div>
   </div>
@@ -51,7 +55,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Odometer, User, Document, Search, Setting } from '@element-plus/icons-vue'
+import { Odometer, User, Document, Search, Setting, Clock } from '@element-plus/icons-vue'
 import AdminHeader from './AdminHeader.vue'
 import AdminSidebar from './AdminSidebar.vue'
 import AppFooter from './AppFooter.vue'
