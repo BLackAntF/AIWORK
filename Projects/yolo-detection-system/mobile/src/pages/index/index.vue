@@ -18,7 +18,7 @@
 		<!-- 快速操作区 -->
 		<view class="quick-section">
 			<view class="quick-card detect-card" @click="goDetect">
-				<text class="card-icon">📷</text>
+				<AppIcon class="card-icon" name="camera" :size="56" color="#E07A5F" />
 				<view class="card-text">
 					<text class="card-title">拍照检测</text>
 					<text class="card-desc">拍摄叶片识别病害</text>
@@ -26,7 +26,7 @@
 				<text class="card-arrow">›</text>
 			</view>
 			<view class="quick-card chat-card" @click="goChat">
-				<text class="card-icon">💬</text>
+				<AppIcon class="card-icon" name="chat" :size="56" color="#E07A5F" />
 				<view class="card-text">
 					<text class="card-title">AI 问答</text>
 					<text class="card-desc">智能咨询病害防治</text>
@@ -48,7 +48,7 @@
 
 			<EmptyState
 				v-else-if="records.length === 0"
-				icon="📭"
+				name="inbox"
 				title="暂无检测记录"
 				desc="点击上方'拍照检测'开始"
 			/>
@@ -78,6 +78,7 @@ import { useUserStore } from '@/store/user'
 import { getHistoryList } from '@/api/history'
 import { getFullUrl } from '@/utils/format'
 import EmptyState from '@/components/EmptyState.vue'
+import AppIcon from '@/components/AppIcon.vue'
 
 const userStore = useUserStore()
 const loading = ref(false)
@@ -178,7 +179,7 @@ onMounted(() => {
 	left: 0;
 	right: 0;
 	height: 360rpx;
-	background: linear-gradient(135deg, #E07A5F 0%, #C96247 100%);
+	background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
 	border-radius: 0 0 48rpx 48rpx;
 }
 
@@ -240,7 +241,7 @@ onMounted(() => {
 .quick-card {
 	display: flex;
 	align-items: center;
-	background: #fff;
+	background: var(--bg-1);
 	border-radius: 24rpx;
 	padding: 32rpx;
 	margin-bottom: 20rpx;
@@ -261,18 +262,18 @@ onMounted(() => {
 .card-title {
 	font-size: 32rpx;
 	font-weight: 600;
-	color: #333;
+	color: var(--text-1);
 	margin-bottom: 6rpx;
 }
 
 .card-desc {
 	font-size: 24rpx;
-	color: #999;
+	color: var(--text-3);
 }
 
 .card-arrow {
 	font-size: 40rpx;
-	color: #ccc;
+	color: var(--text-disabled);
 }
 
 /* 最近检测 */
@@ -290,12 +291,12 @@ onMounted(() => {
 .section-title {
 	font-size: 32rpx;
 	font-weight: 600;
-	color: #333;
+	color: var(--text-1);
 }
 
 .view-all {
 	font-size: 26rpx;
-	color: #E07A5F;
+	color: var(--brand);
 }
 
 .loading-row {
@@ -305,7 +306,7 @@ onMounted(() => {
 
 .loading-text {
 	font-size: 26rpx;
-	color: #999;
+	color: var(--text-3);
 }
 
 .record-list {
@@ -317,7 +318,7 @@ onMounted(() => {
 .record-item {
 	display: flex;
 	align-items: center;
-	background: #fff;
+	background: var(--bg-1);
 	border-radius: 20rpx;
 	padding: 20rpx;
 	box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
@@ -341,17 +342,17 @@ onMounted(() => {
 .record-disease {
 	font-size: 28rpx;
 	font-weight: 600;
-	color: #333;
+	color: var(--text-1);
 }
 
 .record-time {
 	font-size: 24rpx;
-	color: #999;
+	color: var(--text-3);
 }
 
 .record-arrow {
 	font-size: 36rpx;
-	color: #ccc;
+	color: var(--text-disabled);
 }
 
 .empty-placeholder {
@@ -363,12 +364,12 @@ onMounted(() => {
 
 .empty-text {
 	font-size: 28rpx;
-	color: #999;
+	color: var(--text-3);
 	margin-bottom: 12rpx;
 }
 
 .empty-sub {
 	font-size: 24rpx;
-	color: #bbb;
+	color: var(--text-disabled);
 }
 </style>

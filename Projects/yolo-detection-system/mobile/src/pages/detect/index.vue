@@ -8,11 +8,11 @@
 				<view v-if="imagePath" class="preview-area">
 					<image :src="imagePath" mode="widthFix" class="preview-image" />
 					<view class="reselect-btn" @click.stop="clearImage">
-						<text class="reselect-icon">↻</text>
+						<AppIcon name="refresh" :size="32" color="#FFFFFF" />
 					</view>
 				</view>
 				<view v-else class="upload-placeholder">
-					<text class="upload-icon">📷</text>
+					<AppIcon class="upload-icon" name="camera" :size="100" color="#ADB5BD" />
 					<text class="upload-title">选择图片</text>
 					<text class="upload-desc">支持拍照或从相册选择</text>
 					<text class="upload-hint">图片大小不超过 5MB</text>
@@ -73,7 +73,7 @@
 
 					<!-- 健康提示 -->
 					<view v-if="item.class_name === '健康叶片'" class="healthy-box">
-						<text class="healthy-icon">✅</text>
+						<AppIcon name="check-circle" :size="32" color="#52C41A" />
 						<text class="healthy-text">该叶片未检测到病害特征，继续保持良好管理。</text>
 					</view>
 
@@ -89,11 +89,11 @@
 			<!-- 操作按钮 -->
 			<view class="result-actions">
 				<button class="action-btn ai-btn" @click="goToChat">
-					<text class="btn-icon">💬</text>
+					<AppIcon name="chat" :size="30" color="#FFFFFF" />
 					<text>咨询 AI</text>
 				</button>
 				<button class="action-btn reset-btn" @click="resetDetection">
-					<text class="btn-icon">🔄</text>
+					<AppIcon name="refresh" :size="30" color="#FFFFFF" />
 					<text>重新检测</text>
 				</button>
 			</view>
@@ -107,6 +107,7 @@ import { detectImage } from '@/api/detect'
 import { getFullUrl } from '@/utils/format'
 import LoadingOverlay from '@/components/LoadingOverlay.vue'
 import DiseaseCard from '@/components/DiseaseCard.vue'
+import AppIcon from '@/components/AppIcon.vue'
 
 const imagePath = ref('')
 const saveHistory = ref(true)
@@ -213,7 +214,7 @@ function resetDetection() {
 }
 
 .upload-card {
-	background: #fff;
+	background: var(--bg-1);
 	border-radius: 24rpx;
 	padding: 32rpx;
 	box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);
@@ -256,26 +257,25 @@ function resetDetection() {
 }
 
 .upload-icon {
-	font-size: 100rpx;
 	margin-bottom: 20rpx;
 }
 
 .upload-title {
 	font-size: 32rpx;
 	font-weight: 600;
-	color: #333;
+	color: var(--text-1);
 	margin-bottom: 8rpx;
 }
 
 .upload-desc {
 	font-size: 26rpx;
-	color: #999;
+	color: var(--text-3);
 	margin-bottom: 8rpx;
 }
 
 .upload-hint {
 	font-size: 24rpx;
-	color: #bbb;
+	color: var(--text-disabled);
 }
 
 .action-area {
@@ -288,20 +288,20 @@ function resetDetection() {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	background: #fff;
+	background: var(--bg-1);
 	padding: 24rpx 28rpx;
 	border-radius: 16rpx;
 }
 
 .toggle-label {
 	font-size: 28rpx;
-	color: #666;
+	color: var(--text-2);
 }
 
 .detect-btn {
 	height: 96rpx;
 	border-radius: 48rpx;
-	background: linear-gradient(135deg, #E07A5F 0%, #C96247 100%);
+	background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
 	color: #fff;
 	font-size: 32rpx;
 	font-weight: 600;
@@ -325,7 +325,7 @@ function resetDetection() {
 }
 
 .result-image-card {
-	background: #fff;
+	background: var(--bg-1);
 	border-radius: 24rpx;
 	padding: 28rpx;
 }
@@ -333,7 +333,7 @@ function resetDetection() {
 .card-title {
 	font-size: 32rpx;
 	font-weight: 600;
-	color: #333;
+	color: var(--text-1);
 	margin-bottom: 20rpx;
 	display: block;
 }
@@ -348,16 +348,16 @@ function resetDetection() {
 	gap: 32rpx;
 	margin-top: 16rpx;
 	padding-top: 16rpx;
-	border-top: 1rpx solid #f0f0f0;
+	border-top: 1rpx solid var(--border-light);
 }
 
 .stat-item {
 	font-size: 24rpx;
-	color: #999;
+	color: var(--text-3);
 }
 
 .detection-list {
-	background: #fff;
+	background: var(--bg-1);
 	border-radius: 24rpx;
 	padding: 28rpx;
 }
@@ -365,14 +365,14 @@ function resetDetection() {
 .list-title {
 	font-size: 32rpx;
 	font-weight: 600;
-	color: #333;
+	color: var(--text-1);
 	margin-bottom: 20rpx;
 	display: block;
 }
 
 .detection-item {
 	padding: 20rpx 0;
-	border-bottom: 1rpx solid #f5f5f5;
+	border-bottom: 1rpx solid var(--border-light);
 }
 
 .detection-item:last-child {
@@ -391,7 +391,7 @@ function resetDetection() {
 	height: 40rpx;
 	border-radius: 50%;
 	background: rgba(224, 122, 95, 0.1);
-	color: #E07A5F;
+	color: var(--brand);
 	font-size: 24rpx;
 	font-weight: 600;
 	display: flex;
@@ -402,14 +402,14 @@ function resetDetection() {
 .item-tag {
 	font-size: 28rpx;
 	font-weight: 600;
-	color: #F44336;
-	background: rgba(244, 67, 54, 0.1);
+	color: var(--error);
+	background: rgba(255, 77, 79, 0.1);
 	padding: 6rpx 16rpx;
 	border-radius: 12rpx;
 }
 
 .item-tag.healthy {
-	color: #E07A5F;
+	color: var(--brand);
 	background: rgba(224, 122, 95, 0.1);
 }
 
@@ -417,12 +417,12 @@ function resetDetection() {
 	margin-left: auto;
 	font-size: 28rpx;
 	font-weight: 600;
-	color: #333;
+	color: var(--text-1);
 }
 
 .confidence-bar {
 	height: 8rpx;
-	background: #f0f0f0;
+	background: var(--border-light);
 	border-radius: 4rpx;
 	overflow: hidden;
 }
@@ -430,12 +430,12 @@ function resetDetection() {
 .confidence-fill {
 	height: 100%;
 	border-radius: 4rpx;
-	background: linear-gradient(90deg, #F44336 0%, #FF9800 50%, #E07A5F 100%);
+	background: linear-gradient(90deg, var(--error) 0%, var(--warning) 50%, var(--brand) 100%);
 	transition: width 0.5s ease;
 }
 
 .confidence-fill.healthy {
-	background: #E07A5F;
+	background: var(--brand);
 }
 
 .healthy-box {
@@ -454,7 +454,7 @@ function resetDetection() {
 
 .healthy-text {
 	font-size: 26rpx;
-	color: #333;
+	color: var(--text-1);
 	line-height: 1.5;
 }
 
@@ -481,14 +481,14 @@ function resetDetection() {
 }
 
 .ai-btn {
-	background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
-	color: #fff;
+	background: linear-gradient(135deg, var(--info) 0%, #1976D2 100%);
+	color: #FFFFFF;
 }
 
 .reset-btn {
-	background: #fff;
-	color: #666;
-	border: 2rpx solid #eee;
+	background: var(--bg-1);
+	color: var(--text-2);
+	border: 2rpx solid var(--border-light);
 }
 
 .btn-icon {

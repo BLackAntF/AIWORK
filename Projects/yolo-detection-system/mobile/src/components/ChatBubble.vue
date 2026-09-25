@@ -32,29 +32,29 @@ defineProps({
 .bubble {
 	max-width: 80%;
 	padding: 20rpx 24rpx;
-	border-radius: 20rpx;
-	background: #fff;
-	box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06);
+	border-radius: var(--radius-lg);
+	background: var(--bg-1);
+	box-shadow: var(--shadow-sm);
 }
 
 .bubble.self {
-	background: linear-gradient(135deg, #E07A5F 0%, #C96247 100%);
+	background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
 }
 
 .bubble-text {
 	font-size: 28rpx;
 	line-height: 1.6;
-	color: #333;
+	color: var(--text-1);
 	word-break: break-all;
 }
 
 .bubble.self .bubble-text {
-	color: #fff;
+	color: #FFFFFF;
 }
 
 .bubble-time {
 	font-size: 22rpx;
-	color: #bbb;
+	color: var(--text-disabled);
 	margin-top: 6rpx;
 	padding: 0 8rpx;
 }

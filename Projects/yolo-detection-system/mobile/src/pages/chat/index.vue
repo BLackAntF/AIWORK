@@ -3,7 +3,7 @@
 		<view class="chat-header">
 			<text class="header-title">AI 问答</text>
 			<view class="header-action" @click="showSessionPanel = !showSessionPanel">
-				<text class="action-icon">☰</text>
+				<AppIcon name="menu" :size="40" color="#FFFFFF" />
 				<text class="action-text">会话</text>
 			</view>
 		</view>
@@ -11,7 +11,9 @@
 		<view class="session-panel" :class="{ visible: showSessionPanel }" @click.stop>
 			<view class="panel-header">
 				<text class="panel-title">历史会话</text>
-				<view class="panel-close" @click="showSessionPanel = false">✕</view>
+				<view class="panel-close" @click="showSessionPanel = false">
+					<AppIcon name="close" :size="32" color="#ADB5BD" />
+				</view>
 			</view>
 			<view class="session-list">
 				<view class="new-session" @click="startNewSession">
@@ -28,7 +30,7 @@
 					<text class="session-name">{{ session.title || '未命名会话' }}</text>
 					<text class="session-time">{{ formatSessionTime(session.last_time) }}</text>
 					<view class="session-delete" @click.stop="deleteSession(session.session_id)">
-						<text>✕</text>
+						<AppIcon name="close" :size="32" color="#ADB5BD" />
 					</view>
 				</view>
 			</view>
@@ -44,7 +46,9 @@
 			<view v-if="contextImage" class="context-image-bar">
 				<image :src="contextImage" mode="widthFix" class="context-img" />
 				<text class="context-label">检测图片已带入</text>
-				<view class="context-close" @click="clearContextImage">✕</view>
+				<view class="context-close" @click="clearContextImage">
+					<AppIcon name="close" :size="32" color="#ADB5BD" />
+				</view>
 			</view>
 
 			<view v-if="messages.length === 0" class="quick-questions">
@@ -98,6 +102,7 @@
 import { ref, onMounted, nextTick, watch } from 'vue'
 import { askQuestion, getSessionList, getChatHistory, deleteSession as apiDeleteSession } from '@/api/knowledge'
 import ChatBubble from '@/components/ChatBubble.vue'
+import AppIcon from '@/components/AppIcon.vue'
 
 const showSessionPanel = ref(false)
 const currentSessionId = ref('')
@@ -270,7 +275,7 @@ onMounted(() => {
 	min-height: 100vh;
 	display: flex;
 	flex-direction: column;
-	background: #F5F5F5;
+	background: var(--bg-2);
 }
 
 .chat-header {
@@ -278,7 +283,7 @@ onMounted(() => {
 	align-items: center;
 	justify-content: space-between;
 	padding: 28rpx 32rpx;
-	background: #E07A5F;
+	background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
 }
 
 .header-title {
@@ -293,11 +298,6 @@ onMounted(() => {
 	gap: 8rpx;
 }
 
-.action-icon {
-	font-size: 28rpx;
-	color: #fff;
-}
-
 .action-text {
 	font-size: 26rpx;
 	color: #fff;
@@ -309,7 +309,7 @@ onMounted(() => {
 	left: 0;
 	width: 60%;
 	height: 100%;
-	background: #fff;
+	background: var(--bg-1);
 	z-index: 100;
 	transform: translateX(-100%);
 	transition: transform 0.3s ease;
@@ -325,8 +325,8 @@ onMounted(() => {
 	align-items: center;
 	justify-content: space-between;
 	padding: 32rpx;
-	border-bottom: 1rpx solid #f0f0f0;
-	background: #E07A5F;
+	border-bottom: 1rpx solid var(--border-light);
+	background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
 }
 
 .panel-title {
@@ -363,7 +363,7 @@ onMounted(() => {
 	width: 40rpx;
 	height: 40rpx;
 	border-radius: 50%;
-	background: #E07A5F;
+	background: var(--brand);
 	color: #fff;
 	font-size: 28rpx;
 	display: flex;
@@ -373,7 +373,7 @@ onMounted(() => {
 
 .new-text {
 	font-size: 28rpx;
-	color: #E07A5F;
+	color: var(--brand);
 	font-weight: 500;
 }
 
@@ -393,12 +393,12 @@ onMounted(() => {
 .session-name {
 	flex: 1;
 	font-size: 26rpx;
-	color: #333;
+	color: var(--text-1);
 }
 
 .session-time {
 	font-size: 22rpx;
-	color: #999;
+	color: var(--text-3);
 	margin-right: 32rpx;
 }
 
@@ -410,7 +410,7 @@ onMounted(() => {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	color: #ccc;
+	color: var(--text-disabled);
 	font-size: 24rpx;
 }
 
@@ -422,7 +422,7 @@ onMounted(() => {
 
 .context-image-bar {
 	position: relative;
-	background: #fff;
+	background: var(--bg-1);
 	border-radius: 16rpx;
 	padding: 20rpx;
 	margin-bottom: 20rpx;
@@ -436,7 +436,7 @@ onMounted(() => {
 .context-label {
 	display: block;
 	font-size: 24rpx;
-	color: #E07A5F;
+	color: var(--brand);
 	margin-top: 12rpx;
 	text-align: center;
 }
@@ -457,7 +457,7 @@ onMounted(() => {
 }
 
 .quick-questions {
-	background: #fff;
+	background: var(--bg-1);
 	border-radius: 16rpx;
 	padding: 24rpx;
 	margin-bottom: 20rpx;
@@ -466,7 +466,7 @@ onMounted(() => {
 .quick-title {
 	font-size: 28rpx;
 	font-weight: 600;
-	color: #333;
+	color: var(--text-1);
 	margin-bottom: 16rpx;
 	display: block;
 }
@@ -479,7 +479,7 @@ onMounted(() => {
 
 .quick-item {
 	background: rgba(224, 122, 95, 0.1);
-	color: #E07A5F;
+	color: var(--brand);
 	font-size: 26rpx;
 	padding: 12rpx 24rpx;
 	border-radius: 20rpx;
@@ -489,7 +489,7 @@ onMounted(() => {
 	display: flex;
 	align-items: center;
 	gap: 8rpx;
-	background: #fff;
+	background: var(--bg-1);
 	padding: 20rpx 24rpx;
 	border-radius: 20rpx;
 	margin-bottom: 20rpx;
@@ -497,7 +497,7 @@ onMounted(() => {
 
 .thinking-text {
 	font-size: 26rpx;
-	color: #666;
+	color: var(--text-2);
 }
 
 .thinking-dots {
@@ -507,7 +507,7 @@ onMounted(() => {
 
 .dot {
 	font-size: 24rpx;
-	color: #999;
+	color: var(--text-3);
 	animation: blink 1s infinite;
 }
 
@@ -529,14 +529,14 @@ onMounted(() => {
 	gap: 16rpx;
 	padding: 16rpx 24rpx;
 	padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
-	background: #fff;
+	background: var(--bg-1);
 	box-shadow: 0 -2rpx 12rpx rgba(0, 0, 0, 0.06);
 }
 
 .input-box {
 	flex: 1;
 	height: 80rpx;
-	background: #F5F5F5;
+	background: var(--bg-2);
 	border-radius: 40rpx;
 	padding: 0 28rpx;
 	font-size: 28rpx;
@@ -546,7 +546,7 @@ onMounted(() => {
 	height: 80rpx;
 	padding: 0 40rpx;
 	border-radius: 40rpx;
-	background: #E07A5F;
+	background: var(--brand);
 	color: #fff;
 	font-size: 28rpx;
 	font-weight: 600;

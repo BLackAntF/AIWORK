@@ -1,15 +1,9 @@
 <template>
 	<view class="admin-page">
-		<view class="page-header">
-			<view class="back-btn" @click="goBack">
-				<text class="back-icon">‹</text>
-			</view>
-			<text class="header-title">数据看板</text>
-			<view class="placeholder"></view>
-		</view>
+		<PageHeader title="数据看板" :show-back="true" />
 
 		<view class="read-only-hint">
-			<text class="hint-icon">⚠️</text>
+			<AppIcon name="alert" :size="28" color="#FAAD14" />
 			<text class="hint-text">仅查看，编辑请在 Web 端操作</text>
 		</view>
 
@@ -70,6 +64,8 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { getDashboardStats } from '@/api/admin'
+import PageHeader from '@/components/PageHeader.vue'
+import AppIcon from '@/components/AppIcon.vue'
 
 const stats = ref({})
 const loading = ref(false)
@@ -93,10 +89,6 @@ function onRefresh() {
 	loadStats()
 }
 
-function goBack() {
-	uni.navigateBack()
-}
-
 onMounted(() => {
 	loadStats()
 })
@@ -105,38 +97,7 @@ onMounted(() => {
 <style lang="scss" scoped>
 .admin-page {
 	min-height: 100vh;
-	background: #F5F5F5;
-}
-
-.page-header {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	padding: 28rpx 32rpx;
-	background: #E07A5F;
-}
-
-.back-btn {
-	width: 64rpx;
-	height: 64rpx;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-}
-
-.back-icon {
-	font-size: 48rpx;
-	color: #fff;
-}
-
-.header-title {
-	font-size: 34rpx;
-	font-weight: 600;
-	color: #fff;
-}
-
-.placeholder {
-	width: 64rpx;
+	background: var(--bg-2);
 }
 
 .read-only-hint {
@@ -144,16 +105,12 @@ onMounted(() => {
 	align-items: center;
 	gap: 12rpx;
 	padding: 16rpx 24rpx;
-	background: rgba(255, 152, 0, 0.1);
-}
-
-.hint-icon {
-	font-size: 28rpx;
+	background: rgba(250, 173, 20, 0.1);
 }
 
 .hint-text {
 	font-size: 24rpx;
-	color: #FF9800;
+	color: var(--warning);
 }
 
 .content {
@@ -168,7 +125,7 @@ onMounted(() => {
 
 .loading-text {
 	font-size: 28rpx;
-	color: #999;
+	color: var(--text-3);
 }
 
 .dashboard-content {
@@ -184,7 +141,7 @@ onMounted(() => {
 }
 
 .stat-card {
-	background: #fff;
+	background: var(--bg-1);
 	border-radius: 20rpx;
 	padding: 24rpx;
 	text-align: center;
@@ -193,19 +150,19 @@ onMounted(() => {
 .stat-value {
 	font-size: 48rpx;
 	font-weight: 700;
-	color: #E07A5F;
+	color: var(--brand);
 	display: block;
 }
 
 .stat-label {
 	font-size: 24rpx;
-	color: #999;
+	color: var(--text-3);
 	margin-top: 8rpx;
 	display: block;
 }
 
 .chart-card {
-	background: #fff;
+	background: var(--bg-1);
 	border-radius: 20rpx;
 	padding: 24rpx;
 }
@@ -213,7 +170,7 @@ onMounted(() => {
 .card-title {
 	font-size: 30rpx;
 	font-weight: 600;
-	color: #333;
+	color: var(--text-1);
 	margin-bottom: 20rpx;
 	display: block;
 }
@@ -231,13 +188,13 @@ onMounted(() => {
 .today-value {
 	font-size: 40rpx;
 	font-weight: 700;
-	color: #E07A5F;
+	color: var(--brand);
 	display: block;
 }
 
 .today-label {
 	font-size: 24rpx;
-	color: #999;
+	color: var(--text-3);
 	margin-top: 8rpx;
 	display: block;
 }

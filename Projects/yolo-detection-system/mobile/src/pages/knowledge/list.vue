@@ -1,16 +1,10 @@
 <template>
 	<view class="knowledge-page">
-		<view class="page-header">
-			<view class="back-btn" @click="goBack">
-				<text class="back-icon">‹</text>
-			</view>
-			<text class="header-title">知识库</text>
-			<view class="placeholder"></view>
-		</view>
+		<PageHeader title="知识库" :show-back="true" />
 
 		<view class="search-section">
 			<view class="search-box">
-				<text class="search-icon">🔍</text>
+				<AppIcon class="search-icon" name="search" :size="32" color="#ADB5BD" />
 				<input
 					class="search-input"
 					v-model="keyword"
@@ -18,7 +12,9 @@
 					confirm-type="search"
 					@confirm="onSearch"
 				/>
-				<view v-if="keyword" class="search-clear" @click="clearSearch">✕</view>
+				<view v-if="keyword" class="search-clear" @click="clearSearch">
+					<AppIcon name="close" :size="28" color="#ADB5BD" />
+				</view>
 			</view>
 		</view>
 
@@ -45,7 +41,7 @@
 				<text class="loading-text">加载中...</text>
 			</view>
 
-			<EmptyState v-else-if="list.length === 0" icon="📚" title="暂无知识" desc="没有找到相关内容" />
+			<EmptyState v-else-if="list.length === 0" name="book" title="暂无知识" desc="没有找到相关内容" />
 
 			<view v-else class="knowledge-list">
 				<view
@@ -76,7 +72,9 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { getKnowledgeList, getCategories } from '@/api/knowledge'
+import AppIcon from '@/components/AppIcon.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import PageHeader from '@/components/PageHeader.vue'
 
 const keyword = ref('')
 const categories = ref([])
@@ -160,10 +158,6 @@ function onLoadMore() {
 	}
 }
 
-function goBack() {
-	uni.navigateBack()
-}
-
 function goDetail(id) {
 	uni.navigateTo({ url: `/pages/knowledge/detail?id=${id}` })
 }
@@ -177,49 +171,18 @@ onMounted(() => {
 <style lang="scss" scoped>
 .knowledge-page {
 	min-height: 100vh;
-	background: #F5F5F5;
-}
-
-.page-header {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	padding: 28rpx 32rpx;
-	background: #E07A5F;
-}
-
-.back-btn {
-	width: 64rpx;
-	height: 64rpx;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-}
-
-.back-icon {
-	font-size: 48rpx;
-	color: #fff;
-}
-
-.header-title {
-	font-size: 34rpx;
-	font-weight: 600;
-	color: #fff;
-}
-
-.placeholder {
-	width: 64rpx;
+	background: var(--bg-2);
 }
 
 .search-section {
 	padding: 20rpx 24rpx;
-	background: #fff;
+	background: var(--bg-1);
 }
 
 .search-box {
 	display: flex;
 	align-items: center;
-	background: #F5F5F5;
+	background: var(--bg-2);
 	border-radius: 40rpx;
 	padding: 0 24rpx;
 	height: 72rpx;
@@ -242,7 +205,7 @@ onMounted(() => {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	color: #999;
+	color: var(--text-3);
 	font-size: 24rpx;
 }
 
@@ -256,22 +219,22 @@ onMounted(() => {
 	padding: 20rpx 24rpx;
 	overflow-x: auto;
 	white-space: nowrap;
-	background: #fff;
-	border-bottom: 1rpx solid #f5f5f5;
+	background: var(--bg-1);
+	border-bottom: 1rpx solid var(--border-light);
 }
 
 .category-item {
 	padding: 12rpx 28rpx;
 	border-radius: 24rpx;
 	font-size: 26rpx;
-	color: #666;
-	background: #F5F5F5;
+	color: var(--text-2);
+	background: var(--bg-2);
 	flex-shrink: 0;
 }
 
 .category-item.active {
 	background: rgba(224, 122, 95, 0.1);
-	color: #E07A5F;
+	color: var(--brand);
 	font-weight: 600;
 }
 
@@ -282,7 +245,7 @@ onMounted(() => {
 
 .loading-text {
 	font-size: 28rpx;
-	color: #999;
+	color: var(--text-3);
 }
 
 .knowledge-list {
@@ -293,7 +256,7 @@ onMounted(() => {
 }
 
 .knowledge-item {
-	background: #fff;
+	background: var(--bg-1);
 	border-radius: 20rpx;
 	padding: 24rpx;
 	box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
@@ -302,14 +265,14 @@ onMounted(() => {
 .item-title {
 	font-size: 30rpx;
 	font-weight: 600;
-	color: #333;
+	color: var(--text-1);
 	margin-bottom: 12rpx;
 	display: block;
 }
 
 .item-summary {
 	font-size: 26rpx;
-	color: #666;
+	color: var(--text-2);
 	line-height: 1.5;
 	margin-bottom: 16rpx;
 	display: -webkit-box;
@@ -326,7 +289,7 @@ onMounted(() => {
 
 .item-category {
 	font-size: 24rpx;
-	color: #E07A5F;
+	color: var(--brand);
 	background: rgba(224, 122, 95, 0.1);
 	padding: 6rpx 16rpx;
 	border-radius: 12rpx;
@@ -334,7 +297,7 @@ onMounted(() => {
 
 .item-time {
 	font-size: 24rpx;
-	color: #999;
+	color: var(--text-3);
 }
 
 .load-more {
@@ -344,7 +307,7 @@ onMounted(() => {
 
 .load-more-text {
 	font-size: 26rpx;
-	color: #999;
+	color: var(--text-3);
 }
 
 .no-more {
@@ -354,6 +317,6 @@ onMounted(() => {
 
 .no-more-text {
 	font-size: 24rpx;
-	color: #ccc;
+	color: var(--text-disabled);
 }
 </style>

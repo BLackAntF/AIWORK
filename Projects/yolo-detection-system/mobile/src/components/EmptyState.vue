@@ -1,6 +1,6 @@
 <template>
 	<view class="empty-state">
-		<text class="empty-icon">{{ icon }}</text>
+		<AppIcon class="empty-icon" :name="name" :size="96" :color="iconColor" />
 		<text class="empty-title">{{ title }}</text>
 		<text class="empty-desc">{{ desc }}</text>
 		<slot></slot>
@@ -8,8 +8,11 @@
 </template>
 
 <script setup>
+import AppIcon from '@/components/AppIcon.vue'
+
 defineProps({
-	icon: { type: String, default: '📭' },
+	name: { type: String, default: 'inbox' },
+	iconColor: { type: String, default: '#ADB5BD' },
 	title: { type: String, default: '暂无数据' },
 	desc: { type: String, default: '' }
 })
@@ -24,20 +27,19 @@ defineProps({
 }
 
 .empty-icon {
-	font-size: 120rpx;
 	margin-bottom: 24rpx;
-	opacity: 0.6;
+	opacity: 0.8;
 }
 
 .empty-title {
 	font-size: 32rpx;
 	font-weight: 600;
-	color: #666;
+	color: var(--text-2);
 	margin-bottom: 12rpx;
 }
 
 .empty-desc {
 	font-size: 26rpx;
-	color: #999;
+	color: var(--text-3);
 }
 </style>

@@ -7,7 +7,7 @@
 			<view class="decoration-circle circle-3"></view>
 			<view class="logo-wrap">
 				<view class="logo-icon">
-					<text class="logo-leaf">🍃</text>
+					<AppIcon class="logo-leaf" name="leaf" :size="72" color="#FFFFFF" />
 				</view>
 			</view>
 			<text class="brand-title">番茄病害诊断</text>
@@ -23,7 +23,7 @@
 
 			<view class="input-group">
 				<view class="input-wrap" :class="{ focused: focusedField === 'username' }">
-					<text class="input-icon">👤</text>
+					<AppIcon class="input-icon" name="user" :size="32" color="#ADB5BD" />
 					<input
 						v-model="form.username"
 						placeholder="请输入用户名"
@@ -35,7 +35,7 @@
 				</view>
 
 				<view class="input-wrap" :class="{ focused: focusedField === 'password' }">
-					<text class="input-icon">🔒</text>
+					<AppIcon class="input-icon" name="lock" :size="32" color="#ADB5BD" />
 					<input
 						v-model="form.password"
 						:type="showPassword ? 'text' : 'password'"
@@ -45,7 +45,9 @@
 						@focus="focusedField = 'password'"
 						@blur="focusedField = ''"
 					/>
-					<text class="pwd-toggle" @click="showPassword = !showPassword">{{ showPassword ? '🙈' : '👁' }}</text>
+					<view class="pwd-toggle" @click="showPassword = !showPassword">
+						<AppIcon :name="showPassword ? 'eye-off' : 'eye'" :size="32" color="#ADB5BD" />
+					</view>
 				</view>
 			</view>
 
@@ -69,6 +71,7 @@
 <script setup>
 import { ref, reactive } from 'vue'
 import { useUserStore } from '@/store/user'
+import AppIcon from '@/components/AppIcon.vue'
 
 const userStore = useUserStore()
 const statusBarHeight = uni.getSystemInfoSync().statusBarHeight || 0
@@ -121,7 +124,7 @@ function goRegister() {
 <style lang="scss" scoped>
 .login-page {
 	min-height: 100vh;
-	background: linear-gradient(180deg, #E07A5F 0%, #C96247 40%, #F5F5F5 40%, #F5F5F5 100%);
+	background: linear-gradient(180deg, var(--brand) 0%, var(--brand-dark) 40%, var(--bg-2) 40%, var(--bg-2) 100%);
 	display: flex;
 	flex-direction: column;
 }
@@ -142,7 +145,7 @@ function goRegister() {
 	opacity: 0.35;
 }
 
-.circle-1 { width: 200rpx; height: 200rpx; background: #F29780; top: 40rpx; left: -40rpx; }
+.circle-1 { width: 200rpx; height: 200rpx; background: var(--brand-light); top: 40rpx; left: -40rpx; }
 .circle-2 { width: 160rpx; height: 160rpx; background: #F5AB96; top: 120rpx; right: -30rpx; }
 .circle-3 { width: 120rpx; height: 120rpx; background: #FF6B6B; top: 200rpx; left: 120rpx; opacity: 0.2; }
 
@@ -187,7 +190,7 @@ function goRegister() {
 /* 表单卡片 */
 .form-card {
 	flex: 1;
-	background: #fff;
+	background: var(--bg-1);
 	border-radius: 48rpx 48rpx 0 0;
 	padding: 64rpx 48rpx;
 	margin-top: -60rpx;
@@ -205,13 +208,13 @@ function goRegister() {
 	display: block;
 	font-size: 40rpx;
 	font-weight: 600;
-	color: #333;
+	color: var(--text-1);
 	margin-bottom: 12rpx;
 }
 
 .form-desc {
 	font-size: 28rpx;
-	color: #999;
+	color: var(--text-3);
 }
 
 /* 输入框 */
@@ -222,7 +225,7 @@ function goRegister() {
 .input-wrap {
 	display: flex;
 	align-items: center;
-	background: #F8F9FA;
+	background: var(--bg-2);
 	border-radius: 24rpx;
 	padding: 0 28rpx;
 	margin-bottom: 28rpx;
@@ -232,8 +235,8 @@ function goRegister() {
 }
 
 .input-wrap.focused {
-	border-color: #E07A5F;
-	background: #fff;
+	border-color: var(--brand);
+	background: var(--bg-1);
 	box-shadow: 0 0 0 6rpx rgba(224, 122, 95, 0.08);
 }
 
@@ -245,12 +248,12 @@ function goRegister() {
 .input {
 	flex: 1;
 	font-size: 30rpx;
-	color: #333;
+	color: var(--text-1);
 	height: 96rpx;
 }
 
 .placeholder {
-	color: #bbb;
+	color: var(--text-disabled);
 	font-size: 30rpx;
 }
 
@@ -264,7 +267,7 @@ function goRegister() {
 	width: 100%;
 	height: 96rpx;
 	border-radius: 48rpx;
-	background: linear-gradient(135deg, #E07A5F 0%, #C96247 100%);
+	background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
 	color: #fff;
 	font-size: 34rpx;
 	font-weight: 600;
@@ -293,11 +296,11 @@ function goRegister() {
 }
 
 .footer-text {
-	color: #999;
+	color: var(--text-3);
 }
 
 .register-link {
-	color: #E07A5F;
+	color: var(--brand);
 	font-weight: 600;
 	margin-left: 8rpx;
 }

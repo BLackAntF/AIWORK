@@ -18,7 +18,7 @@
 					@click="toggleCollapse(idx)"
 				>
 					<view class="collapse-header">
-						<text class="collapse-icon">{{ item.icon }}</text>
+						<AppIcon :name="item.icon" :size="36" color="#E07A5F" />
 						<text class="collapse-title">{{ item.title }}</text>
 						<text class="collapse-arrow" :class="{ expanded: expandedIndex === idx }">›</text>
 					</view>
@@ -30,7 +30,7 @@
 
 			<!-- 推荐药剂 -->
 			<view v-if="profile.pesticides" class="pesticides-card">
-				<text class="card-title">📌 推荐药剂</text>
+				<view class="card-title"><AppIcon name="pin" :size="30" color="#E07A5F" /><text>推荐药剂</text></view>
 				<view class="pesticides-list">
 					<text
 						v-for="(pesticide, idx) in pesticideList"
@@ -41,7 +41,7 @@
 			</view>
 		</view>
 
-		<EmptyState v-else-if="!loading" icon="📭" title="档案不存在" />
+		<EmptyState v-else-if="!loading" name="inbox" title="档案不存在" />
 	</view>
 </template>
 
@@ -50,6 +50,7 @@ import { ref, computed, onMounted } from 'vue'
 import { getDiseaseProfile } from '@/api/knowledge'
 import LoadingOverlay from '@/components/LoadingOverlay.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import AppIcon from '@/components/AppIcon.vue'
 
 const loading = ref(true)
 const profile = ref(null)
@@ -63,11 +64,11 @@ const pesticideList = computed(() => {
 const collapseItems = computed(() => {
 	if (!profile.value) return []
 	return [
-		{ icon: '🌱', title: '诱因', content: profile.value.causes },
-		{ icon: '✨', title: '典型症状', content: profile.value.symptoms },
-		{ icon: '📅', title: '发生规律', content: profile.value.occurrence || '暂无数据' },
-		{ icon: '🛡️', title: '预防措施', content: profile.value.prevention },
-		{ icon: '💊', title: '治疗方案', content: profile.value.treatment }
+		{ icon: 'sprout', title: '诱因', content: profile.value.causes },
+		{ icon: 'sparkles', title: '典型症状', content: profile.value.symptoms },
+		{ icon: 'calendar', title: '发生规律', content: profile.value.occurrence || '暂无数据' },
+		{ icon: 'shield', title: '预防措施', content: profile.value.prevention },
+		{ icon: 'pill', title: '治疗方案', content: profile.value.treatment }
 	]
 })
 
@@ -103,7 +104,7 @@ onMounted(() => {
 <style lang="scss" scoped>
 .archive-page {
 	min-height: 100vh;
-	background: #F5F5F5;
+	background: var(--bg-2);
 }
 
 .content {
@@ -112,7 +113,7 @@ onMounted(() => {
 }
 
 .header {
-	background: linear-gradient(135deg, #E07A5F 0%, #C96247 100%);
+	background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
 	border-radius: 24rpx;
 	padding: 36rpx;
 	margin-bottom: 24rpx;
@@ -139,7 +140,7 @@ onMounted(() => {
 }
 
 .collapse-item {
-	background: #fff;
+	background: var(--bg-1);
 	border-radius: 20rpx;
 	overflow: hidden;
 }
@@ -159,12 +160,12 @@ onMounted(() => {
 	flex: 1;
 	font-size: 30rpx;
 	font-weight: 600;
-	color: #333;
+	color: var(--text-1);
 }
 
 .collapse-arrow {
 	font-size: 40rpx;
-	color: #ccc;
+	color: var(--text-disabled);
 	transition: transform 0.3s ease;
 }
 
@@ -185,12 +186,12 @@ onMounted(() => {
 
 .collapse-content {
 	font-size: 28rpx;
-	color: #666;
+	color: var(--text-2);
 	line-height: 1.7;
 }
 
 .pesticides-card {
-	background: #fff;
+	background: var(--bg-1);
 	border-radius: 20rpx;
 	padding: 28rpx;
 }
@@ -198,9 +199,11 @@ onMounted(() => {
 .card-title {
 	font-size: 32rpx;
 	font-weight: 600;
-	color: #333;
+	color: var(--text-1);
 	margin-bottom: 20rpx;
-	display: block;
+	display: flex;
+	align-items: center;
+	gap: 8rpx;
 }
 
 .pesticides-list {
@@ -210,8 +213,8 @@ onMounted(() => {
 }
 
 .pesticide-item {
-	background: rgba(255, 152, 0, 0.15);
-	color: #FF9800;
+	background: rgba(250, 173, 20, 0.15);
+	color: var(--warning);
 	font-size: 28rpx;
 	padding: 12rpx 24rpx;
 	border-radius: 20rpx;

@@ -3,13 +3,7 @@
 		<LoadingOverlay :visible="loading" text="加载中..." />
 
 		<view v-if="record" class="content">
-			<view class="page-header">
-				<view class="back-btn" @click="goBack">
-					<text class="back-icon">‹</text>
-				</view>
-				<text class="header-title">检测详情</text>
-				<view class="placeholder"></view>
-			</view>
+			<PageHeader title="检测详情" :show-back="true" />
 
 			<view class="image-section">
 				<view class="image-card">
@@ -68,7 +62,7 @@
 			</view>
 		</view>
 
-		<EmptyState v-else-if="!loading" icon="📭" title="记录不存在" />
+		<EmptyState v-else-if="!loading" name="inbox" title="记录不存在" />
 	</view>
 </template>
 
@@ -78,6 +72,7 @@ import { getHistoryDetail } from '@/api/history'
 import { getFullUrl } from '@/utils/format'
 import LoadingOverlay from '@/components/LoadingOverlay.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import PageHeader from '@/components/PageHeader.vue'
 import DiseaseCard from '@/components/DiseaseCard.vue'
 
 const loading = ref(true)
@@ -96,10 +91,6 @@ function previewImage(path) {
 		current: getFullUrl(path),
 		urls: [getFullUrl(record.value?.original_path), getFullUrl(record.value?.result_path)].filter(Boolean)
 	})
-}
-
-function goBack() {
-	uni.navigateBack()
 }
 
 async function loadRecord() {
@@ -129,42 +120,11 @@ onMounted(() => {
 <style lang="scss" scoped>
 .history-detail-page {
 	min-height: 100vh;
-	background: #F5F5F5;
+	background: var(--bg-2);
 }
 
 .content {
 	padding-bottom: 40rpx;
-}
-
-.page-header {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	padding: 28rpx 32rpx;
-	background: #E07A5F;
-}
-
-.back-btn {
-	width: 64rpx;
-	height: 64rpx;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-}
-
-.back-icon {
-	font-size: 48rpx;
-	color: #fff;
-}
-
-.header-title {
-	font-size: 34rpx;
-	font-weight: 600;
-	color: #fff;
-}
-
-.placeholder {
-	width: 64rpx;
 }
 
 .image-section {
@@ -175,14 +135,14 @@ onMounted(() => {
 }
 
 .image-card {
-	background: #fff;
+	background: var(--bg-1);
 	border-radius: 20rpx;
 	padding: 20rpx;
 }
 
 .card-label {
 	font-size: 26rpx;
-	color: #999;
+	color: var(--text-3);
 	margin-bottom: 12rpx;
 	display: block;
 }
@@ -193,7 +153,7 @@ onMounted(() => {
 }
 
 .info-section {
-	background: #fff;
+	background: var(--bg-1);
 	margin: 0 24rpx;
 	border-radius: 20rpx;
 	padding: 24rpx;
@@ -203,7 +163,7 @@ onMounted(() => {
 	display: flex;
 	justify-content: space-between;
 	padding: 16rpx 0;
-	border-bottom: 1rpx solid #f5f5f5;
+	border-bottom: 1rpx solid var(--border-light);
 }
 
 .info-row:last-child {
@@ -212,17 +172,17 @@ onMounted(() => {
 
 .info-label {
 	font-size: 28rpx;
-	color: #666;
+	color: var(--text-2);
 }
 
 .info-value {
 	font-size: 28rpx;
-	color: #333;
+	color: var(--text-1);
 	font-weight: 500;
 }
 
 .detection-section {
-	background: #fff;
+	background: var(--bg-1);
 	margin: 24rpx;
 	border-radius: 20rpx;
 	padding: 24rpx;
@@ -231,14 +191,14 @@ onMounted(() => {
 .section-title {
 	font-size: 32rpx;
 	font-weight: 600;
-	color: #333;
+	color: var(--text-1);
 	margin-bottom: 20rpx;
 	display: block;
 }
 
 .detection-item {
 	padding: 20rpx 0;
-	border-bottom: 1rpx solid #f5f5f5;
+	border-bottom: 1rpx solid var(--border-light);
 }
 
 .detection-item:last-child {
@@ -257,7 +217,7 @@ onMounted(() => {
 	height: 40rpx;
 	border-radius: 50%;
 	background: rgba(224, 122, 95, 0.1);
-	color: #E07A5F;
+	color: var(--brand);
 	font-size: 24rpx;
 	font-weight: 600;
 	display: flex;
@@ -268,14 +228,14 @@ onMounted(() => {
 .item-tag {
 	font-size: 28rpx;
 	font-weight: 600;
-	color: #F44336;
-	background: rgba(244, 67, 54, 0.1);
+	color: var(--error);
+	background: rgba(255, 77, 79, 0.1);
 	padding: 6rpx 16rpx;
 	border-radius: 12rpx;
 }
 
 .item-tag.healthy {
-	color: #E07A5F;
+	color: var(--brand);
 	background: rgba(224, 122, 95, 0.1);
 }
 
@@ -283,12 +243,12 @@ onMounted(() => {
 	margin-left: auto;
 	font-size: 28rpx;
 	font-weight: 600;
-	color: #333;
+	color: var(--text-1);
 }
 
 .confidence-bar {
 	height: 8rpx;
-	background: #f0f0f0;
+	background: var(--border-light);
 	border-radius: 4rpx;
 	overflow: hidden;
 	margin-bottom: 20rpx;
@@ -297,11 +257,11 @@ onMounted(() => {
 .confidence-fill {
 	height: 100%;
 	border-radius: 4rpx;
-	background: linear-gradient(90deg, #F44336 0%, #FF9800 50%, #E07A5F 100%);
+	background: linear-gradient(90deg, var(--error) 0%, var(--warning) 50%, var(--brand) 100%);
 	transition: width 0.5s ease;
 }
 
 .confidence-fill.healthy {
-	background: #E07A5F;
+	background: var(--brand);
 }
 </style>

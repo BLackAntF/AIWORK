@@ -1,12 +1,6 @@
 <template>
 	<view class="password-page">
-		<view class="page-header">
-			<view class="back-btn" @click="goBack">
-				<text class="back-icon">‹</text>
-			</view>
-			<text class="header-title">修改密码</text>
-			<view class="placeholder"></view>
-		</view>
+		<PageHeader title="修改密码" :show-back="true" />
 
 		<view class="form-section">
 			<view class="form-item">
@@ -56,6 +50,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { changePassword } from '@/api/auth'
+import PageHeader from '@/components/PageHeader.vue'
 
 const oldPassword = ref('')
 const newPassword = ref('')
@@ -67,10 +62,6 @@ const canSubmit = computed(() => {
 		newPassword.value.length >= 6 &&
 		newPassword.value === confirmPassword.value
 })
-
-function goBack() {
-	uni.navigateBack()
-}
 
 async function handleSubmit() {
 	if (!canSubmit.value || isSubmitting.value) return
@@ -93,38 +84,7 @@ async function handleSubmit() {
 <style lang="scss" scoped>
 .password-page {
 	min-height: 100vh;
-	background: #F5F5F5;
-}
-
-.page-header {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	padding: 28rpx 32rpx;
-	background: #E07A5F;
-}
-
-.back-btn {
-	width: 64rpx;
-	height: 64rpx;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-}
-
-.back-icon {
-	font-size: 48rpx;
-	color: #fff;
-}
-
-.header-title {
-	font-size: 34rpx;
-	font-weight: 600;
-	color: #fff;
-}
-
-.placeholder {
-	width: 64rpx;
+	background: var(--bg-2);
 }
 
 .form-section {
@@ -132,7 +92,7 @@ async function handleSubmit() {
 }
 
 .form-item {
-	background: #fff;
+	background: var(--bg-1);
 	border-radius: 16rpx;
 	padding: 24rpx;
 	margin-bottom: 20rpx;
@@ -140,14 +100,14 @@ async function handleSubmit() {
 
 .form-label {
 	font-size: 26rpx;
-	color: #999;
+	color: var(--text-3);
 	margin-bottom: 12rpx;
 	display: block;
 }
 
 .form-input {
 	font-size: 30rpx;
-	color: #333;
+	color: var(--text-1);
 	height: 48rpx;
 }
 
@@ -158,7 +118,7 @@ async function handleSubmit() {
 
 .hint-text text {
 	font-size: 24rpx;
-	color: #bbb;
+	color: var(--text-disabled);
 }
 
 .submit-section {
@@ -169,7 +129,7 @@ async function handleSubmit() {
 	width: 100%;
 	height: 96rpx;
 	border-radius: 48rpx;
-	background: linear-gradient(135deg, #E07A5F 0%, #C96247 100%);
+	background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
 	color: #fff;
 	font-size: 32rpx;
 	font-weight: 600;

@@ -14,17 +14,17 @@
 		<view class="menu-section">
 			<view class="menu-group">
 				<view class="menu-item" @click="goChangePassword">
-					<text class="menu-icon">🔒</text>
+					<AppIcon class="menu-icon" name="lock" :size="36" color="#6C757D" />
 					<text class="menu-text">修改密码</text>
 					<text class="menu-arrow">›</text>
 				</view>
 				<view class="menu-item" @click="goKnowledge">
-					<text class="menu-icon">📚</text>
+					<AppIcon class="menu-icon" name="book" :size="36" color="#6C757D" />
 					<text class="menu-text">知识库浏览</text>
 					<text class="menu-arrow">›</text>
 				</view>
 				<view class="menu-item" @click="showAbout">
-					<text class="menu-icon">ℹ️</text>
+					<AppIcon class="menu-icon" name="info" :size="36" color="#6C757D" />
 					<text class="menu-text">关于</text>
 					<text class="menu-arrow">›</text>
 				</view>
@@ -32,28 +32,28 @@
 
 			<view v-if="isAdmin" class="menu-group admin-group">
 				<view class="admin-header" @click="adminExpanded = !adminExpanded">
-					<text class="admin-icon">⚙️</text>
+					<AppIcon class="admin-icon" name="settings" :size="36" color="#E07A5F" />
 					<text class="admin-text">管理员入口</text>
 					<text class="admin-arrow" :class="{ expanded: adminExpanded }">›</text>
 				</view>
 				<view class="admin-submenu" :class="{ visible: adminExpanded }">
 					<view class="menu-item" @click="goAdmin('users')">
-						<text class="menu-icon">👥</text>
+						<AppIcon class="menu-icon" name="users" :size="36" color="#6C757D" />
 						<text class="menu-text">用户管理</text>
 						<text class="menu-arrow">›</text>
 					</view>
 					<view class="menu-item" @click="goAdmin('pending')">
-						<text class="menu-icon">📝</text>
+						<AppIcon class="menu-icon" name="edit" :size="36" color="#6C757D" />
 						<text class="menu-text">待审核</text>
 						<text class="menu-arrow">›</text>
 					</view>
 					<view class="menu-item" @click="goAdmin('logs')">
-						<text class="menu-icon">📜</text>
+						<AppIcon class="menu-icon" name="log" :size="36" color="#6C757D" />
 						<text class="menu-text">操作日志</text>
 						<text class="menu-arrow">›</text>
 					</view>
 					<view class="menu-item" @click="goAdmin('dashboard')">
-						<text class="menu-icon">📊</text>
+						<AppIcon class="menu-icon" name="chart" :size="36" color="#6C757D" />
 						<text class="menu-text">数据看板</text>
 						<text class="menu-arrow">›</text>
 					</view>
@@ -70,6 +70,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useUserStore } from '@/store/user'
+import AppIcon from '@/components/AppIcon.vue'
 
 const userStore = useUserStore()
 const adminExpanded = ref(false)
@@ -116,7 +117,7 @@ function handleLogout() {
 	uni.showModal({
 		title: '提示',
 		content: '确定退出登录吗？',
-		confirmColor: '#F44336',
+		confirmColor: '#FF4D4F',
 		success: (res) => {
 			if (res.confirm) {
 				userStore.logout()
@@ -129,7 +130,7 @@ function handleLogout() {
 <style lang="scss" scoped>
 .mine-page {
 	min-height: 100vh;
-	background: #F5F5F5;
+	background: var(--bg-2);
 	padding-bottom: 60rpx;
 }
 
@@ -145,7 +146,7 @@ function handleLogout() {
 	left: 0;
 	right: 0;
 	height: 360rpx;
-	background: linear-gradient(135deg, #E07A5F 0%, #C96247 100%);
+	background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
 }
 
 .user-info {
@@ -203,7 +204,7 @@ function handleLogout() {
 }
 
 .menu-group {
-	background: #fff;
+	background: var(--bg-1);
 	border-radius: 20rpx;
 	margin-bottom: 20rpx;
 	overflow: hidden;
@@ -213,7 +214,7 @@ function handleLogout() {
 	display: flex;
 	align-items: center;
 	padding: 28rpx 24rpx;
-	border-bottom: 1rpx solid #f5f5f5;
+	border-bottom: 1rpx solid var(--border-light);
 }
 
 .menu-item:last-child {
@@ -228,12 +229,12 @@ function handleLogout() {
 .menu-text {
 	flex: 1;
 	font-size: 30rpx;
-	color: #333;
+	color: var(--text-1);
 }
 
 .menu-arrow {
 	font-size: 36rpx;
-	color: #ccc;
+	color: var(--text-disabled);
 }
 
 .admin-group {
@@ -255,13 +256,13 @@ function handleLogout() {
 .admin-text {
 	flex: 1;
 	font-size: 30rpx;
-	color: #E07A5F;
+	color: var(--brand);
 	font-weight: 600;
 }
 
 .admin-arrow {
 	font-size: 36rpx;
-	color: #E07A5F;
+	color: var(--brand);
 	transition: transform 0.3s ease;
 }
 
@@ -288,10 +289,10 @@ function handleLogout() {
 	width: 100%;
 	height: 88rpx;
 	border-radius: 44rpx;
-	background: #fff;
-	color: #F44336;
+	background: var(--bg-1);
+	color: var(--error);
 	font-size: 32rpx;
-	border: 2rpx solid #F44336;
+	border: 2rpx solid var(--error);
 }
 
 .logout-btn::after {

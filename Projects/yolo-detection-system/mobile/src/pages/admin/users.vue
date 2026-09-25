@@ -1,15 +1,9 @@
 <template>
 	<view class="admin-page">
-		<view class="page-header">
-			<view class="back-btn" @click="goBack">
-				<text class="back-icon">‹</text>
-			</view>
-			<text class="header-title">用户管理</text>
-			<view class="placeholder"></view>
-		</view>
+		<PageHeader title="用户管理" :show-back="true" />
 
 		<view class="read-only-hint">
-			<text class="hint-icon">⚠️</text>
+			<AppIcon name="alert" :size="28" color="#FAAD14" />
 			<text class="hint-text">仅查看，编辑请在 Web 端操作</text>
 		</view>
 
@@ -25,7 +19,7 @@
 				<text class="loading-text">加载中...</text>
 			</view>
 
-			<EmptyState v-else-if="users.length === 0" icon="👥" title="暂无用户" />
+			<EmptyState v-else-if="users.length === 0" name="users" title="暂无用户" />
 
 			<view v-else class="user-list">
 				<view
@@ -52,6 +46,8 @@
 import { ref, onMounted } from 'vue'
 import { getUsers } from '@/api/admin'
 import EmptyState from '@/components/EmptyState.vue'
+import PageHeader from '@/components/PageHeader.vue'
+import AppIcon from '@/components/AppIcon.vue'
 
 const users = ref([])
 const loading = ref(false)
@@ -81,10 +77,6 @@ function onRefresh() {
 	loadUsers()
 }
 
-function goBack() {
-	uni.navigateBack()
-}
-
 onMounted(() => {
 	loadUsers()
 })
@@ -93,38 +85,7 @@ onMounted(() => {
 <style lang="scss" scoped>
 .admin-page {
 	min-height: 100vh;
-	background: #F5F5F5;
-}
-
-.page-header {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	padding: 28rpx 32rpx;
-	background: #E07A5F;
-}
-
-.back-btn {
-	width: 64rpx;
-	height: 64rpx;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-}
-
-.back-icon {
-	font-size: 48rpx;
-	color: #fff;
-}
-
-.header-title {
-	font-size: 34rpx;
-	font-weight: 600;
-	color: #fff;
-}
-
-.placeholder {
-	width: 64rpx;
+	background: var(--bg-2);
 }
 
 .read-only-hint {
@@ -132,16 +93,12 @@ onMounted(() => {
 	align-items: center;
 	gap: 12rpx;
 	padding: 16rpx 24rpx;
-	background: rgba(255, 152, 0, 0.1);
-}
-
-.hint-icon {
-	font-size: 28rpx;
+	background: rgba(250, 173, 20, 0.1);
 }
 
 .hint-text {
 	font-size: 24rpx;
-	color: #FF9800;
+	color: var(--warning);
 }
 
 .content {
@@ -156,7 +113,7 @@ onMounted(() => {
 
 .loading-text {
 	font-size: 28rpx;
-	color: #999;
+	color: var(--text-3);
 }
 
 .user-list {
@@ -168,7 +125,7 @@ onMounted(() => {
 .user-item {
 	display: flex;
 	align-items: center;
-	background: #fff;
+	background: var(--bg-1);
 	border-radius: 20rpx;
 	padding: 20rpx;
 }
@@ -178,7 +135,7 @@ onMounted(() => {
 	height: 80rpx;
 	border-radius: 50%;
 	background: rgba(224, 122, 95, 0.1);
-	color: #E07A5F;
+	color: var(--brand);
 	font-size: 32rpx;
 	font-weight: 600;
 	display: flex;
@@ -203,29 +160,29 @@ onMounted(() => {
 .user-name {
 	font-size: 28rpx;
 	font-weight: 600;
-	color: #333;
+	color: var(--text-1);
 }
 
 .role-tag {
 	font-size: 22rpx;
-	color: #666;
-	background: #F5F5F5;
+	color: var(--text-2);
+	background: var(--bg-2);
 	padding: 4rpx 12rpx;
 	border-radius: 8rpx;
 }
 
 .role-tag.admin {
-	color: #FF9800;
-	background: rgba(255, 152, 0, 0.1);
+	color: var(--warning);
+	background: rgba(250, 173, 20, 0.1);
 }
 
 .user-email {
 	font-size: 24rpx;
-	color: #999;
+	color: var(--text-3);
 }
 
 .user-time {
 	font-size: 22rpx;
-	color: #bbb;
+	color: var(--text-disabled);
 }
 </style>

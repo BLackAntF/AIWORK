@@ -1,8 +1,6 @@
 <template>
 	<view class="history-page">
-		<view class="page-header">
-			<text class="header-title">检测历史</text>
-		</view>
+		<PageHeader title="检测历史" />
 
 		<scroll-view
 			class="history-content"
@@ -17,7 +15,7 @@
 				<text class="loading-text">加载中...</text>
 			</view>
 
-			<EmptyState v-else-if="records.length === 0" icon="📋" title="暂无检测记录" desc="完成检测后会在这里显示" />
+			<EmptyState v-else-if="records.length === 0" name="clipboard" title="暂无检测记录" desc="完成检测后会在这里显示" />
 
 			<view v-else class="record-list">
 				<view
@@ -50,6 +48,7 @@ import { ref, onMounted } from 'vue'
 import { getHistoryList } from '@/api/history'
 import { getFullUrl } from '@/utils/format'
 import EmptyState from '@/components/EmptyState.vue'
+import PageHeader from '@/components/PageHeader.vue'
 
 const records = ref([])
 const loading = ref(false)
@@ -123,18 +122,7 @@ onMounted(() => {
 <style lang="scss" scoped>
 .history-page {
 	min-height: 100vh;
-	background: #F5F5F5;
-}
-
-.page-header {
-	padding: 28rpx 32rpx;
-	background: #E07A5F;
-}
-
-.header-title {
-	font-size: 34rpx;
-	font-weight: 600;
-	color: #fff;
+	background: var(--bg-2);
 }
 
 .history-content {
@@ -149,7 +137,7 @@ onMounted(() => {
 
 .loading-text {
 	font-size: 28rpx;
-	color: #999;
+	color: var(--text-3);
 }
 
 .record-list {
@@ -161,7 +149,7 @@ onMounted(() => {
 .record-item {
 	display: flex;
 	align-items: center;
-	background: #fff;
+	background: var(--bg-1);
 	border-radius: 20rpx;
 	padding: 20rpx;
 	box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
@@ -185,17 +173,17 @@ onMounted(() => {
 .record-disease {
 	font-size: 30rpx;
 	font-weight: 600;
-	color: #333;
+	color: var(--text-1);
 }
 
 .record-time {
 	font-size: 24rpx;
-	color: #999;
+	color: var(--text-3);
 }
 
 .record-arrow {
 	font-size: 40rpx;
-	color: #ccc;
+	color: var(--text-disabled);
 }
 
 .load-more {
@@ -205,7 +193,7 @@ onMounted(() => {
 
 .load-more-text {
 	font-size: 26rpx;
-	color: #999;
+	color: var(--text-3);
 }
 
 .no-more {
@@ -215,6 +203,6 @@ onMounted(() => {
 
 .no-more-text {
 	font-size: 24rpx;
-	color: #ccc;
+	color: var(--text-disabled);
 }
 </style>

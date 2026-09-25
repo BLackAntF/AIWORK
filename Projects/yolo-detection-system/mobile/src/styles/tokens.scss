@@ -1,0 +1,47 @@
+/**
+ * 设计 Token —— 唯一基准为 Web 端浅色主题
+ * 来源：frontend/src/assets/styles/theme.css 的 :root 浅色值
+ * 移动端只对齐浅色，不引入暗色主题
+ */
+
+page,
+:root {
+	/* 品牌色 */
+	--brand: #E07A5F;
+	--brand-light: #F29780;
+	--brand-dark: #C96247;
+	--brand-glow: rgba(224, 122, 95, 0.3);
+
+	/* 文本层级 */
+	--text-1: #1A1A2E;
+	--text-2: #4A4A68;
+	--text-3: #6C757D;
+	--text-disabled: #ADB5BD;
+
+	/* 背景层级 */
+	--bg-1: #FFFFFF;
+	--bg-2: #F8F9FA;
+	--bg-3: #F1F3F5;
+
+	/* 边框 */
+	--border: #E9ECEF;
+	--border-light: #F1F3F5;
+
+	/* 语义色 */
+	--success: #52C41A;
+	--warning: #FAAD14;
+	--error: #FF4D4F;
+	--info: #1890FF;
+
+	/* 圆角 */
+	--radius-sm: 8rpx;
+	--radius-md: 16rpx;
+	--radius-lg: 24rpx;
+	--radius-xl: 40rpx;
+
+	/* 阴影 */
+	--shadow-sm: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+	--shadow-md: 0 4rpx 24rpx rgba(0, 0, 0, 0.08);
+	--shadow-lg: 0 8rpx 48rpx rgba(0, 0, 0, 0.12);
+	--shadow-brand: 0 4rpx 40rpx rgba(224, 122, 95, 0.3);
+}

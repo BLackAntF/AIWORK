@@ -27,12 +27,14 @@ function onHide() {
 }
 </script>
 
-<style>
+<style lang="scss">
+@use './styles/tokens.scss';
+
 page {
-	background-color: #F5F5F5;
+	background-color: var(--bg-2);
 	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
 	font-size: 28rpx;
-	color: #333;
+	color: var(--text-1);
 }
 
 button {

@@ -33,16 +33,16 @@ defineProps({
 	flex-direction: column;
 	align-items: center;
 	gap: 20rpx;
-	background: #fff;
+	background: var(--bg-1);
 	padding: 48rpx 64rpx;
-	border-radius: 24rpx;
+	border-radius: var(--radius-lg);
 }
 
 .loading-spinner {
 	width: 64rpx;
 	height: 64rpx;
-	border: 4rpx solid #eee;
-	border-top-color: #E07A5F;
+	border: 4rpx solid var(--border);
+	border-top-color: var(--brand);
 	border-radius: 50%;
 	animation: spin 1s linear infinite;
 }
@@ -53,6 +53,6 @@ defineProps({
 
 .loading-text {
 	font-size: 28rpx;
-	color: #666;
+	color: var(--text-2);
 }
 </style>

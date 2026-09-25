@@ -2,7 +2,7 @@
 	<view class="disease-card" @click="goDetail">
 		<view class="card-header">
 			<view class="disease-tag">
-				<text class="tag-icon">📋</text>
+				<AppIcon name="clipboard" :size="28" color="#E07A5F" />
 				<text class="tag-text">{{ profile.disease_name }}</text>
 			</view>
 			<text class="card-arrow">›</text>
@@ -42,6 +42,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import AppIcon from '@/components/AppIcon.vue'
 
 const props = defineProps({
 	profile: { type: Object, required: true },
@@ -62,11 +63,11 @@ function goDetail() {
 
 <style lang="scss" scoped>
 .disease-card {
-	background: #fff;
+	background: var(--bg-1);
 	border-radius: 20rpx;
 	padding: 28rpx;
 	margin-top: 20rpx;
-	box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);
+	box-shadow: var(--shadow-md);
 }
 
 .card-header {
@@ -75,7 +76,7 @@ function goDetail() {
 	justify-content: space-between;
 	margin-bottom: 20rpx;
 	padding-bottom: 16rpx;
-	border-bottom: 1rpx solid #f0f0f0;
+	border-bottom: 1rpx solid var(--border-light);
 }
 
 .disease-tag {
@@ -87,19 +88,15 @@ function goDetail() {
 	border-radius: 20rpx;
 }
 
-.tag-icon {
-	font-size: 28rpx;
-}
-
 .tag-text {
 	font-size: 28rpx;
 	font-weight: 600;
-	color: #E07A5F;
+	color: var(--brand);
 }
 
 .card-arrow {
 	font-size: 40rpx;
-	color: #ccc;
+	color: var(--text-disabled);
 }
 
 .card-body {
@@ -117,14 +114,14 @@ function goDetail() {
 	flex-shrink: 0;
 	width: 100rpx;
 	font-size: 26rpx;
-	color: #999;
+	color: var(--text-3);
 	font-weight: 500;
 }
 
 .info-value {
 	flex: 1;
 	font-size: 26rpx;
-	color: #333;
+	color: var(--text-1);
 	line-height: 1.5;
 }
 
@@ -134,7 +131,7 @@ function goDetail() {
 
 .pesticides-label {
 	font-size: 26rpx;
-	color: #999;
+	color: var(--text-3);
 	font-weight: 500;
 	margin-bottom: 12rpx;
 	display: block;
@@ -147,8 +144,8 @@ function goDetail() {
 }
 
 .pesticide-tag {
-	background: rgba(255, 152, 0, 0.15);
-	color: #FF9800;
+	background: rgba(250, 173, 20, 0.15);
+	color: var(--warning);
 	font-size: 24rpx;
 	padding: 6rpx 16rpx;
 	border-radius: 12rpx;
@@ -157,11 +154,11 @@ function goDetail() {
 .card-footer {
 	margin-top: 16rpx;
 	padding-top: 16rpx;
-	border-top: 1rpx solid #f0f0f0;
+	border-top: 1rpx solid var(--border-light);
 }
 
 .footer-text {
 	font-size: 24rpx;
-	color: #999;
+	color: var(--text-3);
 }
 </style>
