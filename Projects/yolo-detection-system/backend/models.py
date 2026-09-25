@@ -55,13 +55,26 @@ class DetectionHistory(db.Model):
     file_size = db.Column(db.Integer)
     processing_time = db.Column(db.Float)
     model_version = db.Column(db.String(50))
+    class_names = db.Column(db.String(500), index=True)
+    max_confidence = db.Column(db.Float)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
     user = db.relationship('User', backref=db.backref('detection_histories', lazy='dynamic'))
 
     def set_detection_result(self, result_dict):
-        """设置检测结果（JSON序列化）"""
+        """设置检测结果（JSON序列化，并同步冗余的筛选字段）
+
+        Args:
+            result_dict: 含 detections / total_count / class_summary 的检测结果
+        """
         self.detection_result = json.dumps(result_dict, ensure_ascii=False)
+        class_summary = result_dict.get('class_summary') or {}
+        self.class_names = ','.join(class_summary.keys()) or None
+        confidences = [
+            det.get('confidence') for det in result_dict.get('detections') or []
+            if isinstance(det.get('confidence'), (int, float))
+        ]
+        self.max_confidence = max(confidences) if confidences else None
 
     def get_detection_result(self):
         """获取检测结果（JSON反序列化）"""
@@ -81,6 +94,8 @@ class DetectionHistory(db.Model):
             'file_size': self.file_size,
             'processing_time': self.processing_time,
             'model_version': self.model_version,
+            'class_names': self.class_names,
+            'max_confidence': self.max_confidence,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
         if include_detail:

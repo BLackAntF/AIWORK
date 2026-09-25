@@ -61,5 +61,10 @@ class Config:
         os.environ.get('KNOWLEDGE_ASK_RATE_LIMIT_PER_MINUTE', 20)
     )
 
+    # 批量检测单次上传图片上限
+    MAX_BATCH_IMAGES = int(os.environ.get('MAX_BATCH_IMAGES', 20))
+    # 单次导出 CSV 的最大行数
+    EXPORT_MAX_ROWS = int(os.environ.get('EXPORT_MAX_ROWS', 5000))
+
     CHROMA_PATH = os.path.join(BASE_DIR, 'data', 'chroma')
     CHROMA_COLLECTION = 'knowledge'
