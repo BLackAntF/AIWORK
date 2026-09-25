@@ -145,7 +145,7 @@
       <div class="chart-card glass-card">
         <div class="chart-header">
           <h3 class="chart-title">用户增长趋势</h3>
-          <el-select v-model="trendDays" size="small" @change="fetchTrends" style="width: 120px">
+          <el-select v-model="trendDays" size="small" @change="handleTrendChange" style="width: 120px">
             <el-option label="近7天" :value="7" />
             <el-option label="近30天" :value="30" />
           </el-select>
@@ -156,12 +156,34 @@
       <div class="chart-card glass-card">
         <div class="chart-header">
           <h3 class="chart-title">检测量趋势</h3>
-          <el-select v-model="trendDays" size="small" @change="fetchTrends" style="width: 120px">
+          <el-select v-model="trendDays" size="small" @change="handleTrendChange" style="width: 120px">
             <el-option label="近7天" :value="7" />
             <el-option label="近30天" :value="30" />
           </el-select>
         </div>
         <div ref="detectionsChartRef" class="chart-container"></div>
+      </div>
+
+      <div class="chart-card glass-card">
+        <div class="chart-header">
+          <h3 class="chart-title">病害检出分布</h3>
+          <el-select v-model="trendDays" size="small" @change="handleTrendChange" style="width: 120px">
+            <el-option label="近7天" :value="7" />
+            <el-option label="近30天" :value="30" />
+          </el-select>
+        </div>
+        <div ref="diseaseDistChartRef" class="chart-container"></div>
+      </div>
+
+      <div class="chart-card glass-card">
+        <div class="chart-header">
+          <h3 class="chart-title">病害检出趋势</h3>
+          <el-select v-model="trendDays" size="small" @change="handleTrendChange" style="width: 120px">
+            <el-option label="近7天" :value="7" />
+            <el-option label="近30天" :value="30" />
+          </el-select>
+        </div>
+        <div ref="diseaseTrendChartRef" class="chart-container"></div>
       </div>
     </div>
   </div>
@@ -176,7 +198,7 @@ import {
   CircleCheck, Cpu, Setting, Clock, Warning
 } from '@element-plus/icons-vue'
 import {
-  getDashboardStats, getUsersTrend, getDetectionsTrend
+  getDashboardStats, getUsersTrend, getDetectionsTrend, getDiseaseDistribution, getDiseaseTrend
 } from '@/api/admin'
 
 const router = useRouter()
@@ -184,8 +206,18 @@ const dashboardData = ref({})
 const trendDays = ref(7)
 const usersChartRef = ref(null)
 const detectionsChartRef = ref(null)
+const diseaseDistChartRef = ref(null)
+const diseaseTrendChartRef = ref(null)
 let usersChart = null
 let detectionsChart = null
+let diseaseDistChart = null
+let diseaseTrendChart = null
+
+const DISEASE_PALETTE = [
+  '#E07A5F', '#81B29A', '#F2CC8F', '#3D405B', '#B56576',
+  '#6D9DC5', '#81A4CD', '#C1666B', '#A8C686', '#D8A47F',
+  '#8E9AAF', '#8D6E63', '#78909C', '#FFB74D', '#4DB6AC'
+]
 
 function goTo(path) {
   router.push(path)
@@ -246,6 +278,110 @@ function initCharts() {
   if (detectionsChartRef.value) {
     detectionsChart = echarts.init(detectionsChartRef.value)
   }
+  if (diseaseDistChartRef.value) {
+    diseaseDistChart = echarts.init(diseaseDistChartRef.value)
+  }
+  if (diseaseTrendChartRef.value) {
+    diseaseTrendChart = echarts.init(diseaseTrendChartRef.value)
+  }
+}
+
+function getDiseaseDistOptions(distribution) {
+  const entries = Object.entries(distribution || {})
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value)
+  return {
+    tooltip: {
+      trigger: 'item',
+      formatter: '{b}: {c} 次 ({d}%)',
+      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      borderColor: 'transparent',
+      textStyle: { color: '#fff' }
+    },
+    legend: {
+      type: 'scroll',
+      orient: 'vertical',
+      right: 0,
+      top: 'middle',
+      itemWidth: 12,
+      itemHeight: 12,
+      textStyle: { color: 'var(--color-text-secondary)', fontSize: 11 }
+    },
+    series: [{
+      type: 'pie',
+      radius: ['38%', '68%'],
+      center: ['35%', '50%'],
+      itemStyle: { borderRadius: 4, borderColor: 'transparent' },
+      label: { show: false },
+      emphasis: {
+        label: { show: false },
+        scaleSize: 4
+      },
+      data: entries,
+      color: DISEASE_PALETTE
+    }],
+    emptyData: !entries.length
+  }
+}
+
+function getDiseaseTrendOptions(dates, series) {
+  return {
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      borderColor: 'transparent',
+      textStyle: { color: '#fff' }
+    },
+    legend: {
+      type: 'scroll',
+      bottom: 0,
+      itemWidth: 12,
+      itemHeight: 12,
+      textStyle: { color: 'var(--color-text-secondary)', fontSize: 11 }
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '14%',
+      top: '8%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      boundaryGap: false,
+      data: dates || [],
+      axisLine: { lineStyle: { color: 'var(--color-border)' } },
+      axisLabel: { color: 'var(--color-text-secondary)', fontSize: 11 }
+    },
+    yAxis: {
+      type: 'value',
+      minInterval: 1,
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: { lineStyle: { color: 'var(--color-border)', type: 'dashed' } },
+      axisLabel: { color: 'var(--color-text-secondary)', fontSize: 11 }
+    },
+    series: (series || []).map((s, i) => ({
+      name: s.name,
+      type: 'line',
+      smooth: true,
+      symbol: 'circle',
+      symbolSize: 5,
+      showSymbol: false,
+      lineStyle: { width: 2, color: DISEASE_PALETTE[i % DISEASE_PALETTE.length] },
+      itemStyle: { color: DISEASE_PALETTE[i % DISEASE_PALETTE.length] },
+      data: s.data
+    }))
+  }
+}
+
+function updateDiseaseCharts(distData, trendData) {
+  if (diseaseDistChart) {
+    diseaseDistChart.setOption(getDiseaseDistOptions(distData.distribution), true)
+  }
+  if (diseaseTrendChart) {
+    diseaseTrendChart.setOption(getDiseaseTrendOptions(trendData.dates, trendData.series), true)
+  }
 }
 
 function updateCharts(usersData, detectionsData) {
@@ -299,9 +435,28 @@ async function fetchTrends() {
   }
 }
 
+async function fetchDiseaseStats() {
+  try {
+    const [distData, trendData] = await Promise.all([
+      getDiseaseDistribution(trendDays.value),
+      getDiseaseTrend(trendDays.value)
+    ])
+    updateDiseaseCharts(distData, trendData)
+  } catch (e) {
+    updateDiseaseCharts({ distribution: {} }, { dates: [], series: [] })
+  }
+}
+
+function handleTrendChange() {
+  fetchTrends()
+  fetchDiseaseStats()
+}
+
 function handleResize() {
   usersChart?.resize()
   detectionsChart?.resize()
+  diseaseDistChart?.resize()
+  diseaseTrendChart?.resize()
 }
 
 onMounted(async () => {
@@ -309,12 +464,15 @@ onMounted(async () => {
   await nextTick()
   initCharts()
   await fetchTrends()
+  await fetchDiseaseStats()
   window.addEventListener('resize', handleResize)
 })
 
 onUnmounted(() => {
   usersChart?.dispose()
   detectionsChart?.dispose()
+  diseaseDistChart?.dispose()
+  diseaseTrendChart?.dispose()
   window.removeEventListener('resize', handleResize)
 })
 </script>

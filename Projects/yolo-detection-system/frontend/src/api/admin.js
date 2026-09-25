@@ -130,6 +130,14 @@ export function getDetectionsTrend(days = 7) {
   return request.get('/admin/stats/detections-trend', { params: { days } })
 }
 
+export function getDiseaseDistribution(days = 30) {
+  return request.get('/admin/stats/disease-distribution', { params: { days } })
+}
+
+export function getDiseaseTrend(days = 7) {
+  return request.get('/admin/stats/disease-trend', { params: { days } })
+}
+
 export function getKnowledgeStats() {
   return request.get('/admin/stats/knowledge')
 }
