@@ -90,18 +90,15 @@ const avatarText = computed(() => {
 })
 
 function getRecordImage(record) {
-	if (record.result_image) {
-		return getFullUrl(record.result_image)
-	}
-	if (record.original_image) {
-		return getFullUrl(record.original_image)
-	}
-	return ''
+	const path = record.result_path || record.original_path
+	return path ? getFullUrl(path) : ''
 }
 
 function getDiseaseName(record) {
 	const detections = record.detections || []
-	if (detections.length === 0) return '未知病害'
+	if (detections.length === 0) {
+		return record.original_filename || '未知病害'
+	}
 	if (detections.length === 1) {
 		return detections[0].class_name
 	}
@@ -131,7 +128,7 @@ async function loadRecords() {
 	loading.value = true
 	try {
 		const data = await getHistoryList({ page: 1, page_size: 5 })
-		records.value = data.items || []
+		records.value = data.list || []
 	} catch (e) {
 		// 静默失败，显示空状态
 	} finally {

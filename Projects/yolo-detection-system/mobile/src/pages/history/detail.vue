@@ -14,11 +14,11 @@
 			<view class="image-section">
 				<view class="image-card">
 					<text class="card-label">原图</text>
-					<image :src="getFullUrl(record.original_image)" mode="widthFix" class="detail-image" @click="previewImage(record.original_image)" />
+					<image :src="getFullUrl(record.original_path)" mode="widthFix" class="detail-image" @click="previewImage(record.original_path)" />
 				</view>
 				<view class="image-card">
 					<text class="card-label">检测结果图</text>
-					<image :src="getFullUrl(record.result_image)" mode="widthFix" class="detail-image" @click="previewImage(record.result_image)" />
+					<image :src="getFullUrl(record.result_path)" mode="widthFix" class="detail-image" @click="previewImage(record.result_path)" />
 				</view>
 			</view>
 
@@ -29,7 +29,7 @@
 				</view>
 				<view class="info-row">
 					<text class="info-label">检测目标数</text>
-					<text class="info-value">{{ record.total_count || 0 }}</text>
+					<text class="info-value">{{ record.detection_count || 0 }}</text>
 				</view>
 				<view class="info-row">
 					<text class="info-label">模型版本</text>
@@ -40,7 +40,7 @@
 			<view class="detection-section">
 				<text class="section-title">检测结果</text>
 				<view
-					v-for="(item, index) in record.detections"
+					v-for="(item, index) in detections"
 					:key="index"
 					class="detection-item"
 				>
@@ -73,7 +73,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { getHistoryDetail } from '@/api/history'
 import { getFullUrl } from '@/utils/format'
 import LoadingOverlay from '@/components/LoadingOverlay.vue'
@@ -82,6 +82,8 @@ import DiseaseCard from '@/components/DiseaseCard.vue'
 
 const loading = ref(true)
 const record = ref(null)
+
+const detections = computed(() => record.value?.detection_result?.detections || [])
 
 function formatTime(dateStr) {
 	if (!dateStr) return ''
@@ -92,7 +94,7 @@ function formatTime(dateStr) {
 function previewImage(path) {
 	uni.previewImage({
 		current: getFullUrl(path),
-		urls: [getFullUrl(record.value?.original_image), getFullUrl(record.value?.result_image)].filter(Boolean)
+		urls: [getFullUrl(record.value?.original_path), getFullUrl(record.value?.result_path)].filter(Boolean)
 	})
 }
 

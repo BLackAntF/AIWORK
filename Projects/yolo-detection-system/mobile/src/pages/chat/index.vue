@@ -14,20 +14,20 @@
 				<view class="panel-close" @click="showSessionPanel = false">✕</view>
 			</view>
 			<view class="session-list">
-				<view class="new-session" @click="createNewSession">
+				<view class="new-session" @click="startNewSession">
 					<text class="new-icon">+</text>
 					<text class="new-text">新建会话</text>
 				</view>
 				<view
 					v-for="session in sessions"
-					:key="session.id"
+					:key="session.session_id"
 					class="session-item"
-					:class="{ active: currentSessionId === session.id }"
-					@click="switchSession(session.id)"
+					:class="{ active: currentSessionId === session.session_id }"
+					@click="switchSession(session.session_id)"
 				>
-					<text class="session-name">{{ session.name || '未命名会话' }}</text>
-					<text class="session-time">{{ formatSessionTime(session.created_at) }}</text>
-					<view class="session-delete" @click.stop="deleteSession(session.id)">
+					<text class="session-name">{{ session.title || '未命名会话' }}</text>
+					<text class="session-time">{{ formatSessionTime(session.last_time) }}</text>
+					<view class="session-delete" @click.stop="deleteSession(session.session_id)">
 						<text>✕</text>
 					</view>
 				</view>
@@ -60,9 +60,8 @@
 			</view>
 
 			<view v-for="(msg, idx) in messages" :key="idx" :id="'msg-' + idx">
-				<ChatBubble :isSelf="msg.role === 'user'" :content="msg.content" :time="formatTime(msg.created_at)" />
-				<ConfidenceTag v-if="msg.role === 'assistant' && msg.confidence" :level="getConfidenceLevel(msg.confidence)" />
-			</view>
+					<ChatBubble :isSelf="msg.role === 'user'" :content="msg.content" :time="formatTime(msg.created_at)" />
+				</view>
 
 			<view v-if="isThinking" class="thinking-bubble">
 				<text class="thinking-text">AI 正在思考...</text>
@@ -97,9 +96,8 @@
 
 <script setup>
 import { ref, onMounted, nextTick, watch } from 'vue'
-import { askQuestion, getSessions, createSession, deleteSession as apiDeleteSession } from '@/api/knowledge'
+import { askQuestion, getSessionList, getChatHistory, deleteSession as apiDeleteSession } from '@/api/knowledge'
 import ChatBubble from '@/components/ChatBubble.vue'
-import ConfidenceTag from '@/components/ConfidenceTag.vue'
 
 const showSessionPanel = ref(false)
 const currentSessionId = ref('')
@@ -109,14 +107,10 @@ const inputText = ref('')
 const isThinking = ref(false)
 const scrollToId = ref('')
 const contextImage = ref('')
+const detectionContext = ref('')
+const detectedClassId = ref(null)
 
 const quickQuestions = ['这个病严重吗？', '怎么防治？', '用什么药剂？', '多久能治好？']
-
-function getConfidenceLevel(confidence) {
-	if (confidence >= 0.8) return 'high'
-	if (confidence >= 0.5) return 'medium'
-	return 'low'
-}
 
 function formatTime(dateStr) {
 	if (!dateStr) return ''
@@ -139,49 +133,68 @@ function scrollToBottom() {
 
 function clearContextImage() {
 	contextImage.value = ''
+	detectionContext.value = ''
+	detectedClassId.value = null
+}
+
+function applyDetectionContext(detections) {
+	const first = detections?.[0]
+	if (!first) return
+	detectionContext.value = `${first.class_name} (${(first.confidence * 100).toFixed(1)}%)`
+	detectedClassId.value = first.class_id ?? null
+}
+
+async function refreshSessions() {
+	try {
+		const data = await getSessionList()
+		sessions.value = data.sessions || []
+	} catch (e) {
+		sessions.value = []
+	}
 }
 
 async function loadSessions() {
-	try {
-		const data = await getSessions()
-		sessions.value = data.items || []
-		if (sessions.value.length > 0 && !currentSessionId.value) {
-			switchSession(sessions.value[0].id)
-		} else if (sessions.value.length === 0) {
-			await createNewSession()
-		}
-	} catch (e) {
-		await createNewSession()
+	await refreshSessions()
+	if (sessions.value.length > 0) {
+		await switchSession(sessions.value[0].session_id)
+	} else {
+		startNewSession()
 	}
 }
 
-async function createNewSession() {
-	try {
-		const data = await createSession()
-		currentSessionId.value = data.id
-		messages.value = []
-		contextImage.value = ''
-		await loadSessions()
-	} catch (e) {
-		uni.showToast({ title: '创建会话失败', icon: 'none' })
-	}
-}
-
-async function switchSession(id) {
-	currentSessionId.value = id
+function startNewSession() {
+	currentSessionId.value = ''
 	messages.value = []
-	contextImage.value = ''
+	clearContextImage()
 	showSessionPanel.value = false
 }
 
-async function deleteSession(id) {
-	if (id === currentSessionId.value) {
+function toMessage(item) {
+	return { role: item.role, content: item.content, created_at: item.created_at }
+}
+
+async function switchSession(sessionId) {
+	currentSessionId.value = sessionId
+	messages.value = []
+	clearContextImage()
+	showSessionPanel.value = false
+	try {
+		const data = await getChatHistory(sessionId)
+		messages.value = (data.list || []).map(toMessage)
+	} catch (e) {
+		uni.showToast({ title: '历史消息加载失败', icon: 'none' })
+	}
+	scrollToBottom()
+}
+
+async function deleteSession(sessionId) {
+	if (sessionId === currentSessionId.value) {
 		uni.showToast({ title: '不能删除当前会话', icon: 'none' })
 		return
 	}
 	try {
-		await apiDeleteSession(id)
-		await loadSessions()
+		await apiDeleteSession(sessionId)
+		await refreshSessions()
 	} catch (e) {
 		uni.showToast({ title: '删除失败', icon: 'none' })
 	}
@@ -192,27 +205,38 @@ function sendQuickQuestion(q) {
 	sendMessage()
 }
 
+function buildAskParams(question) {
+	const params = { question, session_id: currentSessionId.value }
+	if (detectionContext.value) {
+		params.detection_context = detectionContext.value
+	}
+	if (detectedClassId.value !== null) {
+		params.detected_class_id = detectedClassId.value
+	}
+	return params
+}
+
 async function sendMessage() {
 	const text = inputText.value.trim()
 	if (!text || isThinking.value) return
 
+	const isNewSession = !currentSessionId.value
 	isThinking.value = true
 	messages.value.push({ role: 'user', content: text, created_at: new Date().toISOString() })
 	inputText.value = ''
 	scrollToBottom()
 
 	try {
-		const params = { question: text, session_id: currentSessionId.value }
-		if (contextImage.value) {
-			params.image_url = contextImage.value
-		}
-		const data = await askQuestion(params)
+		const data = await askQuestion(buildAskParams(text))
+		currentSessionId.value = data.session_id || currentSessionId.value
 		messages.value.push({
 			role: 'assistant',
 			content: data.answer,
-			confidence: data.confidence,
 			created_at: new Date().toISOString()
 		})
+		if (isNewSession) {
+			await refreshSessions()
+		}
 	} catch (e) {
 		messages.value.push({
 			role: 'assistant',
@@ -234,6 +258,7 @@ onMounted(() => {
 		if (data?.result_image) {
 			contextImage.value = data.result_image
 		}
+		applyDetectionContext(data?.detections)
 	})
 
 	loadSessions()

@@ -50,7 +50,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { getAdminUsers } from '@/api/admin'
+import { getUsers } from '@/api/admin'
 import EmptyState from '@/components/EmptyState.vue'
 
 const users = ref([])
@@ -66,8 +66,8 @@ function formatTime(dateStr) {
 async function loadUsers() {
 	loading.value = true
 	try {
-		const data = await getAdminUsers()
-		users.value = data.items || []
+		const data = await getUsers()
+		users.value = data.list || []
 	} catch (e) {
 		uni.showToast({ title: '加载失败', icon: 'none' })
 	} finally {

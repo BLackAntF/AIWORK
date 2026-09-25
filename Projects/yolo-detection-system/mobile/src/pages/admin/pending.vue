@@ -39,7 +39,7 @@
 					</view>
 					<text class="item-summary">{{ item.summary }}</text>
 					<view class="item-footer">
-						<text class="item-author">{{ item.author_name || '未知' }}</text>
+						<text class="item-author">{{ item.uploader_name || '未知' }}</text>
 						<text class="item-time">{{ formatTime(item.created_at) }}</text>
 					</view>
 				</view>
@@ -50,7 +50,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { getAdminPending } from '@/api/admin'
+import { getPendingKnowledge } from '@/api/admin'
 import EmptyState from '@/components/EmptyState.vue'
 
 const items = ref([])
@@ -66,8 +66,8 @@ function formatTime(dateStr) {
 async function loadPending() {
 	loading.value = true
 	try {
-		const data = await getAdminPending()
-		items.value = data.items || []
+		const data = await getPendingKnowledge()
+		items.value = data.list || []
 	} catch (e) {
 		uni.showToast({ title: '加载失败', icon: 'none' })
 	} finally {

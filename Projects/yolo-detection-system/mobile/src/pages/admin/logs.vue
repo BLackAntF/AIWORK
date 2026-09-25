@@ -47,7 +47,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { getAdminLogs } from '@/api/admin'
+import { getLogs } from '@/api/admin'
 import EmptyState from '@/components/EmptyState.vue'
 
 const logs = ref([])
@@ -63,8 +63,8 @@ function formatTime(dateStr) {
 async function loadLogs() {
 	loading.value = true
 	try {
-		const data = await getAdminLogs()
-		logs.value = data.items || []
+		const data = await getLogs()
+		logs.value = data.logs || []
 	} catch (e) {
 		uni.showToast({ title: '加载失败', icon: 'none' })
 	} finally {

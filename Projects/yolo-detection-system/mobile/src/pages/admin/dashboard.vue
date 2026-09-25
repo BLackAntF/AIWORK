@@ -40,46 +40,25 @@
 						<text class="stat-label">知识总数</text>
 					</view>
 					<view class="stat-card">
-						<text class="stat-value">{{ stats.pending_count || 0 }}</text>
-						<text class="stat-label">待审核</text>
+						<text class="stat-value">{{ stats.total_chats || 0 }}</text>
+						<text class="stat-label">对话总数</text>
 					</view>
 				</view>
 
 				<view class="chart-card">
-					<text class="card-title">病害检测统计</text>
-					<view class="bar-chart">
-						<view
-							v-for="item in detectionStats"
-							:key="item.name"
-							class="bar-item"
-						>
-							<text class="bar-name">{{ item.name }}</text>
-							<view class="bar-track">
-								<view
-									class="bar-fill"
-									:style="{ width: getBarWidth(item.count) + '%' }"
-								></view>
-							</view>
-							<text class="bar-count">{{ item.count }}</text>
+					<text class="card-title">今日概览</text>
+					<view class="today-list">
+						<view class="today-item">
+							<text class="today-value">{{ stats.today_users || 0 }}</text>
+							<text class="today-label">新增用户</text>
 						</view>
-					</view>
-				</view>
-
-				<view class="chart-card">
-					<text class="card-title">检测趋势（近7天）</text>
-					<view class="line-chart">
-						<view
-							v-for="(item, idx) in trendStats"
-							:key="idx"
-							class="line-item"
-						>
-							<view class="line-bar">
-								<view
-									class="line-fill"
-									:style="{ height: getLineHeight(item.count) + '%' }"
-								></view>
-							</view>
-							<text class="line-label">{{ item.date }}</text>
+						<view class="today-item">
+							<text class="today-value">{{ stats.today_detections || 0 }}</text>
+							<text class="today-label">新增检测</text>
+						</view>
+						<view class="today-item">
+							<text class="today-value">{{ stats.today_chats || 0 }}</text>
+							<text class="today-label">新增对话</text>
 						</view>
 					</view>
 				</view>
@@ -89,50 +68,17 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
-import { getAdminDashboard } from '@/api/admin'
+import { ref, onMounted } from 'vue'
+import { getDashboardStats } from '@/api/admin'
 
 const stats = ref({})
 const loading = ref(false)
 const refreshing = ref(false)
 
-const detectionStats = computed(() => {
-	return stats.value.detection_stats || [
-		{ name: '健康', count: 0 },
-		{ name: '早疫病', count: 0 },
-		{ name: '晚疫病', count: 0 },
-		{ name: '叶霉病', count: 0 },
-		{ name: '斑枯病', count: 0 },
-		{ name: '灰霉病', count: 0 }
-	]
-})
-
-const trendStats = computed(() => {
-	return stats.value.daily_trend || [
-		{ date: '周一', count: 0 },
-		{ date: '周二', count: 0 },
-		{ date: '周三', count: 0 },
-		{ date: '周四', count: 0 },
-		{ date: '周五', count: 0 },
-		{ date: '周六', count: 0 },
-		{ date: '周日', count: 0 }
-	]
-})
-
-function getBarWidth(count) {
-	const max = Math.max(...detectionStats.value.map(d => d.count), 1)
-	return (count / max) * 100
-}
-
-function getLineHeight(count) {
-	const max = Math.max(...trendStats.value.map(d => d.count), 1)
-	return (count / max) * 100
-}
-
 async function loadStats() {
 	loading.value = true
 	try {
-		const data = await getAdminDashboard()
+		const data = await getDashboardStats()
 		stats.value = data
 	} catch (e) {
 		uni.showToast({ title: '加载失败', icon: 'none' })
@@ -272,84 +218,27 @@ onMounted(() => {
 	display: block;
 }
 
-.bar-chart {
+.today-list {
 	display: flex;
-	flex-direction: column;
-	gap: 16rpx;
-}
-
-.bar-item {
-	display: flex;
-	align-items: center;
-	gap: 12rpx;
-}
-
-.bar-name {
-	width: 80rpx;
-	font-size: 24rpx;
-	color: #666;
-	flex-shrink: 0;
-}
-
-.bar-track {
-	flex: 1;
-	height: 24rpx;
-	background: #F5F5F5;
-	border-radius: 12rpx;
-	overflow: hidden;
-}
-
-.bar-fill {
-	height: 100%;
-	background: linear-gradient(90deg, #E07A5F 0%, #C96247 100%);
-	border-radius: 12rpx;
-	transition: width 0.5s ease;
-}
-
-.bar-count {
-	width: 60rpx;
-	font-size: 24rpx;
-	color: #999;
-	text-align: right;
-	flex-shrink: 0;
-}
-
-.line-chart {
-	display: flex;
-	align-items: flex-end;
 	justify-content: space-between;
-	height: 200rpx;
-	padding-top: 20rpx;
 }
 
-.line-item {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
+.today-item {
 	flex: 1;
-	height: 100%;
+	text-align: center;
 }
 
-.line-bar {
-	width: 32rpx;
-	height: 100%;
-	background: #F5F5F5;
-	border-radius: 16rpx;
-	display: flex;
-	align-items: flex-end;
-	overflow: hidden;
+.today-value {
+	font-size: 40rpx;
+	font-weight: 700;
+	color: #E07A5F;
+	display: block;
 }
 
-.line-fill {
-	width: 100%;
-	background: linear-gradient(180deg, #E07A5F 0%, #C96247 100%);
-	border-radius: 16rpx;
-	transition: height 0.5s ease;
-}
-
-.line-label {
-	font-size: 22rpx;
+.today-label {
+	font-size: 24rpx;
 	color: #999;
-	margin-top: 12rpx;
+	margin-top: 8rpx;
+	display: block;
 }
 </style>

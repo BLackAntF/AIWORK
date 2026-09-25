@@ -14,7 +14,7 @@
 			<view class="detail-header">
 				<text class="detail-title">{{ detail.title }}</text>
 				<view class="detail-meta">
-					<text class="meta-item">{{ detail.category_name }}</text>
+					<text class="meta-item">{{ detail.category || '未分类' }}</text>
 					<text class="meta-item">{{ formatTime(detail.created_at) }}</text>
 				</view>
 				<text class="detail-summary">{{ detail.summary }}</text>
@@ -46,7 +46,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { getKnowledgeDetail, getKnowledgeRelated } from '@/api/knowledge'
+import { getKnowledgeDetail, getRelatedKnowledge } from '@/api/knowledge'
 import LoadingOverlay from '@/components/LoadingOverlay.vue'
 import EmptyState from '@/components/EmptyState.vue'
 
@@ -80,8 +80,8 @@ async function loadDetail() {
 
 	try {
 		detail.value = await getKnowledgeDetail(id)
-		const relatedData = await getKnowledgeRelated(id)
-		related.value = relatedData || []
+		const relatedData = await getRelatedKnowledge(id)
+		related.value = relatedData.list || []
 	} catch (e) {
 		uni.showToast({ title: '加载失败', icon: 'none' })
 	} finally {

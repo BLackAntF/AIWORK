@@ -77,7 +77,7 @@ async function handleSubmit() {
 
 	isSubmitting.value = true
 	try {
-		await changePassword(oldPassword.value, newPassword.value)
+		await changePassword({ old_password: oldPassword.value, new_password: newPassword.value })
 		uni.showToast({ title: '修改成功', icon: 'success' })
 		setTimeout(() => {
 			uni.navigateBack()

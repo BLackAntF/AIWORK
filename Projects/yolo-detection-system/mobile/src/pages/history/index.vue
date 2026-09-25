@@ -59,14 +59,13 @@ const pageSize = ref(10)
 const hasMore = ref(true)
 
 function getRecordImage(record) {
-	if (record.result_image) return getFullUrl(record.result_image)
-	if (record.original_image) return getFullUrl(record.original_image)
-	return ''
+	const path = record.result_path || record.original_path
+	return path ? getFullUrl(path) : ''
 }
 
 function getDiseaseName(record) {
 	const detections = record.detections || []
-	if (detections.length === 0) return '未知病害'
+	if (detections.length === 0) return record.original_filename || '未知病害'
 	if (detections.length === 1) return detections[0].class_name
 	return detections.map(d => d.class_name).join(', ')
 }
@@ -83,12 +82,13 @@ async function loadRecords(isRefresh = false) {
 	loading.value = true
 	try {
 		const data = await getHistoryList({ page: page.value, page_size: pageSize.value })
+		const items = data.list || []
 		if (isRefresh) {
-			records.value = data.items || []
+			records.value = items
 		} else {
-			records.value = [...records.value, ...(data.items || [])]
+			records.value = [...records.value, ...items]
 		}
-		hasMore.value = (data.items || []).length >= pageSize.value
+		hasMore.value = items.length >= pageSize.value
 	} catch (e) {
 		uni.showToast({ title: '加载失败', icon: 'none' })
 	} finally {

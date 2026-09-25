@@ -10,5 +10,5 @@ import { uploadFile } from './upload'
  * @returns {Promise}
  */
 export function detectImage(filePath, saveHistory = true) {
-  return uploadFile('/detect/image', filePath, { save_history: saveHistory }, 'image')
+  return uploadFile('/detect/image', filePath, { save_history: saveHistory }, 'file')
 }

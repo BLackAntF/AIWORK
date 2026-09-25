@@ -57,7 +57,7 @@
 					<text class="item-title">{{ item.title }}</text>
 					<text class="item-summary">{{ item.summary }}</text>
 					<view class="item-footer">
-						<text class="item-category">{{ getCategoryName(item.category_id) }}</text>
+						<text class="item-category">{{ item.category || '未分类' }}</text>
 						<text class="item-time">{{ formatTime(item.created_at) }}</text>
 					</view>
 				</view>
@@ -75,7 +75,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { getKnowledgeList, getKnowledgeCategories } from '@/api/knowledge'
+import { getKnowledgeList, getCategories } from '@/api/knowledge'
 import EmptyState from '@/components/EmptyState.vue'
 
 const keyword = ref('')
@@ -88,11 +88,6 @@ const page = ref(1)
 const pageSize = ref(10)
 const hasMore = ref(true)
 
-function getCategoryName(id) {
-	const cat = categories.value.find(c => c.id === id)
-	return cat ? cat.name : '未知'
-}
-
 function formatTime(dateStr) {
 	if (!dateStr) return ''
 	const date = new Date(dateStr)
@@ -101,8 +96,9 @@ function formatTime(dateStr) {
 
 async function loadCategories() {
 	try {
-		const data = await getKnowledgeCategories()
-		categories.value = [{ id: '', name: '全部' }, ...(data || [])]
+		const data = await getCategories()
+		const names = data.categories || []
+		categories.value = [{ id: '', name: '全部' }, ...names.map(name => ({ id: name, name }))]
 	} catch (e) {
 		categories.value = [{ id: '', name: '全部' }]
 	}
@@ -115,7 +111,7 @@ async function loadList(isRefresh = false) {
 	try {
 		const params = { page: page.value, page_size: pageSize.value }
 		if (keyword.value) params.keyword = keyword.value
-		if (selectedCategory.value) params.category_id = selectedCategory.value
+		if (selectedCategory.value) params.category = selectedCategory.value
 
 		const data = await getKnowledgeList(params)
 		if (isRefresh) {
