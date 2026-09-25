@@ -4,6 +4,7 @@ from models import Knowledge, KnowledgeCategory, Tag, KnowledgeTag, db
 from utils.response import success, bad_request, not_found, error
 from middleware.auth_middleware import admin_required
 from services.knowledge_service import knowledge_service
+from services import notification_service
 from utils.audit import log_knowledge_action, log_category_action
 from utils.html_utils import sanitize_html
 
@@ -577,6 +578,16 @@ def approve_knowledge(current_user, kb_id):
         return bad_request('无效的审核操作')
 
     db.session.commit()
+
+    # 通知投稿人审核结果（匿名/无投稿人时跳过）
+    if kb.uploader_id:
+        notification_service.notify_knowledge_review(
+            user_id=kb.uploader_id,
+            kb_id=kb.id,
+            title=kb.title,
+            approved=action == 'approve'
+        )
+        db.session.commit()
 
     log_knowledge_action(
         user_id=current_user.id,

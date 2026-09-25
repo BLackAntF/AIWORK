@@ -328,3 +328,43 @@ class KnowledgeTag(db.Model):
     __table_args__ = (
         db.UniqueConstraint('knowledge_id', 'tag_id', name='uq_knowledge_tag'),
     )
+
+
+class Notification(db.Model):
+    """站内通知模型"""
+    __tablename__ = 'notifications'
+
+    TYPE_DETECTION_COMPLETED = 'detection_completed'
+    TYPE_KNOWLEDGE_APPROVED = 'knowledge_approved'
+    TYPE_KNOWLEDGE_REJECTED = 'knowledge_rejected'
+    TYPE_SYSTEM = 'system'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    type = db.Column(db.String(50), nullable=False, index=True)
+    title = db.Column(db.String(255), nullable=False)
+    content = db.Column(db.Text)
+    is_read = db.Column(db.Boolean, default=False, index=True)
+    related_type = db.Column(db.String(50))
+    related_id = db.Column(db.Integer)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+    user = db.relationship('User', backref=db.backref('notifications', lazy='dynamic'))
+
+    def to_dict(self) -> dict:
+        """转换为字典
+
+        Returns:
+            dict: 通知字段字典
+        """
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'type': self.type,
+            'title': self.title,
+            'content': self.content,
+            'is_read': self.is_read,
+            'related_type': self.related_type,
+            'related_id': self.related_id,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }

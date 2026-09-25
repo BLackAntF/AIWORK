@@ -6,6 +6,7 @@ from utils.file_utils import allowed_file, save_uploaded_file, get_file_size, ge
 from middleware.auth_middleware import login_required
 from services.yolo_service import yolo_service
 from services.disease_profile_service import disease_profile_service
+from services import notification_service
 
 detection_bp = Blueprint('detection', __name__, url_prefix='/api/detect')
 
@@ -67,6 +68,15 @@ def detect_image(current_user):
         db.session.add(history)
         db.session.commit()
         history_id = history.id
+
+        # 写入站内通知（检测完成）
+        notification_service.notify_detection_completed(
+            user_id=current_user.id,
+            history_id=history.id,
+            filename=original_name,
+            detection_count=detect_result['total_count']
+        )
+        db.session.commit()
 
     for det in detect_result['detections']:
         class_id = det.get('class_id')

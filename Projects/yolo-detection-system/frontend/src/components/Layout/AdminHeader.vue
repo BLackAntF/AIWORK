@@ -15,6 +15,7 @@
       <el-button type="primary" plain :icon="Back" @click="goToUserSide" class="btn-back-user">
         返回用户端
       </el-button>
+      <NotificationBell />
       <ThemeToggle />
       <el-dropdown trigger="click" class="user-dropdown" @command="handleCommand">
         <div class="user-info">
@@ -51,7 +52,9 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Fold, Expand, ArrowDown, User, SwitchButton, Back } from '@element-plus/icons-vue'
 import ThemeToggle from '@/components/ThemeToggle.vue'
+import NotificationBell from '@/components/NotificationBell.vue'
 import { useUserStore } from '@/store/modules/user'
+import { useNotificationStore } from '@/store/modules/notification'
 
 defineProps({
   collapsed: {
@@ -64,6 +67,7 @@ defineEmits(['toggle-sidebar'])
 
 const router = useRouter()
 const userStore = useUserStore()
+const notificationStore = useNotificationStore()
 const isMobile = ref(false)
 
 function goToUserSide() {
@@ -95,10 +99,12 @@ function checkMobile() {
 onMounted(() => {
   checkMobile()
   window.addEventListener('resize', checkMobile)
+  notificationStore.startPolling()
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', checkMobile)
+  notificationStore.stopPolling()
 })
 </script>
 
