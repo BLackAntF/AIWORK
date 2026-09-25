@@ -19,3 +19,7 @@ export function batchDeleteHistory(ids) {
 export function exportHistory(params) {
   return request.get('/history/export', { params, responseType: 'blob' })
 }
+
+export function getHistoryReport(id) {
+  return request.get(`/history/${id}/report`, { responseType: 'blob' })
+}

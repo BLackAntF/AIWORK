@@ -26,6 +26,10 @@
             <el-icon><Refresh /></el-icon>
             <span>重新检测</span>
           </el-button>
+          <el-button :loading="exportLoading" @click="handleExportReport">
+            <el-icon><Document /></el-icon>
+            <span>导出报告</span>
+          </el-button>
           <el-button type="danger" @click="handleDelete">
             <el-icon><Delete /></el-icon>
             <span>删除</span>
@@ -184,9 +188,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   ArrowLeft, ChatDotRound, Refresh, Delete, DataAnalysis,
-  CollectionTag, Timer, ZoomIn, Warning, VideoCamera
+  CollectionTag, Timer, ZoomIn, Warning, VideoCamera, Document
 } from '@element-plus/icons-vue'
-import { getHistoryDetail, deleteHistory } from '@/api/history'
+import { getHistoryDetail, deleteHistory, getHistoryReport } from '@/api/history'
 import { getFullUrl } from '@/utils/format'
 
 const route = useRoute()
@@ -195,6 +199,7 @@ const router = useRouter()
 const loading = ref(false)
 const detail = ref(null)
 const showImagePreview = ref(false)
+const exportLoading = ref(false)
 
 const resultImageUrl = computed(() => {
   const img = detail.value?.result_path || detail.value?.original_path
@@ -337,6 +342,29 @@ function handleRedetect() {
   ElMessage.info('重新检测功能开发中...')
 }
 
+async function handleExportReport() {
+  const id = route.params.id
+  if (!id) return
+  exportLoading.value = true
+  try {
+    const res = await getHistoryReport(id)
+    const html = await res.data.text()
+    const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'
+    const processedHtml = html.replace(/src="\/static\//g, `src="${baseUrl}/static/`)
+    const blob = new Blob([processedHtml], { type: 'text/html' })
+    const url = URL.createObjectURL(blob)
+    const win = window.open(url, '_blank')
+    if (!win) {
+      ElMessage.warning('请允许浏览器弹出窗口后再试')
+      return
+    }
+  } catch (error) {
+    console.error('导出报告失败', error)
+  } finally {
+    exportLoading.value = false
+  }
+}
+
 function goToKnowledge() {
   const detectionContext = encodeURIComponent(JSON.stringify({
     id: detail.value?.id,
@@ -416,6 +444,7 @@ function goToKnowledge() {
   display: flex;
   gap: 10px;
   flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 .detail-content {
