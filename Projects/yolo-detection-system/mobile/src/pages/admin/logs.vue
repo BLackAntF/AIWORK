@@ -42,6 +42,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { getLogs } from '@/api/admin'
+import { showError } from '@/utils/error'
 import EmptyState from '@/components/EmptyState.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import AppIcon from '@/components/AppIcon.vue'
@@ -62,7 +63,7 @@ async function loadLogs() {
 		const data = await getLogs()
 		logs.value = data.logs || []
 	} catch (e) {
-		uni.showToast({ title: '加载失败', icon: 'none' })
+		showError(e, '加载失败')
 	} finally {
 		loading.value = false
 		refreshing.value = false

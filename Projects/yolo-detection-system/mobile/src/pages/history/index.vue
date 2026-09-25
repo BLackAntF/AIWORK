@@ -47,6 +47,7 @@
 import { ref, onMounted } from 'vue'
 import { getHistoryList } from '@/api/history'
 import { getFullUrl } from '@/utils/format'
+import { showError } from '@/utils/error'
 import EmptyState from '@/components/EmptyState.vue'
 import PageHeader from '@/components/PageHeader.vue'
 
@@ -89,7 +90,7 @@ async function loadRecords(isRefresh = false) {
 		}
 		hasMore.value = items.length >= pageSize.value
 	} catch (e) {
-		uni.showToast({ title: '加载失败', icon: 'none' })
+		showError(e, '加载失败')
 	} finally {
 		loading.value = false
 		refreshing.value = false

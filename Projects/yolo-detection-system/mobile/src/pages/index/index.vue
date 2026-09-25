@@ -74,6 +74,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { onPullDownRefresh } from '@dcloudio/uni-app'
 import { useUserStore } from '@/store/user'
 import { getHistoryList } from '@/api/history'
 import { getFullUrl } from '@/utils/format'
@@ -134,8 +135,13 @@ async function loadRecords() {
 		// 静默失败，显示空状态
 	} finally {
 		loading.value = false
+		uni.stopPullDownRefresh()
 	}
 }
+
+onPullDownRefresh(() => {
+	loadRecords()
+})
 
 function goDetect() {
 	uni.switchTab({ url: '/pages/detect/index' })

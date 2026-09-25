@@ -64,8 +64,20 @@
 			</view>
 
 			<view v-for="(msg, idx) in messages" :key="idx" :id="'msg-' + idx">
-					<ChatBubble :isSelf="msg.role === 'user'" :content="msg.content" :time="formatTime(msg.created_at)" />
+				<ChatBubble :isSelf="msg.role === 'user'" :content="msg.content" :time="formatTime(msg.created_at)" />
+				<view v-if="msg.role === 'assistant' && msg.sources && msg.sources.length > 0" class="sources-block">
+					<text class="sources-label">参考来源</text>
+					<view
+						v-for="(source, sidx) in msg.sources"
+						:key="sidx"
+						class="source-item"
+						@click="goSource(source)"
+					>
+						<text class="source-name">{{ source.title || source.file_name || '来源' }}</text>
+						<text class="source-arrow">›</text>
+					</view>
 				</view>
+			</view>
 
 			<view v-if="isThinking" class="thinking-bubble">
 				<text class="thinking-text">AI 正在思考...</text>
@@ -101,6 +113,7 @@
 <script setup>
 import { ref, onMounted, nextTick, watch } from 'vue'
 import { askQuestion, getSessionList, getChatHistory, deleteSession as apiDeleteSession } from '@/api/knowledge'
+import { showError } from '@/utils/error'
 import ChatBubble from '@/components/ChatBubble.vue'
 import AppIcon from '@/components/AppIcon.vue'
 
@@ -134,6 +147,29 @@ function scrollToBottom() {
 		const len = messages.value.length
 		scrollToId.value = len > 0 ? `msg-${len - 1}` : ''
 	})
+}
+
+function typeWriter(msg, fullText) {
+	const step = 2
+	let index = 0
+	msg.content = ''
+	return new Promise((resolve) => {
+		const timer = setInterval(() => {
+			index += step
+			msg.content = fullText.slice(0, index)
+			if (index >= fullText.length) {
+				clearInterval(timer)
+				resolve()
+			}
+		}, 25)
+	})
+}
+
+function goSource(source) {
+	const knowledgeId = source.knowledge_id || source.id
+	if (knowledgeId) {
+		uni.navigateTo({ url: `/pages/knowledge/detail?id=${knowledgeId}` })
+	}
 }
 
 function clearContextImage() {
@@ -175,7 +211,7 @@ function startNewSession() {
 }
 
 function toMessage(item) {
-	return { role: item.role, content: item.content, created_at: item.created_at }
+	return { role: item.role, content: item.content, created_at: item.created_at, sources: item.metadata?.sources }
 }
 
 async function switchSession(sessionId) {
@@ -187,7 +223,7 @@ async function switchSession(sessionId) {
 		const data = await getChatHistory(sessionId)
 		messages.value = (data.list || []).map(toMessage)
 	} catch (e) {
-		uni.showToast({ title: '历史消息加载失败', icon: 'none' })
+		showError(e, '历史消息加载失败')
 	}
 	scrollToBottom()
 }
@@ -201,7 +237,7 @@ async function deleteSession(sessionId) {
 		await apiDeleteSession(sessionId)
 		await refreshSessions()
 	} catch (e) {
-		uni.showToast({ title: '删除失败', icon: 'none' })
+		showError(e, '删除失败')
 	}
 }
 
@@ -234,11 +270,15 @@ async function sendMessage() {
 	try {
 		const data = await askQuestion(buildAskParams(text))
 		currentSessionId.value = data.session_id || currentSessionId.value
-		messages.value.push({
+		const assistantMsg = {
 			role: 'assistant',
-			content: data.answer,
-			created_at: new Date().toISOString()
-		})
+			content: '',
+			created_at: new Date().toISOString(),
+			sources: data.sources || []
+		}
+		messages.value.push(assistantMsg)
+		isThinking.value = false
+		await typeWriter(assistantMsg, data.answer)
 		if (isNewSession) {
 			await refreshSessions()
 		}
@@ -493,6 +533,42 @@ onMounted(() => {
 	padding: 20rpx 24rpx;
 	border-radius: 20rpx;
 	margin-bottom: 20rpx;
+}
+
+.sources-block {
+	background: var(--bg-1);
+	border-radius: 16rpx;
+	padding: 16rpx 20rpx;
+	margin: 0 0 20rpx 64rpx;
+}
+
+.sources-label {
+	font-size: 24rpx;
+	color: var(--text-3);
+	margin-bottom: 12rpx;
+	display: block;
+}
+
+.source-item {
+	display: flex;
+	align-items: center;
+	padding: 12rpx 0;
+	border-bottom: 1rpx solid var(--border-light);
+}
+
+.source-item:last-child {
+	border-bottom: none;
+}
+
+.source-name {
+	flex: 1;
+	font-size: 26rpx;
+	color: var(--brand);
+}
+
+.source-arrow {
+	font-size: 32rpx;
+	color: var(--text-disabled);
 }
 
 .thinking-text {

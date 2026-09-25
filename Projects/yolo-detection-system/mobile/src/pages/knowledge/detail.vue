@@ -40,7 +40,9 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { onPullDownRefresh } from '@dcloudio/uni-app'
 import { getKnowledgeDetail, getRelatedKnowledge } from '@/api/knowledge'
+import { showError } from '@/utils/error'
 import LoadingOverlay from '@/components/LoadingOverlay.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import PageHeader from '@/components/PageHeader.vue'
@@ -74,11 +76,16 @@ async function loadDetail() {
 		const relatedData = await getRelatedKnowledge(id)
 		related.value = relatedData.list || []
 	} catch (e) {
-		uni.showToast({ title: '加载失败', icon: 'none' })
+		showError(e, '加载失败')
 	} finally {
 		loading.value = false
+		uni.stopPullDownRefresh()
 	}
 }
+
+onPullDownRefresh(() => {
+	loadDetail()
+})
 
 onMounted(() => {
 	loadDetail()

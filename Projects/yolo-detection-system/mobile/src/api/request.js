@@ -3,13 +3,14 @@
  * 基于后端响应规范：成功 code=0，业务错误 code=401/400 等（HTTP 状态码均为 200）
  * 功能：Token 自动注入、401 自动跳登录、错误提示
  */
+import { handleTokenExpired } from '@/utils/error'
 
 // API 基地址：H5 通过 vite 代理转发（相对路径 /api），App 端使用环境变量配置
 // #ifdef H5
 const BASE_URL = '/api'
 // #endif
 // #ifndef H5
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000/api'
+const BASE_URL = import.meta.env.VITE_API_BASE_URL
 // #endif
 
 // Token 在本地存储的 key
@@ -25,17 +26,6 @@ function buildHeader(customHeader = {}) {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...customHeader
   }
-}
-
-/**
- * 处理 Token 失效，清除并跳转登录
- */
-function handleTokenExpired() {
-  uni.removeStorageSync(TOKEN_KEY)
-  uni.showToast({ title: '登录已过期，请重新登录', icon: 'none' })
-  setTimeout(() => {
-    uni.reLaunch({ url: '/pages/login/index' })
-  }, 1000)
 }
 
 /**

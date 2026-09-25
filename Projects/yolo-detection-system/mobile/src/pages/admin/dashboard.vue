@@ -64,6 +64,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { getDashboardStats } from '@/api/admin'
+import { showError } from '@/utils/error'
 import PageHeader from '@/components/PageHeader.vue'
 import AppIcon from '@/components/AppIcon.vue'
 
@@ -77,7 +78,7 @@ async function loadStats() {
 		const data = await getDashboardStats()
 		stats.value = data
 	} catch (e) {
-		uni.showToast({ title: '加载失败', icon: 'none' })
+		showError(e, '加载失败')
 	} finally {
 		loading.value = false
 		refreshing.value = false

@@ -18,6 +18,12 @@
 					<text class="menu-text">修改密码</text>
 					<text class="menu-arrow">›</text>
 				</view>
+				<view class="menu-item" @click="goNotifications">
+					<AppIcon class="menu-icon" name="bell" :size="36" color="#6C757D" />
+					<text class="menu-text">站内通知</text>
+					<view v-if="unreadCount > 0" class="badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</view>
+					<text class="menu-arrow">›</text>
+				</view>
 				<view class="menu-item" @click="goKnowledge">
 					<AppIcon class="menu-icon" name="book" :size="36" color="#6C757D" />
 					<text class="menu-text">知识库浏览</text>
@@ -69,11 +75,14 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { onShow, onPullDownRefresh } from '@dcloudio/uni-app'
 import { useUserStore } from '@/store/user'
+import { getUnreadCount } from '@/api/notifications'
 import AppIcon from '@/components/AppIcon.vue'
 
 const userStore = useUserStore()
 const adminExpanded = ref(false)
+const unreadCount = ref(0)
 
 const displayName = computed(() => userStore.userInfo?.username || '用户')
 const avatarText = computed(() => {
@@ -88,6 +97,10 @@ const isAdmin = computed(() => userStore.isAdmin)
 
 function goChangePassword() {
 	uni.navigateTo({ url: '/pages/mine/password' })
+}
+
+function goNotifications() {
+	uni.navigateTo({ url: '/pages/notifications/index' })
 }
 
 function goKnowledge() {
@@ -112,6 +125,24 @@ function goAdmin(page) {
 	}
 	uni.navigateTo({ url: urls[page] })
 }
+
+async function loadUnreadCount() {
+	try {
+		const data = await getUnreadCount()
+		unreadCount.value = data.unread_count || 0
+	} catch (e) {
+		unreadCount.value = 0
+	}
+}
+
+onShow(() => {
+	loadUnreadCount()
+})
+
+onPullDownRefresh(async () => {
+	await loadUnreadCount()
+	uni.stopPullDownRefresh()
+})
 
 function handleLogout() {
 	uni.showModal({
@@ -235,6 +266,20 @@ function handleLogout() {
 .menu-arrow {
 	font-size: 36rpx;
 	color: var(--text-disabled);
+}
+
+.badge {
+	min-width: 32rpx;
+	height: 32rpx;
+	border-radius: 16rpx;
+	background: var(--error);
+	color: #fff;
+	font-size: 22rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0 10rpx;
+	margin-right: 12rpx;
 }
 
 .admin-group {

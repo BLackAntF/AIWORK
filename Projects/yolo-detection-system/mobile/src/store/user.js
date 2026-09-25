@@ -50,11 +50,16 @@ export const useUserStore = defineStore('user', {
       return res
     },
 
-    /** 退出登录：清除本地状态并跳转登录页 */
-    logout() {
+    /** 清除登录态：清 token 与用户信息并移除本地缓存（不跳转） */
+    clearAuth() {
       this.token = ''
       this.userInfo = null
       uni.removeStorageSync(TOKEN_KEY)
+    },
+
+    /** 退出登录：清除本地状态并跳转登录页 */
+    logout() {
+      this.clearAuth()
       uni.reLaunch({ url: '/pages/login/index' })
     }
   }

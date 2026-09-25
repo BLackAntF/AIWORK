@@ -72,6 +72,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { getKnowledgeList, getCategories } from '@/api/knowledge'
+import { showError } from '@/utils/error'
 import AppIcon from '@/components/AppIcon.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import PageHeader from '@/components/PageHeader.vue'
@@ -119,7 +120,7 @@ async function loadList(isRefresh = false) {
 		}
 		hasMore.value = (data.items || []).length >= pageSize.value
 	} catch (e) {
-		uni.showToast({ title: '加载失败', icon: 'none' })
+		showError(e, '加载失败')
 	} finally {
 		loading.value = false
 		refreshing.value = false

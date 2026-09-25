@@ -68,8 +68,10 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { onPullDownRefresh } from '@dcloudio/uni-app'
 import { getHistoryDetail } from '@/api/history'
 import { getFullUrl } from '@/utils/format'
+import { showError } from '@/utils/error'
 import LoadingOverlay from '@/components/LoadingOverlay.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import PageHeader from '@/components/PageHeader.vue'
@@ -106,11 +108,16 @@ async function loadRecord() {
 	try {
 		record.value = await getHistoryDetail(id)
 	} catch (e) {
-		uni.showToast({ title: '加载失败', icon: 'none' })
+		showError(e, '加载失败')
 	} finally {
 		loading.value = false
+		uni.stopPullDownRefresh()
 	}
 }
+
+onPullDownRefresh(() => {
+	loadRecord()
+})
 
 onMounted(() => {
 	loadRecord()

@@ -47,7 +47,9 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { onPullDownRefresh } from '@dcloudio/uni-app'
 import { getDiseaseProfile } from '@/api/knowledge'
+import { showError } from '@/utils/error'
 import LoadingOverlay from '@/components/LoadingOverlay.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import AppIcon from '@/components/AppIcon.vue'
@@ -90,11 +92,16 @@ async function loadProfile() {
 		const data = await getDiseaseProfile(id)
 		profile.value = data
 	} catch (e) {
-		uni.showToast({ title: '加载失败', icon: 'none' })
+		showError(e, '加载失败')
 	} finally {
 		loading.value = false
+		uni.stopPullDownRefresh()
 	}
 }
+
+onPullDownRefresh(() => {
+	loadProfile()
+})
 
 onMounted(() => {
 	loadProfile()

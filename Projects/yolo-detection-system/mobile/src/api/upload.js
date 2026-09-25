@@ -2,13 +2,14 @@
  * 文件上传封装
  * 基于 uni.uploadFile，用于图片上传
  */
+import { handleTokenExpired } from '@/utils/error'
 
 // API 基地址：H5 通过 vite 代理转发（相对路径 /api），App 端使用环境变量配置
 // #ifdef H5
 const BASE_URL = '/api'
 // #endif
 // #ifndef H5
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000/api'
+const BASE_URL = import.meta.env.VITE_API_BASE_URL
 // #endif
 const TOKEN_KEY = 'token'
 
@@ -18,17 +19,6 @@ const TOKEN_KEY = 'token'
 function buildUploadHeader() {
   const token = uni.getStorageSync(TOKEN_KEY)
   return token ? { Authorization: `Bearer ${token}` } : {}
-}
-
-/**
- * 处理 Token 失效，清除并跳转登录
- */
-function handleTokenExpired() {
-  uni.removeStorageSync(TOKEN_KEY)
-  uni.showToast({ title: '登录已过期，请重新登录', icon: 'none' })
-  setTimeout(() => {
-    uni.reLaunch({ url: '/pages/login/index' })
-  }, 1000)
 }
 
 /**

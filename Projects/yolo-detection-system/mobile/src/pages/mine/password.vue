@@ -50,6 +50,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { changePassword } from '@/api/auth'
+import { showError } from '@/utils/error'
 import PageHeader from '@/components/PageHeader.vue'
 
 const oldPassword = ref('')
@@ -74,7 +75,7 @@ async function handleSubmit() {
 			uni.navigateBack()
 		}, 1500)
 	} catch (e) {
-		uni.showToast({ title: '修改失败，请检查原密码', icon: 'none' })
+		showError(e, '修改失败，请检查原密码')
 	} finally {
 		isSubmitting.value = false
 	}
