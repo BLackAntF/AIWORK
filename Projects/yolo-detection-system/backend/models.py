@@ -383,3 +383,33 @@ class Notification(db.Model):
             'related_id': self.related_id,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
+
+
+class KnowledgeFavorite(db.Model):
+    """知识收藏模型"""
+    __tablename__ = 'knowledge_favorites'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    knowledge_id = db.Column(db.Integer, db.ForeignKey('knowledge.id'), nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'knowledge_id', name='uq_knowledge_favorite'),
+    )
+
+    user = db.relationship('User', backref=db.backref('knowledge_favorites', lazy='dynamic'))
+    knowledge = db.relationship('Knowledge')
+
+    def to_dict(self) -> dict:
+        """转换为字典
+
+        Returns:
+            dict: 收藏字段字典
+        """
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'knowledge_id': self.knowledge_id,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }

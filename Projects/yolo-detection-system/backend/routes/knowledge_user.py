@@ -1,5 +1,5 @@
 from flask import Blueprint, request
-from models import Knowledge, db
+from models import Knowledge, KnowledgeFavorite, db
 from utils.response import success, not_found, bad_request, error
 from services.knowledge_service import knowledge_service
 from middleware.auth_middleware import login_required
@@ -102,6 +102,118 @@ def get_related_knowledge(knowledge_id):
     return success(data={
         'list': related,
         'total': len(related)
+    })
+
+
+@knowledge_user_bp.route('/favorites', methods=['GET'])
+@login_required
+def get_my_favorites(current_user):
+    """获取我的收藏列表（需登录）
+
+    Query Params:
+        page: 页码，默认1
+        page_size: 每页数量，默认12
+    """
+    page = int(request.args.get('page', 1))
+    page_size = int(request.args.get('page_size', 12))
+
+    if page < 1:
+        page = 1
+    if page_size < 1 or page_size > 100:
+        page_size = 12
+
+    query = KnowledgeFavorite.query.filter_by(user_id=current_user.id)
+
+    total = query.count()
+    favorites = query.order_by(KnowledgeFavorite.created_at.desc()).offset(
+        (page - 1) * page_size
+    ).limit(page_size).all()
+
+    items = []
+    for fav in favorites:
+        kb = fav.knowledge
+        items.append({
+            'id': fav.id,
+            'knowledge_id': fav.knowledge_id,
+            'created_at': fav.created_at.isoformat() if fav.created_at else None,
+            'knowledge': {
+                'id': kb.id if kb else None,
+                'title': kb.title if kb else '',
+                'category': kb.category if kb else '',
+                'summary': kb.summary if kb else ''
+            } if kb else None
+        })
+
+    return success(data={
+        'list': items,
+        'total': total,
+        'page': page,
+        'page_size': page_size
+    })
+
+
+@knowledge_user_bp.route('/<int:knowledge_id>/favorite', methods=['POST'])
+@login_required
+def add_favorite(current_user, knowledge_id):
+    """收藏知识（需登录）"""
+    knowledge = Knowledge.query.filter_by(
+        id=knowledge_id,
+        is_active=True
+    ).first()
+
+    if not knowledge:
+        return not_found('知识不存在')
+
+    exists = KnowledgeFavorite.query.filter_by(
+        user_id=current_user.id,
+        knowledge_id=knowledge_id
+    ).first()
+
+    if exists:
+        return bad_request('已收藏')
+
+    try:
+        fav = KnowledgeFavorite(user_id=current_user.id, knowledge_id=knowledge_id)
+        db.session.add(fav)
+        db.session.commit()
+        return success(data=fav.to_dict(), message='收藏成功')
+    except Exception as e:
+        db.session.rollback()
+        return error(message=f'收藏失败: {str(e)}')
+
+
+@knowledge_user_bp.route('/<int:knowledge_id>/favorite', methods=['DELETE'])
+@login_required
+def remove_favorite(current_user, knowledge_id):
+    """取消收藏知识（需登录）"""
+    fav = KnowledgeFavorite.query.filter_by(
+        user_id=current_user.id,
+        knowledge_id=knowledge_id
+    ).first()
+
+    if not fav:
+        return not_found('未收藏')
+
+    try:
+        db.session.delete(fav)
+        db.session.commit()
+        return success(message='已取消收藏')
+    except Exception as e:
+        db.session.rollback()
+        return error(message=f'取消收藏失败: {str(e)}')
+
+
+@knowledge_user_bp.route('/<int:knowledge_id>/favorite-status', methods=['GET'])
+@login_required
+def get_favorite_status(current_user, knowledge_id):
+    """查询知识收藏状态（需登录）"""
+    exists = KnowledgeFavorite.query.filter_by(
+        user_id=current_user.id,
+        knowledge_id=knowledge_id
+    ).first()
+
+    return success(data={
+        'is_favorite': exists is not None
     })
 
 
