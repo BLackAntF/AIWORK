@@ -3,8 +3,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from flask import Flask, jsonify, send_from_directory
+from werkzeug.exceptions import HTTPException
 from config import Config
 from extensions import db, jwt, cors
+from utils.response import server_error
 
 
 def create_app(config_class=Config):
@@ -63,7 +65,16 @@ def create_app(config_class=Config):
     @app.errorhandler(500)
     def internal_error(error):
         db.session.rollback()
-        return jsonify({'code': 500, 'message': '服务器内部错误', 'data': None}), 500
+        return server_error()
+
+    @app.errorhandler(Exception)
+    def unhandled_exception(exc):
+        """兜底处理路由内未捕获的异常，避免其被伪装成 401"""
+        if isinstance(exc, HTTPException):
+            return jsonify({'code': exc.code, 'message': exc.description, 'data': None}), exc.code
+        db.session.rollback()
+        app.logger.exception('未捕获的异常')
+        return server_error()
 
     return app
 

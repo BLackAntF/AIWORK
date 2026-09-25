@@ -53,6 +53,13 @@ class Config:
     LLM_BASE_URL = os.environ.get('LLM_BASE_URL') or ''
     LLM_MODEL = os.environ.get('LLM_MODEL') or 'qwen-turbo'
     LLM_USE_MOCK = _str_to_bool(os.environ.get('LLM_USE_MOCK', 'true'))
+    LLM_TIMEOUT_SECONDS = int(os.environ.get('LLM_TIMEOUT_SECONDS', 20))
+    LLM_FALLBACK_TO_MOCK = _str_to_bool(os.environ.get('LLM_FALLBACK_TO_MOCK', 'true'))
+
+    # 知识问答每分钟提问上限
+    KNOWLEDGE_ASK_RATE_LIMIT_PER_MINUTE = int(
+        os.environ.get('KNOWLEDGE_ASK_RATE_LIMIT_PER_MINUTE', 20)
+    )
 
     CHROMA_PATH = os.path.join(BASE_DIR, 'data', 'chroma')
     CHROMA_COLLECTION = 'knowledge'

@@ -1,9 +1,9 @@
 import uuid
 import time
 from collections import defaultdict
-from flask import Blueprint, request
+from flask import Blueprint, request, current_app
 from models import ChatHistory, db
-from utils.response import success, bad_request
+from utils.response import success, bad_request, not_found, error
 from middleware.auth_middleware import login_required
 from services.knowledge_service import knowledge_service
 from services.llm_service import llm_service
@@ -12,14 +12,15 @@ from services.disease_profile_service import disease_profile_service
 knowledge_bp = Blueprint('knowledge', __name__, url_prefix='/api/knowledge')
 
 _rate_limit_store = defaultdict(list)
-RATE_LIMIT_PER_MINUTE = 20
+RATE_LIMIT_WINDOW_SECONDS = 60
 
 
 def _check_rate_limit(user_id):
+    limit = current_app.config.get('KNOWLEDGE_ASK_RATE_LIMIT_PER_MINUTE', 20)
     now = time.time()
     timestamps = _rate_limit_store[user_id]
-    timestamps[:] = [t for t in timestamps if now - t < 60]
-    if len(timestamps) >= RATE_LIMIT_PER_MINUTE:
+    timestamps[:] = [t for t in timestamps if now - t < RATE_LIMIT_WINDOW_SECONDS]
+    if len(timestamps) >= limit:
         return False
     timestamps.append(now)
     return True
@@ -29,11 +30,7 @@ def _check_rate_limit(user_id):
 @login_required
 def ask_question(current_user):
     if not _check_rate_limit(current_user.id):
-        return {
-            'code': 429,
-            'message': '提问过于频繁，请稍后再试',
-            'data': None
-        }, 429
+        return error(code=429, message='提问过于频繁，请稍后再试')
 
     data = request.get_json() or {}
     question = data.get('question', '').strip()
@@ -60,12 +57,18 @@ def ask_question(current_user):
 
     knowledge_list = knowledge_service.search(question, top_k=3)
 
-    llm_result = llm_service.generate_answer(
-        question=question,
-        knowledge_list=knowledge_list,
-        detection_context=detection_context,
-        disease_profile=disease_profile
-    )
+    try:
+        llm_result = llm_service.generate_answer(
+            question=question,
+            knowledge_list=knowledge_list,
+            detection_context=detection_context,
+            disease_profile=disease_profile
+        )
+    except (RuntimeError, ValueError) as e:
+        # LLM 未配置或调用失败且未开启降级，返回明确的业务错误码，
+        # 避免异常冒泡后被误判为 401
+        current_app.logger.error(f"知识问答生成失败: {str(e)}")
+        return error(code=502, message='AI 服务暂时不可用，请稍后重试')
 
     session_title = question[:20]
 
@@ -98,7 +101,8 @@ def ask_question(current_user):
         'sources': llm_result.get('sources', []),
         'session_id': session_id,
         'session_title': session_title,
-        'disease_profile': disease_profile
+        'disease_profile': disease_profile,
+        'degraded': llm_result.get('degraded', False)
     })
 
 

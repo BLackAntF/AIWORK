@@ -172,11 +172,19 @@ class LLMService:
                      {"role": "user", "content": question}
                  ],
                  temperature=0.7,
-                 max_tokens=1000
+                 max_tokens=1000,
+                 timeout=current_app.config['LLM_TIMEOUT_SECONDS']
              )
         except Exception as e:
             current_app.logger.error(f"LLM API调用失败: {str(e)}")
-            raise RuntimeError(f"LLM API调用失败: {str(e)}")
+            if not current_app.config.get('LLM_FALLBACK_TO_MOCK', True):
+                raise RuntimeError(f"LLM API调用失败: {str(e)}")
+
+            result = self._generate_mock_answer(
+                question, knowledge_list, detection_context, disease_profile
+            )
+            result['degraded'] = True
+            return result
 
         answer = response.choices[0].message.content
 
@@ -185,7 +193,8 @@ class LLMService:
         return {
             'answer': answer,
             'sources': sources,
-            'disease_profile': disease_profile
+            'disease_profile': disease_profile,
+            'degraded': False
         }
 
 
