@@ -21,6 +21,18 @@ request.interceptors.request.use(
 
 request.interceptors.response.use(
   (response) => {
+    // 文件下载（CSV 等）不走业务响应体解析，直接返回完整响应以便读取响应头
+    if (response.config.responseType === 'blob') {
+      const blobType = response.data?.type || ''
+      if (blobType.includes('application/json')) {
+        return response.data.text().then((text) => {
+          const res = JSON.parse(text)
+          ElMessage.error(res.message || '请求失败')
+          return Promise.reject(new Error(res.message || '请求失败'))
+        })
+      }
+      return response
+    }
     const res = response.data
     if (res.code === 0) {
       return res.data

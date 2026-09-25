@@ -10,7 +10,7 @@
         <div class="upload-section glass-card">
           <div
             class="upload-area"
-            :class="{ 'drag-over': isDragOver, 'has-file': imageFile }"
+            :class="{ 'drag-over': isDragOver, 'has-file': imageFiles.length > 0 }"
             @click="triggerImageUpload"
             @dragover.prevent="handleDragOver"
             @dragleave.prevent="handleDragLeave"
@@ -19,22 +19,38 @@
             <input
               ref="imageInput"
               type="file"
+              multiple
               accept="image/jpeg,image/png,image/bmp,image/webp"
               class="file-input"
               @change="handleImageChange"
               hidden
             />
-            <div v-if="imagePreview" class="preview-wrapper">
-              <img :src="imagePreview" alt="预览" class="preview-image" @click="handlePreviewImage" />
-              <button class="remove-btn" @click.stop="removeImage">
-                <el-icon><Close /></el-icon>
-              </button>
-            </div>
-            <div v-else class="upload-placeholder">
+            <div v-if="imageFiles.length === 0" class="upload-placeholder">
               <el-icon :size="56" class="upload-icon"><Picture /></el-icon>
               <p class="upload-text">点击或拖拽图片到此处上传</p>
-              <p class="upload-tip">支持 JPG、PNG、BMP、WEBP 格式</p>
-              <p class="upload-info">单张图片大小不超过 10MB</p>
+              <p class="upload-tip">支持 JPG、PNG、BMP、WEBP 格式，可多选批量检测</p>
+              <p class="upload-info">单张图片不超过 10MB，单次最多 20 张</p>
+            </div>
+            <div v-else class="preview-grid">
+              <div
+                v-for="(item, index) in imageFiles"
+                :key="index"
+                class="preview-item"
+              >
+                <img
+                  :src="item.preview"
+                  :alt="item.file.name"
+                  class="preview-thumb"
+                  @click.stop="handlePreviewImage(item.preview)"
+                />
+                <button class="remove-btn" @click.stop="removeImage(index)">
+                  <el-icon><Close /></el-icon>
+                </button>
+              </div>
+              <div class="preview-add" @click.stop="triggerImageUpload">
+                <el-icon :size="28"><Plus /></el-icon>
+                <span>添加图片</span>
+              </div>
             </div>
           </div>
 
@@ -51,7 +67,7 @@
               @click="handleDetect"
             >
               <el-icon><Search /></el-icon>
-              <span>{{ isDetecting ? '检测中...' : '开始检测' }}</span>
+              <span>{{ detectButtonText }}</span>
             </el-button>
           </div>
         </div>
@@ -169,7 +185,7 @@
                   <span>坐标: [{{ item.bbox?.join(', ') || '-' }}]</span>
                 </div>
 
-                <div v-if="item.disease_profile && item.class_name !== 'Healthy'" class="disease-profile-section">
+                <div v-if="item.disease_profile && item.class_name !== '健康叶片'" class="disease-profile-section">
                   <div class="profile-header">
                     <el-icon><Document /></el-icon>
                     <span>病害档案</span>
@@ -209,7 +225,7 @@
                   </div>
                 </div>
 
-                <div v-else-if="item.class_name === 'Healthy'" class="healthy-section">
+                <div v-else-if="item.class_name === '健康叶片'" class="healthy-section">
                   <el-tag type="success" effect="light" size="large">
                     <el-icon><CircleCheck /></el-icon>
                     健康叶片
@@ -232,6 +248,91 @@
             <el-button class="action-btn" @click="handleDownload">
               <el-icon><Download /></el-icon>
               <span>下载结果</span>
+            </el-button>
+          </div>
+        </div>
+
+        <div v-else-if="batchResult" class="stats-section slide-up">
+          <div class="stat-cards">
+            <div class="stat-card glass-card hover-lift">
+              <div class="stat-icon total-icon">
+                <el-icon :size="28"><CircleCheck /></el-icon>
+              </div>
+              <div class="stat-content">
+                <p class="stat-value">{{ batchResult.success_count }}</p>
+                <p class="stat-label">检测成功</p>
+              </div>
+            </div>
+            <div class="stat-card glass-card hover-lift">
+              <div class="stat-icon time-icon">
+                <el-icon :size="28"><Warning /></el-icon>
+              </div>
+              <div class="stat-content">
+                <p class="stat-value">{{ batchResult.failed_count }}</p>
+                <p class="stat-label">检测失败</p>
+              </div>
+            </div>
+            <div class="stat-card glass-card hover-lift">
+              <div class="stat-icon model-icon">
+                <el-icon :size="28"><DataAnalysis /></el-icon>
+              </div>
+              <div class="stat-content">
+                <p class="stat-value">{{ batchTotalCount }}</p>
+                <p class="stat-label">检出目标总数</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="batch-section glass-card">
+            <h3 class="section-title">批量检测结果</h3>
+            <el-table :data="batchRows" size="small" max-height="420" class="batch-table">
+              <el-table-column label="结果图" width="76">
+                <template #default="{ row }">
+                  <img
+                    v-if="row.result_image"
+                    :src="getFullUrl(row.result_image)"
+                    :alt="row.original_filename"
+                    class="batch-thumb"
+                    @click="handlePreviewImage(getFullUrl(row.result_image))"
+                  />
+                  <span v-else class="text-placeholder">-</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="original_filename" label="文件名" min-width="150" show-overflow-tooltip />
+              <el-table-column label="检出病害" min-width="150">
+                <template #default="{ row }">
+                  <span>{{ formatClassSummary(row.class_summary) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="检出数" width="80">
+                <template #default="{ row }">
+                  <span>{{ row.total_count ?? '-' }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="耗时" width="90">
+                <template #default="{ row }">
+                  <span>{{ row.success ? formatProcessingTime(row.processing_time) : '-' }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="状态" width="90">
+                <template #default="{ row }">
+                  <el-tooltip v-if="!row.success" :content="row.error || '检测失败'" placement="top">
+                    <el-tag type="danger" size="small">失败</el-tag>
+                  </el-tooltip>
+                  <el-tag v-else type="success" size="small">成功</el-tag>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+
+          <div class="action-buttons batch-actions">
+            <el-button class="action-btn ai-btn glow-border" @click="handleBatchAiConsult">
+              <el-icon><ChatDotRound /></el-icon>
+              <span>AI 问诊</span>
+            </el-button>
+            <el-button class="action-btn" @click="handleReset">
+              <el-icon><Refresh /></el-icon>
+              <span>清空结果</span>
             </el-button>
           </div>
         </div>
@@ -269,26 +370,33 @@ import {
   Monitor,
   ZoomIn,
   Document,
-  CircleCheck
+  CircleCheck,
+  Plus,
+  Warning
 } from '@element-plus/icons-vue'
-import { detectImage } from '@/api/detection'
+import { detectImage, detectBatch } from '@/api/detection'
 import { useChatStore } from '@/store/modules/chat'
 import { getFullUrl } from '@/utils/format'
 
 const router = useRouter()
 const chatStore = useChatStore()
 
+// 与后端 config.MAX_BATCH_IMAGES 保持一致
+const MAX_BATCH_IMAGES = 20
+const MAX_FILE_SIZE = 10 * 1024 * 1024
+
 const saveHistory = ref(true)
 const isDetecting = ref(false)
 const isCanceling = ref(false)
 const detectProgress = ref(0)
 const detectionResult = ref(null)
+const batchResult = ref(null)
+const batchRows = ref([])
 const previewVisible = ref(false)
 const previewImageUrl = ref('')
 
 const imageInput = ref(null)
-const imageFile = ref(null)
-const imagePreview = ref('')
+const imageFiles = ref([])
 const isDragOver = ref(false)
 
 let progressTimer = null
@@ -321,7 +429,28 @@ function getCategoryColor(categoryName) {
 }
 
 const canDetect = computed(() => {
-  return !!imageFile.value
+  return imageFiles.value.length > 0
+})
+
+const detectButtonText = computed(() => {
+  if (isDetecting.value) return '检测中...'
+  if (imageFiles.value.length > 1) return `开始批量检测 (${imageFiles.value.length})`
+  return '开始检测'
+})
+
+const batchTotalCount = computed(() => {
+  return batchRows.value.reduce((sum, row) => sum + (row.total_count || 0), 0)
+})
+
+const batchClassSummary = computed(() => {
+  const merged = {}
+  batchRows.value.forEach((row) => {
+    if (!row.success || !row.class_summary) return
+    Object.entries(row.class_summary).forEach(([name, count]) => {
+      merged[name] = (merged[name] || 0) + count
+    })
+  })
+  return merged
 })
 
 const resultImageUrl = computed(() => {
@@ -345,9 +474,7 @@ function formatProcessingTime(time) {
 }
 
 function triggerImageUpload() {
-  if (!imageFile.value) {
-    imageInput.value?.click()
-  }
+  imageInput.value?.click()
 }
 
 function handleDragOver() {
@@ -361,50 +488,59 @@ function handleDragLeave() {
 function validateImageFile(file) {
   const validTypes = ['image/jpeg', 'image/png', 'image/bmp', 'image/webp']
   if (!validTypes.includes(file.type)) {
-    ElMessage.error('请上传 JPG、PNG、BMP 或 WEBP 格式的图片')
+    ElMessage.error(`${file.name}：仅支持 JPG、PNG、BMP 或 WEBP 格式`)
     return false
   }
-  const maxSize = 10 * 1024 * 1024
-  if (file.size > maxSize) {
-    ElMessage.error('图片大小不能超过 10MB')
+  if (file.size > MAX_FILE_SIZE) {
+    ElMessage.error(`${file.name}：图片大小不能超过 10MB`)
     return false
   }
   return true
 }
 
-function handleImageChange(e) {
-  const file = e.target.files?.[0]
-  if (file) {
-    handleImageFile(file)
+function addFiles(fileList) {
+  const incoming = Array.from(fileList || []).filter(validateImageFile)
+  if (incoming.length === 0) return
+
+  const remain = MAX_BATCH_IMAGES - imageFiles.value.length
+  if (remain <= 0) {
+    ElMessage.warning(`单次最多上传 ${MAX_BATCH_IMAGES} 张图片`)
+    return
   }
+  if (incoming.length > remain) {
+    ElMessage.warning(`单次最多上传 ${MAX_BATCH_IMAGES} 张图片，已保留前 ${remain} 张`)
+  }
+
+  incoming.slice(0, remain).forEach((file) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      imageFiles.value.push({ file, preview: e.target?.result })
+    }
+    reader.readAsDataURL(file)
+  })
+
+  resetResults()
+}
+
+function resetResults() {
+  detectionResult.value = null
+  batchResult.value = null
+  batchRows.value = []
+}
+
+function handleImageChange(e) {
+  addFiles(e.target.files)
   e.target.value = ''
 }
 
 function handleImageDrop(e) {
   isDragOver.value = false
-  const file = e.dataTransfer.files?.[0]
-  if (file && file.type.startsWith('image/')) {
-    handleImageFile(file)
-  } else {
-    ElMessage.error('请上传图片文件')
-  }
+  addFiles(e.dataTransfer.files)
 }
 
-function handleImageFile(file) {
-  if (!validateImageFile(file)) return
-  imageFile.value = file
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    imagePreview.value = e.target?.result
-  }
-  reader.readAsDataURL(file)
-  detectionResult.value = null
-}
-
-function removeImage() {
-  imageFile.value = null
-  imagePreview.value = ''
-  detectionResult.value = null
+function removeImage(index) {
+  imageFiles.value.splice(index, 1)
+  resetResults()
 }
 
 function startProgressSimulation() {
@@ -427,17 +563,25 @@ function stopProgressSimulation() {
 
 async function handleDetect() {
   if (!canDetect.value) return
-  
+
   isDetecting.value = true
   isCanceling.value = false
-  detectionResult.value = null
+  resetResults()
   startProgressSimulation()
 
   try {
-    const result = await detectImage(imageFile.value, saveHistory.value)
-    detectionResult.value = result
-    stopProgressSimulation()
-    ElMessage.success('检测完成')
+    if (imageFiles.value.length > 1) {
+      const res = await detectBatch(imageFiles.value.map(item => item.file), saveHistory.value)
+      batchResult.value = res
+      batchRows.value = res.list || []
+      stopProgressSimulation()
+      ElMessage.success(`批量检测完成：成功 ${res.success_count} 张，失败 ${res.failed_count} 张`)
+    } else {
+      const result = await detectImage(imageFiles.value[0].file, saveHistory.value)
+      detectionResult.value = result
+      stopProgressSimulation()
+      ElMessage.success('检测完成')
+    }
   } catch (error) {
     stopProgressSimulation()
     if (!isCanceling.value) {
@@ -466,11 +610,16 @@ function handleCancel() {
   }).catch(() => {})
 }
 
-function handlePreviewImage() {
-  if (imagePreview.value) {
-    previewImageUrl.value = imagePreview.value
-    previewVisible.value = true
-  }
+function handlePreviewImage(url) {
+  if (!url) return
+  previewImageUrl.value = url
+  previewVisible.value = true
+}
+
+function formatClassSummary(summary) {
+  if (!summary) return '-'
+  const parts = Object.entries(summary).map(([name, count]) => `${name}×${count}`)
+  return parts.length > 0 ? parts.join('、') : '-'
 }
 
 function handlePreviewResult() {
@@ -503,8 +652,23 @@ function askAboutDisease(item) {
 }
 
 function handleReset() {
-  detectionResult.value = null
+  resetResults()
   detectProgress.value = 0
+}
+
+function handleBatchAiConsult() {
+  if (!batchResult.value) {
+    ElMessage.warning('请先完成检测')
+    return
+  }
+  chatStore.setDetectionContext({
+    class_id: null,
+    disease_name: '',
+    detection_context: `本次批量检测共 ${batchRows.value.length} 张图片，成功 ${batchResult.value.success_count} 张，`
+      + `失败 ${batchResult.value.failed_count} 张，检出目标 ${batchTotalCount.value} 个，`
+      + `病害分布：${formatClassSummary(batchClassSummary.value)}`
+  })
+  router.push('/knowledge')
 }
 
 function handleDownload() {
@@ -630,22 +794,54 @@ onUnmounted(() => {
   margin: 0;
 }
 
-.preview-wrapper {
-  position: relative;
+.preview-grid {
   width: 100%;
-  min-height: 280px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   padding: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
 }
 
-.preview-image {
-  max-width: 100%;
-  max-height: 360px;
-  object-fit: contain;
+.preview-item {
+  position: relative;
+  aspect-ratio: 1 / 1;
   border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-bg-tertiary);
+}
+
+.preview-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   cursor: zoom-in;
+}
+
+.preview-item .remove-btn {
+  top: 6px;
+  right: 6px;
+  width: 26px;
+  height: 26px;
+}
+
+.preview-add {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  aspect-ratio: 1 / 1;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-tertiary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.preview-add:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
 }
 
 .remove-btn {
@@ -1083,6 +1279,31 @@ onUnmounted(() => {
   text-align: center;
 }
 
+.batch-section {
+  padding: 20px;
+}
+
+.batch-table {
+  width: 100%;
+}
+
+.batch-thumb {
+  width: 56px;
+  height: 42px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  cursor: zoom-in;
+  background: var(--color-bg-tertiary);
+}
+
+.text-placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.batch-actions {
+  grid-template-columns: repeat(2, 1fr);
+}
+
 .action-buttons {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -1200,8 +1421,9 @@ onUnmounted(() => {
     min-height: 200px;
   }
 
-  .preview-wrapper {
-    min-height: 200px;
+  .preview-grid {
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+    padding: 12px;
   }
 }
 </style>

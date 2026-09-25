@@ -8,7 +8,7 @@
             <span>返回</span>
           </el-button>
           <div class="header-info">
-            <h1 class="page-title ellipsis">{{ detail?.file_name || '检测详情' }}</h1>
+            <h1 class="page-title ellipsis">{{ detail?.original_filename || '检测详情' }}</h1>
             <p class="page-subtitle text-secondary">
               <el-tag :type="detail?.type === 'image' ? 'primary' : 'success'" size="small">
                 {{ detail?.type === 'image' ? '图片' : '视频' }}
@@ -45,7 +45,7 @@
             <div v-else class="result-image-wrapper" @click="showImagePreview = true">
               <img
                 :src="resultImageUrl"
-                :alt="detail?.file_name"
+                :alt="detail?.original_filename"
                 class="result-image"
               />
               <div class="zoom-hint">
@@ -79,7 +79,7 @@
                 <el-icon :size="28"><Timer /></el-icon>
               </div>
               <div class="stat-content">
-                <p class="stat-value">{{ formatTime(detail?.inference_time) }}</p>
+                <p class="stat-value">{{ formatTime(detail?.processing_time) }}</p>
                 <p class="stat-label">检测耗时</p>
               </div>
             </div>
@@ -120,7 +120,7 @@
               </div>
               <div class="info-item">
                 <span class="info-label">检测耗时</span>
-                <span class="info-value">{{ formatTime(detail?.inference_time) }}</span>
+                <span class="info-value">{{ formatTime(detail?.processing_time) }}</span>
               </div>
               <div class="info-item">
                 <span class="info-label">检测时间</span>
@@ -140,11 +140,11 @@
           <div class="detections-section glass-card">
             <h3 class="section-title">
               检测明细
-              <span class="detection-total">共 {{ detail?.detections?.length || 0 }} 条</span>
+              <span class="detection-total">共 {{ detections.length }} 条</span>
             </h3>
             <div class="detection-list">
               <div
-                v-for="(item, index) in detail?.detections || []"
+                v-for="(item, index) in detections"
                 :key="index"
                 class="detection-item"
               >
@@ -160,7 +160,7 @@
                 </span>
               </div>
             </div>
-            <div v-if="!detail?.detections?.length" class="empty-detections">
+            <div v-if="detections.length === 0" class="empty-detections">
               <el-icon :size="32"><Warning /></el-icon>
               <p>未检测到目标</p>
             </div>
@@ -197,9 +197,13 @@ const detail = ref(null)
 const showImagePreview = ref(false)
 
 const resultImageUrl = computed(() => {
-  const img = detail.value?.result_image || detail.value?.image_url
+  const img = detail.value?.result_path || detail.value?.original_path
   return img ? getFullUrl(img) : ''
 })
+
+const detectionResult = computed(() => detail.value?.detection_result || {})
+
+const detections = computed(() => detectionResult.value.detections || [])
 
 const categoryColors = [
   '#E07A5F',
@@ -230,33 +234,34 @@ function getCategoryColor(categoryName) {
 }
 
 const totalCount = computed(() => {
-  if (detail.value?.detection_count !== undefined) {
+  if (detail.value?.detection_count !== undefined && detail.value?.detection_count !== null) {
     return detail.value.detection_count
   }
-  return detail.value?.detections?.length || 0
+  if (detectionResult.value.total_count !== undefined) {
+    return detectionResult.value.total_count
+  }
+  return detections.value.length
 })
 
 const categoryDistribution = computed(() => {
-  if (detail.value?.category_distribution) {
-    return Object.entries(detail.value.category_distribution).map(([name, count]) => ({
+  const summary = detectionResult.value.class_summary
+  if (summary) {
+    return Object.entries(summary).map(([name, count]) => ({
       name,
       count
     })).sort((a, b) => b.count - a.count)
   }
-  if (detail.value?.detections) {
-    const distribution = {}
-    detail.value.detections.forEach(item => {
-      const name = item.class_name || item.category
-      if (name) {
-        distribution[name] = (distribution[name] || 0) + 1
-      }
-    })
-    return Object.entries(distribution).map(([name, count]) => ({
-      name,
-      count
-    })).sort((a, b) => b.count - a.count)
-  }
-  return []
+  const distribution = {}
+  detections.value.forEach(item => {
+    const name = item.class_name || item.category
+    if (name) {
+      distribution[name] = (distribution[name] || 0) + 1
+    }
+  })
+  return Object.entries(distribution).map(([name, count]) => ({
+    name,
+    count
+  })).sort((a, b) => b.count - a.count)
 })
 
 const categoryCount = computed(() => categoryDistribution.value.length)
@@ -280,12 +285,12 @@ function formatDateTime(time) {
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
 }
 
-function formatTime(time) {
-  if (!time) return '0ms'
-  if (time < 1000) {
-    return time.toFixed(0) + 'ms'
+function formatTime(seconds) {
+  if (!seconds && seconds !== 0) return '-'
+  if (seconds < 1) {
+    return (seconds * 1000).toFixed(0) + 'ms'
   }
-  return (time / 1000).toFixed(2) + 's'
+  return seconds.toFixed(2) + 's'
 }
 
 function formatFileSize(size) {
@@ -299,7 +304,7 @@ async function loadDetail(id) {
   loading.value = true
   try {
     const res = await getHistoryDetail(id)
-    detail.value = res.data || {}
+    detail.value = res || {}
   } catch (error) {
     ElMessage.error('加载详情失败')
   } finally {
@@ -335,8 +340,8 @@ function handleRedetect() {
 function goToKnowledge() {
   const detectionContext = encodeURIComponent(JSON.stringify({
     id: detail.value?.id,
-    file_name: detail.value?.file_name,
-    detections: detail.value?.detections,
+    file_name: detail.value?.original_filename,
+    detections: detections.value,
     detection_count: totalCount.value,
     category_distribution: categoryDistribution.value
   }))

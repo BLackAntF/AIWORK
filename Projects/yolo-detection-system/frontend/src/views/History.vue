@@ -19,26 +19,81 @@
       </div>
 
       <div class="filter-bar glass-card">
-        <div class="filter-left">
-          <el-radio-group v-model="filterType" @change="loadHistoryList">
+        <div class="filter-row">
+          <el-radio-group v-model="filterType" @change="handleSearch">
             <el-radio-button value="all">全部</el-radio-button>
             <el-radio-button value="image">图片</el-radio-button>
           </el-radio-group>
-        </div>
-        <div class="filter-right">
           <el-input
             v-model="searchKeyword"
             placeholder="搜索文件名..."
             clearable
             :prefix-icon="Search"
             class="search-input"
-            @keyup.enter="loadHistoryList"
-            @clear="loadHistoryList"
+            @keyup.enter="handleSearch"
+            @clear="handleSearch"
           />
-          <el-button type="primary" class="btn-glow" @click="loadHistoryList">
+          <el-button type="primary" class="btn-glow" @click="handleSearch">
             <el-icon><Search /></el-icon>
             <span>搜索</span>
           </el-button>
+          <el-button @click="handleResetFilters">
+            <el-icon><Refresh /></el-icon>
+            <span>重置</span>
+          </el-button>
+          <el-button :loading="exporting" @click="handleExport">
+            <el-icon><Download /></el-icon>
+            <span>导出 CSV</span>
+          </el-button>
+        </div>
+        <div class="filter-row advanced">
+          <el-date-picker
+            v-model="dateRange"
+            type="daterange"
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            value-format="YYYY-MM-DD"
+            class="date-range-picker"
+            @change="handleSearch"
+          />
+          <el-select
+            v-model="filterClassName"
+            placeholder="检出病害"
+            clearable
+            filterable
+            allow-create
+            default-first-option
+            class="filter-select"
+            @change="handleSearch"
+          >
+            <el-option v-for="name in classOptions" :key="name" :label="name" :value="name" />
+          </el-select>
+          <el-select
+            v-model="filterModelVersion"
+            placeholder="模型版本"
+            clearable
+            filterable
+            allow-create
+            default-first-option
+            class="filter-select"
+            @change="handleSearch"
+          >
+            <el-option v-for="item in modelOptions" :key="item" :label="item" :value="item" />
+          </el-select>
+          <div class="confidence-filter">
+            <span class="confidence-label">最低置信度</span>
+            <el-input-number
+              v-model="filterMinConfidence"
+              :min="0"
+              :max="1"
+              :step="0.05"
+              :precision="2"
+              controls-position="right"
+              class="confidence-input"
+              @change="handleSearch"
+            />
+          </div>
         </div>
       </div>
 
@@ -53,13 +108,17 @@
           <el-table-column label="缩略图" width="120">
             <template #default="{ row }">
               <div class="thumbnail-wrapper">
-                <img :src="getFullUrl(row.thumbnail || row.image_url)" :alt="row.file_name" class="thumbnail" />
+                <img
+                  :src="getFullUrl(row.result_path || row.original_path)"
+                  :alt="row.original_filename"
+                  class="thumbnail"
+                />
               </div>
             </template>
           </el-table-column>
-          <el-table-column prop="file_name" label="文件名" min-width="200">
+          <el-table-column prop="original_filename" label="文件名" min-width="200">
             <template #default="{ row }">
-              <div class="file-name ellipsis">{{ row.file_name }}</div>
+              <div class="file-name ellipsis">{{ row.original_filename }}</div>
             </template>
           </el-table-column>
           <el-table-column label="类型" width="100">
@@ -67,6 +126,30 @@
               <el-tag :type="row.type === 'image' ? 'primary' : 'success'" size="small">
                 {{ row.type === 'image' ? '图片' : '视频' }}
               </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="检出病害" min-width="180">
+            <template #default="{ row }">
+              <div class="class-tags">
+                <el-tag
+                  v-for="name in splitClassNames(row.class_names)"
+                  :key="name"
+                  size="small"
+                  effect="plain"
+                  class="class-tag"
+                >
+                  {{ name }}
+                </el-tag>
+                <span v-if="splitClassNames(row.class_names).length === 0" class="text-placeholder">-</span>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column label="最高置信度" width="110">
+            <template #default="{ row }">
+              <span class="detection-count">
+                {{ row.max_confidence !== null && row.max_confidence !== undefined
+                  ? (row.max_confidence * 100).toFixed(1) + '%' : '-' }}
+              </span>
             </template>
           </el-table-column>
           <el-table-column label="检测数量" width="120">
@@ -108,7 +191,11 @@
               />
             </div>
             <div class="card-thumbnail" @click="goToDetail(item.id)">
-              <img :src="getFullUrl(item.thumbnail || item.image_url)" :alt="item.file_name" class="thumbnail" />
+              <img
+                :src="getFullUrl(item.result_path || item.original_path)"
+                :alt="item.original_filename"
+                class="thumbnail"
+              />
               <el-tag
                 :type="item.type === 'image' ? 'primary' : 'success'"
                 size="small"
@@ -118,7 +205,7 @@
               </el-tag>
             </div>
             <div class="card-content">
-              <div class="card-title ellipsis">{{ item.file_name }}</div>
+              <div class="card-title ellipsis">{{ item.original_filename }}</div>
               <div class="card-meta">
                 <span class="meta-item">
                   <el-icon><DataAnalysis /></el-icon>
@@ -169,14 +256,15 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  Search, Delete, View, Document, DataAnalysis, Clock
+  Search, Delete, View, Document, DataAnalysis, Clock, Refresh, Download
 } from '@element-plus/icons-vue'
-import { getHistoryList, deleteHistory, batchDeleteHistory } from '@/api/history'
+import { getHistoryList, deleteHistory, batchDeleteHistory, exportHistory } from '@/api/history'
 import { getFullUrl } from '@/utils/format'
 
 const router = useRouter()
 
 const loading = ref(false)
+const exporting = ref(false)
 const historyList = ref([])
 const total = ref(0)
 const currentPage = ref(1)
@@ -184,6 +272,15 @@ const pageSize = ref(20)
 const filterType = ref('all')
 const searchKeyword = ref('')
 const selectedIds = ref([])
+
+const dateRange = ref([])
+const filterClassName = ref('')
+const filterModelVersion = ref('')
+const filterMinConfidence = ref(0)
+
+// 筛选下拉的候选项来自已加载记录，避免使用与实际数据不一致的静态列表
+const classOptions = ref([])
+const modelOptions = ref([])
 
 const isMobile = computed(() => window.innerWidth < 768)
 
@@ -206,26 +303,100 @@ function formatDateTime(time) {
   return `${year}-${month}-${day} ${hours}:${minutes}`
 }
 
+function buildFilterParams() {
+  const params = {
+    page: currentPage.value,
+    page_size: pageSize.value
+  }
+  if (filterType.value !== 'all') {
+    params.type = filterType.value
+  }
+  if (searchKeyword.value.trim()) {
+    params.keyword = searchKeyword.value.trim()
+  }
+  if (dateRange.value?.length === 2) {
+    params.start_date = dateRange.value[0]
+    params.end_date = dateRange.value[1]
+  }
+  if (filterClassName.value) {
+    params.class_name = filterClassName.value
+  }
+  if (filterModelVersion.value) {
+    params.model_version = filterModelVersion.value
+  }
+  if (filterMinConfidence.value > 0) {
+    params.min_confidence = filterMinConfidence.value
+  }
+  return params
+}
+
+function collectFilterOptions(list) {
+  const classes = new Set(classOptions.value)
+  const models = new Set(modelOptions.value)
+  list.forEach((row) => {
+    splitClassNames(row.class_names).forEach(name => classes.add(name))
+    if (row.model_version) models.add(row.model_version)
+  })
+  classOptions.value = [...classes].sort()
+  modelOptions.value = [...models].sort()
+}
+
+function splitClassNames(value) {
+  if (!value) return []
+  return String(value).split(',').map(name => name.trim()).filter(Boolean)
+}
+
+function handleSearch() {
+  currentPage.value = 1
+  loadHistoryList()
+}
+
+function handleResetFilters() {
+  filterType.value = 'all'
+  searchKeyword.value = ''
+  dateRange.value = []
+  filterClassName.value = ''
+  filterModelVersion.value = ''
+  filterMinConfidence.value = 0
+  handleSearch()
+}
+
 async function loadHistoryList() {
   loading.value = true
   try {
-    const params = {
-      page: currentPage.value,
-      page_size: pageSize.value
-    }
-    if (filterType.value !== 'all') {
-      params.type = filterType.value
-    }
-    if (searchKeyword.value.trim()) {
-      params.keyword = searchKeyword.value.trim()
-    }
-    const res = await getHistoryList(params)
-    historyList.value = res.data?.list || res.data?.items || res.data || []
-    total.value = res.data?.total || 0
+    const res = await getHistoryList(buildFilterParams())
+    historyList.value = res.list || []
+    total.value = res.total || 0
+    collectFilterOptions(historyList.value)
   } catch (error) {
     ElMessage.error('加载历史记录失败')
   } finally {
     loading.value = false
+  }
+}
+
+async function handleExport() {
+  exporting.value = true
+  try {
+    const filters = buildFilterParams()
+    delete filters.page
+    delete filters.page_size
+    const response = await exportHistory(filters)
+    const disposition = response.headers?.['content-disposition'] || ''
+    const matched = disposition.match(/filename="?([^";]+)"?/)
+    const filename = matched ? matched[1] : `history_${Date.now()}.csv`
+
+    const url = window.URL.createObjectURL(response.data)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    link.click()
+    window.URL.revokeObjectURL(url)
+    ElMessage.success('导出成功')
+  } catch (error) {
+    // 错误提示已由拦截器统一处理
+  } finally {
+    exporting.value = false
   }
 }
 
@@ -322,26 +493,59 @@ async function handleBatchDelete() {
 
 .filter-bar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 14px;
   padding: 16px 20px;
-  gap: 20px;
-  flex-wrap: wrap;
 }
 
-.filter-left {
-  flex-shrink: 0;
-}
-
-.filter-right {
+.filter-row {
   display: flex;
+  align-items: center;
   gap: 12px;
-  flex: 1;
-  justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
 .search-input {
   width: 280px;
+  margin-left: auto;
+}
+
+.date-range-picker {
+  width: 300px;
+}
+
+.filter-select {
+  width: 180px;
+}
+
+.confidence-filter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.confidence-label {
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+}
+
+.confidence-input {
+  width: 130px;
+}
+
+.class-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.class-tag {
+  border-radius: 10px;
+}
+
+.text-placeholder {
+  color: var(--color-text-tertiary);
 }
 
 .history-content {
@@ -516,17 +720,28 @@ async function handleBatchDelete() {
 
   .filter-bar {
     padding: 12px 16px;
-    flex-direction: column;
-    align-items: stretch;
     gap: 12px;
   }
 
-  .filter-right {
-    justify-content: stretch;
+  .filter-row {
+    gap: 10px;
   }
 
   .search-input {
     width: 100%;
+    margin-left: 0;
+  }
+
+  .date-range-picker,
+  .filter-select {
+    width: 100%;
+  }
+
+  .confidence-filter {
+    width: 100%;
+  }
+
+  .confidence-input {
     flex: 1;
   }
 

@@ -15,3 +15,7 @@ export function deleteHistory(id) {
 export function batchDeleteHistory(ids) {
   return request.delete('/history', { data: { ids } })
 }
+
+export function exportHistory(params) {
+  return request.get('/history/export', { params, responseType: 'blob' })
+}

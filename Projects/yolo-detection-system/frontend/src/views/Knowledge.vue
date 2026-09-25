@@ -18,7 +18,7 @@
           >
             <div class="session-info">
               <div class="session-title ellipsis">{{ session.title || '新对话' }}</div>
-              <div class="session-time">{{ formatTime(session.updated_at) }}</div>
+              <div class="session-time">{{ formatTime(session.last_time) }}</div>
             </div>
             <el-button
               type="danger"
@@ -107,7 +107,7 @@
                     class="source-item"
                   >
                     <el-icon><Document /></el-icon>
-                    <span class="source-title ellipsis">{{ source.title }}</span>
+                    <span class="source-title ellipsis">{{ formatSource(source) }}</span>
                   </div>
                 </div>
               </div>
@@ -233,6 +233,11 @@ function formatTime(time) {
   if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前'
   if (diff < 604800000) return Math.floor(diff / 86400000) + '天前'
   return date.toLocaleDateString()
+}
+
+function formatSource(source) {
+  if (!source) return ''
+  return typeof source === 'string' ? source : (source.title || source.name || '')
 }
 
 async function loadSessions() {

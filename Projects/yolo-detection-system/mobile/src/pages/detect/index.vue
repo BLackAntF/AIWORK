@@ -59,7 +59,7 @@
 						<text class="item-index">{{ index + 1 }}</text>
 						<text
 							class="item-tag"
-							:class="{ healthy: item.class_name === 'Healthy' }"
+							:class="{ healthy: item.class_name === '健康叶片' }"
 						>{{ item.class_name }}</text>
 						<text class="item-confidence">{{ (item.confidence * 100).toFixed(1) }}%</text>
 					</view>
@@ -67,12 +67,12 @@
 						<view
 							class="confidence-fill"
 							:style="{ width: (item.confidence * 100) + '%' }"
-							:class="{ healthy: item.class_name === 'Healthy' }"
+							:class="{ healthy: item.class_name === '健康叶片' }"
 						></view>
 					</view>
 
 					<!-- 健康提示 -->
-					<view v-if="item.class_name === 'Healthy'" class="healthy-box">
+					<view v-if="item.class_name === '健康叶片'" class="healthy-box">
 						<text class="healthy-icon">✅</text>
 						<text class="healthy-text">该叶片未检测到病害特征，继续保持良好管理。</text>
 					</view>

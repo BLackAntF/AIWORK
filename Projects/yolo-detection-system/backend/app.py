@@ -38,7 +38,8 @@ def create_app(config_class=Config):
             'origins': cors_origins.split(',') if cors_origins else ['http://localhost:5173'],
             'supports_credentials': True,
             'methods': ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-            'allow_headers': ['Content-Type', 'Authorization']
+            'allow_headers': ['Content-Type', 'Authorization'],
+            'expose_headers': ['Content-Disposition']
         }
     })
 

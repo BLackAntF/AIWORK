@@ -14,8 +14,11 @@ class YoloService:
     _model = None
     _model_loaded = False
 
-    # Mock 类别名称（植物病害检测示例）
-    MOCK_CLASSES = ['健康', '斑点病', '白粉病', '锈病', '灰霉病', '炭疽病']
+    # Mock 类别名称：与 dataset/Tomato 的 data.yaml 类别顺序及病害档案 class_id 保持一致
+    MOCK_CLASSES = [
+        '细菌性斑点病', '早疫病', '健康叶片', '晚疫病', '叶霉病',
+        '花叶病毒病', '斑枯病', '蜘蛛螨危害', '靶斑病', '黄化曲叶病毒病'
+    ]
 
     def __new__(cls):
         if cls._instance is None:

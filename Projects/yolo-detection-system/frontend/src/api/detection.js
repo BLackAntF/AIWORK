@@ -8,3 +8,13 @@ export function detectImage(file, saveHistory = true) {
     headers: { 'Content-Type': 'multipart/form-data' }
   })
 }
+
+export function detectBatch(files, saveHistory = true) {
+  const formData = new FormData()
+  files.forEach((file) => formData.append('files', file))
+  formData.append('save_history', saveHistory)
+  return request.post('/detect/batch', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 120000
+  })
+}

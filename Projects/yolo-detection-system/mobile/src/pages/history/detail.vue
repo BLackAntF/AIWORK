@@ -48,7 +48,7 @@
 						<text class="item-index">{{ index + 1 }}</text>
 						<text
 							class="item-tag"
-							:class="{ healthy: item.class_name === 'Healthy' }"
+							:class="{ healthy: item.class_name === '健康叶片' }"
 						>{{ item.class_name }}</text>
 						<text class="item-confidence">{{ (item.confidence * 100).toFixed(1) }}%</text>
 					</view>
@@ -56,7 +56,7 @@
 						<view
 							class="confidence-fill"
 							:style="{ width: (item.confidence * 100) + '%' }"
-							:class="{ healthy: item.class_name === 'Healthy' }"
+							:class="{ healthy: item.class_name === '健康叶片' }"
 						></view>
 					</view>
 					<DiseaseCard
