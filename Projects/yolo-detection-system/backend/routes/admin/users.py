@@ -1,6 +1,5 @@
 from datetime import datetime, date
 from flask import request
-from sqlalchemy import func
 from routes.admin import admin_bp
 from models import User, DetectionHistory, ChatHistory, db
 from utils.response import success, bad_request, not_found, error
@@ -51,10 +50,10 @@ def get_users(current_user):
         query = query.filter(User.is_active == False)
 
     if keyword:
-        # 使用 func.concat 避免 SQL 注入
+        # contains() 由 ORM 生成参数化的 LIKE，避免 SQL 注入且兼容 SQLite
         query = query.filter(
-            (User.username.like(func.concat('%', keyword, '%'))) |
-            (User.email.like(func.concat('%', keyword, '%')))
+            User.username.contains(keyword) |
+            User.email.contains(keyword)
         )
 
     total = query.count()

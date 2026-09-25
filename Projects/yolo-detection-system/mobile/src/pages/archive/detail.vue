@@ -6,7 +6,7 @@
 			<!-- 头部 -->
 			<view class="header">
 				<text class="disease-name">{{ profile.disease_name }}</text>
-				<text class="disease-en">{{ profile.class_name }}</text>
+				<text class="disease-en">{{ profile.disease_id }}</text>
 			</view>
 
 			<!-- 折叠面板 -->
@@ -47,7 +47,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { getKnowledgeDetail } from '@/api/knowledge'
+import { getDiseaseProfile } from '@/api/knowledge'
 import LoadingOverlay from '@/components/LoadingOverlay.vue'
 import EmptyState from '@/components/EmptyState.vue'
 
@@ -86,7 +86,7 @@ async function loadProfile() {
 	}
 
 	try {
-		const data = await getKnowledgeDetail(id)
+		const data = await getDiseaseProfile(id)
 		profile.value = data
 	} catch (e) {
 		uni.showToast({ title: '加载失败', icon: 'none' })

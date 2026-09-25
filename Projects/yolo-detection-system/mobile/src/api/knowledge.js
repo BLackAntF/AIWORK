@@ -42,3 +42,13 @@ export function getRelatedKnowledge(id, params) {
 export function getCategories() {
   return request({ url: '/knowledge/category-list' })
 }
+
+/** 获取病害档案列表 */
+export function getDiseaseProfileList(params) {
+  return request({ url: '/disease-profiles', data: params })
+}
+
+/** 按病害类别 ID 获取档案详情 */
+export function getDiseaseProfile(classId) {
+  return request({ url: `/disease-profiles/${classId}` })
+}

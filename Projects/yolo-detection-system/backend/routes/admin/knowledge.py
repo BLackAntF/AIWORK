@@ -1,5 +1,4 @@
 from flask import request
-from sqlalchemy import func
 from routes.admin import admin_bp
 from models import Knowledge, KnowledgeCategory, Tag, KnowledgeTag, db
 from utils.response import success, bad_request, not_found, error
@@ -38,10 +37,10 @@ def get_knowledge_list(current_user):
         query = query.filter(Knowledge.category == category)
 
     if keyword:
-        # 使用 func.concat 避免 SQL 注入
+        # contains() 由 ORM 生成参数化的 LIKE，避免 SQL 注入且兼容 SQLite
         query = query.filter(
-            (Knowledge.title.like(func.concat('%', keyword, '%'))) |
-            (Knowledge.content.like(func.concat('%', keyword, '%')))
+            Knowledge.title.contains(keyword) |
+            Knowledge.content.contains(keyword)
         )
 
     if is_active_str == 'true':

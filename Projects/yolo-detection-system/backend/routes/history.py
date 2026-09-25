@@ -1,5 +1,4 @@
 from flask import Blueprint, request
-from sqlalchemy import func
 from models import DetectionHistory, db
 from utils.response import success, bad_request, not_found
 from middleware.auth_middleware import login_required
@@ -27,8 +26,8 @@ def get_history_list(current_user):
         query = query.filter_by(type=type_)
 
     if keyword:
-        # 使用 func.concat 避免 SQL 注入
-        query = query.filter(DetectionHistory.original_filename.like(func.concat('%', keyword, '%')))
+        # contains() 由 ORM 生成参数化的 LIKE，避免 SQL 注入且兼容 SQLite
+        query = query.filter(DetectionHistory.original_filename.contains(keyword))
 
     total = query.count()
     items = query.order_by(DetectionHistory.created_at.desc()) \
