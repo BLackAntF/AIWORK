@@ -222,6 +222,10 @@
                       <el-icon><ChatDotRound /></el-icon>
                       咨询此病害
                     </el-button>
+                    <el-button type="success" class="ask-btn" @click="askTreatmentPlan(item)">
+                      <el-icon><MagicStick /></el-icon>
+                      防治方案直达
+                    </el-button>
                   </div>
                 </div>
 
@@ -371,6 +375,7 @@ import {
   ZoomIn,
   Document,
   CircleCheck,
+  MagicStick,
   Plus,
   Warning
 } from '@element-plus/icons-vue'
@@ -635,6 +640,15 @@ function handleAiConsult() {
     return
   }
   chatStore.setDetectionResult(detectionResult.value)
+  const detections = detectionResult.value.detections || []
+  const diseaseItems = detections.filter(d => d.class_name !== '健康叶片')
+  const firstDisease = diseaseItems[0] || null
+  chatStore.setDetectionContext({
+    class_id: firstDisease?.class_id ?? null,
+    disease_name: firstDisease?.disease_profile?.disease_name || firstDisease?.class_name || '',
+    detection_context: `本次检测共检出 ${detectionResult.value.detection_count ?? detections.length} 个目标，`
+      + `病害分布：${formatClassSummary(detectionResult.value.class_summary)}`
+  })
   const resultData = encodeURIComponent(JSON.stringify(detectionResult.value))
   router.push({
     path: '/knowledge',
@@ -649,6 +663,23 @@ function askAboutDisease(item) {
     detection_context: `${item.class_name} (${(item.confidence * 100).toFixed(1)}%)`
   })
   router.push('/knowledge')
+}
+
+function askTreatmentPlan(item) {
+  const diseaseName = item.disease_profile?.disease_name || item.class_name
+  const confidence = (item.confidence * 100).toFixed(1)
+  chatStore.setDetectionContext({
+    class_id: item.class_id,
+    disease_name: diseaseName,
+    detection_context: `${item.class_name} (${confidence}%)`
+  })
+  const question = encodeURIComponent(
+    `请针对检测出的【${diseaseName}】（检测置信度 ${confidence}%），结合番茄叶病害档案知识，给出具体的防治方案，包括农业防治、化学防治和推荐药剂。`
+  )
+  router.push({
+    path: '/knowledge',
+    query: { question }
+  })
 }
 
 function handleReset() {

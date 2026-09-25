@@ -366,13 +366,21 @@ async function handleExportReport() {
 }
 
 function goToKnowledge() {
-  const detectionContext = encodeURIComponent(JSON.stringify({
+  const diseaseItems = detections.value.filter(d => d.class_name !== '健康叶片')
+  const topDisease = diseaseItems
+    .slice()
+    .sort((a, b) => (b.confidence || 0) - (a.confidence || 0))[0] || null
+  const context = {
     id: detail.value?.id,
     file_name: detail.value?.original_filename,
     detections: detections.value,
     detection_count: totalCount.value,
     category_distribution: categoryDistribution.value
-  }))
+  }
+  if (topDisease) {
+    context.detected_class_id = topDisease.class_id
+  }
+  const detectionContext = encodeURIComponent(JSON.stringify(context))
   router.push({
     path: '/knowledge',
     query: { detection_context: detectionContext }

@@ -206,6 +206,15 @@ const currentSession = computed(() => {
   return sessions.value.find(s => s.id === currentSessionId.value)
 })
 
+const presetQuestion = computed(() => {
+  if (!route.query.question) return ''
+  try {
+    return decodeURIComponent(route.query.question)
+  } catch (e) {
+    return route.query.question
+  }
+})
+
 onMounted(() => {
   if (route.query.detection_context) {
     try {
@@ -220,7 +229,15 @@ onMounted(() => {
       detection_context: chatStore.detectionContext
     }
   }
-  loadSessions()
+  loadSessions().then(() => {
+    if (presetQuestion.value) {
+      currentSessionId.value = null
+      messages.value = []
+      inputMessage.value = presetQuestion.value
+      sendMessage()
+      router.replace({ query: {} })
+    }
+  })
 })
 
 function formatTime(time) {
@@ -245,7 +262,7 @@ async function loadSessions() {
   try {
     const res = await getSessions()
     sessions.value = (res.sessions || []).map(s => ({ ...s, id: s.session_id }))
-    if (sessions.value.length > 0 && !currentSessionId.value) {
+    if (sessions.value.length > 0 && !currentSessionId.value && !presetQuestion.value) {
       switchSession(sessions.value[0].id)
     }
   } catch (error) {
@@ -349,7 +366,7 @@ async function sendMessage() {
   try {
     const data = {
       question: content,
-      session_id: currentSessionId.value
+      session_id: currentSessionId.value || ''
     }
     if (detectionContext.value) {
       data.detection_context = detectionContext.value.detection_context || detectionContext.value
