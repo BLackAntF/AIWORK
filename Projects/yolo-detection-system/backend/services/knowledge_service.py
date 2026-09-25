@@ -1,7 +1,7 @@
 import random
 from flask import current_app
-from sqlalchemy import func
-from models import Knowledge, db
+from sqlalchemy import func, desc
+from models import Knowledge, Tag, KnowledgeTag, db
 
 
 class KnowledgeService:
@@ -117,7 +117,7 @@ class KnowledgeService:
 
         return results
 
-    def add_knowledge(self, title, content, category=None, source=None):
+    def add_knowledge(self, title, content, category=None, source=None, summary=None, tag_ids=None):
         """添加知识条目
 
         Args:
@@ -125,6 +125,8 @@ class KnowledgeService:
             content: 内容
             category: 分类
             source: 来源
+            summary: 摘要
+            tag_ids: 标签ID列表
 
         Returns:
             Knowledge: 知识对象
@@ -133,13 +135,23 @@ class KnowledgeService:
             title=title,
             content=content,
             category=category,
-            source=source
+            source=source,
+            summary=summary
         )
         db.session.add(kb)
+        db.session.flush()
+
+        if tag_ids and isinstance(tag_ids, list):
+            for tag_id in tag_ids:
+                tag = Tag.query.get(tag_id)
+                if tag:
+                    kt = KnowledgeTag(knowledge_id=kb.id, tag_id=tag.id)
+                    db.session.add(kt)
+
         db.session.commit()
         return kb
 
-    def update_knowledge(self, kb_id, title=None, content=None, category=None, source=None):
+    def update_knowledge(self, kb_id, title=None, content=None, category=None, source=None, summary=None, tag_ids=None):
         """更新知识条目"""
         kb = Knowledge.query.get(kb_id)
         if not kb:
@@ -153,6 +165,16 @@ class KnowledgeService:
             kb.category = category
         if source is not None:
             kb.source = source
+        if summary is not None:
+            kb.summary = summary
+
+        if tag_ids is not None and isinstance(tag_ids, list):
+            KnowledgeTag.query.filter_by(knowledge_id=kb_id).delete()
+            for tag_id in tag_ids:
+                tag = Tag.query.get(tag_id)
+                if tag:
+                    kt = KnowledgeTag(knowledge_id=kb.id, tag_id=tag.id)
+                    db.session.add(kt)
 
         db.session.commit()
         return kb
@@ -167,7 +189,7 @@ class KnowledgeService:
         db.session.commit()
         return True
 
-    def list_knowledge(self, page=1, page_size=20, category=None, keyword=None):
+    def list_knowledge(self, page=1, page_size=20, category=None, keyword=None, is_public=False):
         """获取知识列表
 
         Args:
@@ -175,6 +197,7 @@ class KnowledgeService:
             page_size: 每页数量
             category: 分类筛选
             keyword: 关键词搜索
+            is_public: 是否为用户端（返回简化字段）
 
         Returns:
             tuple: (list, total)
@@ -185,10 +208,10 @@ class KnowledgeService:
             query = query.filter(Knowledge.category == category)
 
         if keyword:
-            # 使用 func.concat 避免 SQL 注入
+            keyword_pattern = f'%{keyword}%'
             query = query.filter(
-                (Knowledge.title.like(func.concat('%', keyword, '%'))) |
-                (Knowledge.content.like(func.concat('%', keyword, '%')))
+                (Knowledge.title.like(keyword_pattern)) |
+                (Knowledge.content.like(keyword_pattern))
             )
 
         total = query.count()
@@ -197,7 +220,21 @@ class KnowledgeService:
             .limit(page_size) \
             .all()
 
+        if is_public:
+            return [self._to_public_dict(item) for item in items], total
+
         return items, total
+
+    def _to_public_dict(self, knowledge):
+        """转换为用户端字典格式"""
+        return {
+            'id': knowledge.id,
+            'title': knowledge.title,
+            'category': knowledge.category,
+            'summary': knowledge.summary,
+            'views': knowledge.views,
+            'created_at': knowledge.created_at.isoformat() if knowledge.created_at else None
+        }
 
     def get_knowledge_by_id(self, kb_id):
         """根据ID获取知识条目"""
@@ -210,6 +247,78 @@ class KnowledgeService:
             .distinct() \
             .all()
         return [r[0] for r in results if r[0]]
+
+    def get_related_knowledge(self, kb_id, limit=5):
+        """获取相关知识（基于共同标签数量排序）
+
+        Args:
+            kb_id: 知识ID
+            limit: 返回数量
+
+        Returns:
+            list: 相关知识列表
+        """
+        kb = Knowledge.query.get(kb_id)
+        if not kb:
+            return []
+
+        current_tag_ids = [t.id for t in kb.tags]
+
+        if not current_tag_ids:
+            recent = Knowledge.query.filter(
+                Knowledge.is_active == True,
+                Knowledge.id != kb_id
+            ).order_by(desc(Knowledge.created_at)).limit(limit).all()
+            return [self._to_related_dict(k) for k in recent]
+
+        subq = db.session.query(
+            KnowledgeTag.knowledge_id,
+            func.count(KnowledgeTag.tag_id).label('common_count')
+        ).filter(
+            KnowledgeTag.tag_id.in_(current_tag_ids),
+            KnowledgeTag.knowledge_id != kb_id
+        ).group_by(KnowledgeTag.knowledge_id).subquery()
+
+        results = db.session.query(Knowledge, subq.c.common_count).join(
+            subq, Knowledge.id == subq.c.knowledge_id
+        ).filter(
+            Knowledge.is_active == True
+        ).order_by(
+            desc(subq.c.common_count),
+            desc(Knowledge.created_at)
+        ).limit(limit).all()
+
+        related = []
+        for kb_item, count in results:
+            item_dict = self._to_related_dict(kb_item)
+            item_dict['common_tags_count'] = count
+            related.append(item_dict)
+
+        if len(related) < limit:
+            existing_ids = [r['id'] for r in related]
+            recent = Knowledge.query.filter(
+                Knowledge.is_active == True,
+                Knowledge.id != kb_id,
+                ~Knowledge.id.in_(existing_ids)
+            ).order_by(desc(Knowledge.created_at)).limit(limit - len(related)).all()
+            for k in recent:
+                item_dict = self._to_related_dict(k)
+                item_dict['common_tags_count'] = 0
+                related.append(item_dict)
+
+        return related
+
+    def _to_related_dict(self, knowledge):
+        """转换为相关知识字典格式"""
+        return {
+            'id': knowledge.id,
+            'title': knowledge.title,
+            'category': knowledge.category,
+            'summary': knowledge.summary,
+            'views': knowledge.views,
+            'tags': [t.to_dict() for t in knowledge.tags] if knowledge.tags else [],
+            'created_at': knowledge.created_at.isoformat() if knowledge.created_at else None
+        }
 
 
 knowledge_service = KnowledgeService()

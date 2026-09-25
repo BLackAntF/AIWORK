@@ -136,8 +136,16 @@ class Knowledge(db.Model):
     source = db.Column(db.String(255))
     vector_id = db.Column(db.String(100))
     is_active = db.Column(db.Boolean, default=True, index=True)
+    summary = db.Column(db.String(500))
+    views = db.Column(db.Integer, default=0)
+    status = db.Column(db.String(20), default='active', index=True)
+    uploader_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    file_path = db.Column(db.String(500))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, onupdate=datetime.utcnow)
+
+    tags = db.relationship('Tag', secondary='knowledge_tag', backref='knowledges')
+    uploader = db.relationship('User', backref=db.backref('uploaded_knowledges', lazy='dynamic'))
 
     def to_dict(self):
         """转换为字典"""
@@ -149,6 +157,13 @@ class Knowledge(db.Model):
             'source': self.source,
             'vector_id': self.vector_id,
             'is_active': self.is_active,
+            'summary': self.summary,
+            'views': self.views,
+            'status': self.status,
+            'uploader_id': self.uploader_id,
+            'uploader_name': self.uploader.username if self.uploader else None,
+            'file_path': self.file_path,
+            'tags': [tag.to_dict() for tag in self.tags] if self.tags else [],
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
 
@@ -282,3 +297,34 @@ class DiseaseProfile(db.Model):
             'pesticides': self.pesticides,
             'is_active': self.is_active
         }
+
+
+class Tag(db.Model):
+    """知识标签模型"""
+    __tablename__ = 'tag'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column(db.String(50), unique=True, nullable=False)
+    color = db.Column(db.String(20), default='primary')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'color': self.color,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+
+class KnowledgeTag(db.Model):
+    """知识-标签关联模型"""
+    __tablename__ = 'knowledge_tag'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    knowledge_id = db.Column(db.Integer, db.ForeignKey('knowledge.id'), index=True)
+    tag_id = db.Column(db.Integer, db.ForeignKey('tag.id'), index=True)
+
+    __table_args__ = (
+        db.UniqueConstraint('knowledge_id', 'tag_id', name='uq_knowledge_tag'),
+    )

@@ -196,6 +196,56 @@ def get_session_list(current_user):
     return success(data={'sessions': session_list})
 
 
+# ==================== 知识库用户端接口（公开） ====================
+
+@knowledge_bp.route('/list', methods=['GET'])
+def list_knowledge_public():
+    """获取知识库列表（公开接口）"""
+    page = int(request.args.get('page', 1))
+    page_size = int(request.args.get('page_size', 12))
+    category = request.args.get('category', '').strip() or None
+    keyword = request.args.get('keyword', '').strip() or None
+
+    if page < 1:
+        page = 1
+    if page_size < 1 or page_size > 100:
+        page_size = 12
+
+    items, total = knowledge_service.list_knowledge(
+        page=page,
+        page_size=page_size,
+        category=category,
+        keyword=keyword
+    )
+
+    return success(data={
+        'items': [item.to_dict() for item in items],
+        'total': total,
+        'page': page,
+        'page_size': page_size
+    })
+
+
+@knowledge_bp.route('/<int:kb_id>', methods=['GET'])
+def get_knowledge_detail_public(kb_id):
+    """获取知识详情（公开接口，自动增加阅读量）"""
+    kb = knowledge_service.get_knowledge_by_id(kb_id)
+    if not kb or not kb.is_active:
+        return bad_request('知识不存在')
+
+    kb.views = (kb.views or 0) + 1
+    db.session.commit()
+
+    return success(data=kb.to_dict())
+
+
+@knowledge_bp.route('/category-list', methods=['GET'])
+def get_categories_public():
+    """获取知识分类列表（公开接口）"""
+    categories = knowledge_service.get_categories()
+    return success(data={'categories': categories})
+
+
 # ==================== 知识库管理接口（管理员） ====================
 
 @knowledge_bp.route('/items', methods=['GET'])
@@ -236,6 +286,22 @@ def get_knowledge_detail(current_user, kb_id):
         return bad_request('知识不存在')
 
     return success(data=kb.to_dict())
+
+
+@knowledge_bp.route('/<int:kb_id>/related', methods=['GET'])
+def get_related_knowledge(kb_id):
+    """获取相关推荐（公开接口）"""
+    kb = knowledge_service.get_knowledge_by_id(kb_id)
+    if not kb or not kb.is_active:
+        return not_found('知识不存在')
+
+    limit = min(int(request.args.get('limit', 5)), 20)
+    related = knowledge_service.get_related_knowledge(kb_id, limit=limit)
+
+    return success(data={
+        'list': related,
+        'total': len(related)
+    })
 
 
 @knowledge_bp.route('/categories', methods=['GET'])

@@ -1,11 +1,12 @@
 from flask import request
 from sqlalchemy import func
 from routes.admin import admin_bp
-from models import Knowledge, KnowledgeCategory, db
+from models import Knowledge, KnowledgeCategory, Tag, KnowledgeTag, db
 from utils.response import success, bad_request, not_found, error
 from middleware.auth_middleware import admin_required
 from services.knowledge_service import knowledge_service
 from utils.audit import log_knowledge_action, log_category_action
+from utils.html_utils import sanitize_html
 
 
 @admin_bp.route('/knowledge', methods=['GET'])
@@ -78,24 +79,30 @@ def get_knowledge_detail(current_user, kb_id):
 def create_knowledge(current_user):
     """新增知识
 
-    Body: { title, content, category?, source? }
+    Body: { title, content, category?, source?, tag_ids?, summary? }
     """
     data = request.get_json() or {}
     title = data.get('title', '').strip()
     content = data.get('content', '').strip()
     category = data.get('category')
     source = data.get('source')
+    tag_ids = data.get('tag_ids', [])
+    summary = data.get('summary', '').strip()
 
     if not title:
         return bad_request('标题不能为空')
     if not content:
         return bad_request('内容不能为空')
 
+    sanitized_content = sanitize_html(content)
+
     kb = knowledge_service.add_knowledge(
         title=title,
-        content=content,
+        content=sanitized_content,
         category=category,
-        source=source
+        source=source,
+        summary=summary,
+        tag_ids=tag_ids
     )
 
     log_knowledge_action(
@@ -114,7 +121,7 @@ def create_knowledge(current_user):
 def update_knowledge(current_user, kb_id):
     """编辑知识
 
-    Body: { title?, content?, category?, is_active? }
+    Body: { title?, content?, category?, is_active?, tag_ids?, summary? }
     """
     kb = Knowledge.query.get(kb_id)
     if not kb:
@@ -125,12 +132,19 @@ def update_knowledge(current_user, kb_id):
     content = data.get('content')
     category = data.get('category')
     is_active = data.get('is_active')
+    tag_ids = data.get('tag_ids')
+    summary = data.get('summary')
+
+    if content:
+        content = sanitize_html(content)
 
     updated = knowledge_service.update_knowledge(
         kb_id=kb_id,
         title=title,
         content=content,
-        category=category
+        category=category,
+        summary=summary,
+        tag_ids=tag_ids
     )
 
     if is_active is not None:
@@ -370,3 +384,207 @@ def delete_category(current_user, cat_id):
     )
 
     return success(message='分类已删除', data={'updated_knowledge': updated_count})
+
+
+@admin_bp.route('/knowledge/tags', methods=['GET'])
+@admin_required
+def get_tags(current_user):
+    """获取标签列表"""
+    tags = Tag.query.order_by(Tag.created_at.desc()).all()
+    return success(data=[t.to_dict() for t in tags])
+
+
+@admin_bp.route('/knowledge/tags', methods=['POST'])
+@admin_required
+def create_tag(current_user):
+    """新增标签
+
+    Body: { name, color? }
+    """
+    data = request.get_json() or {}
+    name = data.get('name', '').strip()
+    color = data.get('color', 'primary').strip()
+
+    if not name:
+        return bad_request('标签名称不能为空')
+
+    existing = Tag.query.filter_by(name=name).first()
+    if existing:
+        return bad_request('标签名称已存在')
+
+    tag = Tag(name=name, color=color)
+    db.session.add(tag)
+    db.session.commit()
+
+    return success(data=tag.to_dict(), message='标签已创建')
+
+
+@admin_bp.route('/knowledge/tags/<int:tag_id>', methods=['PUT'])
+@admin_required
+def update_tag(current_user, tag_id):
+    """修改标签
+
+    Body: { name?, color? }
+    """
+    tag = Tag.query.get(tag_id)
+    if not tag:
+        return not_found('标签不存在')
+
+    data = request.get_json() or {}
+    name = data.get('name')
+    color = data.get('color')
+
+    if name:
+        name = name.strip()
+        if not name:
+            return bad_request('标签名称不能为空')
+        existing = Tag.query.filter_by(name=name).first()
+        if existing and existing.id != tag_id:
+            return bad_request('标签名称已存在')
+        tag.name = name
+
+    if color:
+        tag.color = color.strip()
+
+    db.session.commit()
+
+    return success(data=tag.to_dict(), message='标签已更新')
+
+
+@admin_bp.route('/knowledge/tags/<int:tag_id>', methods=['DELETE'])
+@admin_required
+def delete_tag(current_user, tag_id):
+    """删除标签"""
+    tag = Tag.query.get(tag_id)
+    if not tag:
+        return not_found('标签不存在')
+
+    tag_name = tag.name
+    KnowledgeTag.query.filter_by(tag_id=tag_id).delete()
+    db.session.delete(tag)
+    db.session.commit()
+
+    return success(message='标签已删除', data={'deleted_tag': tag_name})
+
+
+@admin_bp.route('/knowledge/upload', methods=['POST'])
+@admin_required
+def upload_knowledge_admin(current_user):
+    """管理员上传文件创建知识（直接生效）"""
+    import os
+    from services.file_parser import parse_file, ALLOWED_EXTENSIONS
+    from utils.file_utils import save_uploaded_file
+
+    file = request.files.get('file')
+    if not file:
+        return bad_request('请上传文件')
+
+    filename = file.filename.lower()
+    ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
+    
+    if ext not in ALLOWED_EXTENSIONS:
+        return bad_request(f'不支持的文件格式，支持: {", ".join(ALLOWED_EXTENSIONS)}')
+
+    upload_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'static', 'uploads', 'knowledge')
+    os.makedirs(upload_dir, exist_ok=True)
+
+    try:
+        save_path, new_filename, original_name = save_uploaded_file(file, upload_dir, 'kb_')
+
+        parsed = parse_file(save_path, original_filename=original_name)
+        
+        category = request.form.get('category')
+        source = request.form.get('source')
+        tag_ids = request.form.get('tag_ids')
+        tag_ids = [int(t) for t in tag_ids.split(',') if t.strip()] if tag_ids else []
+
+        kb = knowledge_service.add_knowledge(
+            title=parsed['title'],
+            content=parsed['content'],
+            category=category,
+            source=source,
+            summary=parsed['summary'],
+            tag_ids=tag_ids
+        )
+        
+        kb.status = 'active'
+        kb.uploader_id = current_user.id
+        kb.file_path = save_path
+        db.session.commit()
+
+        log_knowledge_action(
+            user_id=current_user.id,
+            username=current_user.username,
+            action='upload_knowledge',
+            knowledge_id=kb.id,
+            detail=f"上传文件创建知识: {parsed['title']}"
+        )
+
+        return success(data=kb.to_dict(), message='知识已创建')
+
+    except Exception as e:
+        db.session.rollback()
+        return error(message=f'上传失败: {str(e)}')
+
+
+@admin_bp.route('/knowledge/pending', methods=['GET'])
+@admin_required
+def get_pending_knowledge(current_user):
+    """获取待审核知识列表"""
+    page = int(request.args.get('page', 1))
+    page_size = int(request.args.get('page_size', 20))
+    
+    if page < 1:
+        page = 1
+    if page_size < 1 or page_size > 100:
+        page_size = 20
+
+    query = Knowledge.query.filter(Knowledge.status == 'pending')
+    total = query.count()
+    items = query.order_by(Knowledge.created_at.desc()) \
+        .offset((page - 1) * page_size) \
+        .limit(page_size) \
+        .all()
+
+    return success(data={
+        'list': [k.to_dict() for k in items],
+        'total': total,
+        'page': page,
+        'page_size': page_size
+    })
+
+
+@admin_bp.route('/knowledge/pending/<int:kb_id>', methods=['PUT'])
+@admin_required
+def approve_knowledge(current_user, kb_id):
+    """审核知识（通过/拒绝）"""
+    kb = Knowledge.query.get(kb_id)
+    if not kb:
+        return not_found('知识不存在')
+    if kb.status != 'pending':
+        return bad_request('该知识状态不是待审核')
+
+    data = request.get_json() or {}
+    action = data.get('action', 'approve')
+
+    if action == 'approve':
+        kb.status = 'active'
+        kb.is_active = True
+        message = '审核通过'
+    elif action == 'reject':
+        kb.status = 'rejected'
+        message = '已拒绝'
+    else:
+        return bad_request('无效的审核操作')
+
+    db.session.commit()
+
+    log_knowledge_action(
+        user_id=current_user.id,
+        username=current_user.username,
+        action=f'approve_knowledge_{action}',
+        knowledge_id=kb_id,
+        detail=f"{message}: {kb.title}"
+    )
+
+    return success(data=kb.to_dict(), message=message)

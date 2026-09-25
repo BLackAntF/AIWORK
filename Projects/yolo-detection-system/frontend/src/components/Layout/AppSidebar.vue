@@ -15,6 +15,10 @@
           <el-icon><ChatDotRound /></el-icon>
           <template #title>AI问答</template>
         </el-menu-item>
+        <el-menu-item index="/knowledge-list">
+          <el-icon><Collection /></el-icon>
+          <template #title>知识库</template>
+        </el-menu-item>
         <el-menu-item index="/history">
           <el-icon><Clock /></el-icon>
           <template #title>历史记录</template>
@@ -41,7 +45,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Search, ChatDotRound, Clock, User, Fold, Expand, Setting } from '@element-plus/icons-vue'
+import { Search, ChatDotRound, Collection, Clock, User, Fold, Expand, Setting } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/modules/user'
 
 defineProps({

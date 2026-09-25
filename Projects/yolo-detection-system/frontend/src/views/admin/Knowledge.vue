@@ -37,9 +37,14 @@
         <h3 class="table-title">知识列表</h3>
         <div class="table-actions">
           <el-button type="primary" :icon="Plus" @click="openAddDialog">新增知识</el-button>
+          <el-button type="warning" :icon="Upload" @click="openUploadDialog">上传文件</el-button>
+          <el-badge :value="pendingCount" :hidden="pendingCount === 0" class="pending-badge">
+            <el-button :icon="Clock" @click="openPendingDialog">待审核</el-button>
+          </el-badge>
           <el-button :icon="Upload" @click="openImportDialog">批量导入</el-button>
           <el-button :icon="RefreshRight" @click="handleSyncVector">同步向量库</el-button>
           <el-button :icon="Folder" @click="openCategoryDialog">分类管理</el-button>
+          <el-button type="success" :icon="PriceTag" @click="openTagDialog">标签管理</el-button>
           <el-button type="danger" :icon="Delete" :disabled="selectedIds.length === 0" @click="handleBatchDelete">批量删除</el-button>
         </div>
       </div>
@@ -61,6 +66,26 @@
         <el-table-column prop="category" label="分类" width="120" align="center">
           <template #default="{ row }">
             <el-tag v-if="row.category" type="info" effect="light" size="small">{{ row.category }}</el-tag>
+            <span v-else class="text-muted">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="标签" width="180" align="center">
+          <template #default="{ row }">
+            <div class="tag-list-cell" v-if="row.tags?.length">
+              <el-tag
+                v-for="tag in row.tags.slice(0, 2)"
+                :key="tag.id"
+                :color="tag.color"
+                effect="dark"
+                size="small"
+                style="margin: 2px;"
+              >
+                {{ tag.name }}
+              </el-tag>
+              <el-tag v-if="row.tags.length > 2" type="info" size="small" style="margin: 2px;">
+                +{{ row.tags.length - 2 }}
+              </el-tag>
+            </div>
             <span v-else class="text-muted">-</span>
           </template>
         </el-table-column>
@@ -134,23 +159,35 @@
           </el-col>
         </el-row>
         <el-form-item label="内容" prop="content" class="content-form-item">
-          <div class="markdown-editor">
-            <div class="editor-pane">
-              <div class="pane-header">编辑</div>
-              <el-input
-                v-model="knowledgeForm.content"
-                type="textarea"
-                :rows="14"
-                placeholder="请输入知识内容（支持 Markdown）"
-                maxlength="5000"
-                show-word-limit
-                class="content-textarea"
-              />
-            </div>
-            <div class="preview-pane">
-              <div class="pane-header">预览</div>
-              <div class="markdown-preview markdown-content" v-html="renderMarkdown(knowledgeForm.content)"></div>
-            </div>
+          <RichEditor
+            v-model="knowledgeForm.content"
+            placeholder="请输入知识内容..."
+            :height="400"
+          />
+        </el-form-item>
+        <el-form-item label="标签" prop="tag_ids">
+          <div class="tag-selector">
+            <el-select
+              v-model="knowledgeForm.tag_ids"
+              multiple
+              filterable
+              allow-create
+              default-first-option
+              placeholder="选择或创建标签"
+              style="width: 100%"
+              @visible-change="fetchTags"
+            >
+              <el-option
+                v-for="tag in tagList"
+                :key="tag.id"
+                :label="tag.name"
+                :value="tag.id"
+              >
+                <span class="tag-option">
+                  <el-tag :color="tag.color" size="small" effect="dark">{{ tag.name }}</el-tag>
+                </span>
+              </el-option>
+            </el-select>
           </div>
         </el-form-item>
         <el-form-item label="状态" prop="is_active" v-if="isEdit">
@@ -251,6 +288,128 @@
         <el-empty v-if="categoryList.length === 0" description="暂无分类" />
       </div>
     </el-dialog>
+
+    <!-- 标签管理弹窗 -->
+    <el-dialog v-model="tagDialogVisible" title="标签管理" width="500px">
+      <div class="tag-add">
+        <el-input v-model="newTagName" placeholder="输入新标签名称" style="width: 200px" />
+        <el-color-picker v-model="newTagColor" size="small" />
+        <el-button type="primary" :icon="Plus" @click="handleAddTag">添加</el-button>
+      </div>
+      <div class="tag-management-list">
+        <div v-for="tag in tagList" :key="tag.id" class="tag-item">
+          <el-tag :color="tag.color" effect="dark" size="small">{{ tag.name }}</el-tag>
+          <div class="tag-actions">
+            <el-button type="primary" size="small" link @click="handleEditTag(tag)">编辑</el-button>
+            <el-button type="danger" size="small" link @click="handleDeleteTag(tag)">删除</el-button>
+          </div>
+        </div>
+        <el-empty v-if="tagList.length === 0" description="暂无标签" />
+      </div>
+    </el-dialog>
+
+    <!-- 编辑标签弹窗 -->
+    <el-dialog v-model="editTagDialogVisible" title="编辑标签" width="400px">
+      <el-form label-width="80px">
+        <el-form-item label="标签名称">
+          <el-input v-model="editingTag.name" placeholder="请输入标签名称" />
+        </el-form-item>
+        <el-form-item label="标签颜色">
+          <el-color-picker v-model="editingTag.color" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="editTagDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleSaveTag">保存</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 上传文件弹窗 -->
+    <el-dialog v-model="uploadDialogVisible" title="上传文件创建知识" width="600px">
+      <el-form label-width="80px">
+        <el-form-item label="文件">
+          <el-upload
+            ref="uploadRef"
+            class="upload-area"
+            drag
+            action="#"
+            :auto-upload="false"
+            :limit="1"
+            accept=".txt,.md,.docx,.pdf"
+            :on-change="handleUploadFileChange"
+          >
+            <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
+            <div class="el-upload__text">拖拽文件到此处，或<em>点击上传</em></div>
+            <template #tip>
+              <div class="el-upload__tip">支持格式：TXT、MD、DOCX、PDF</div>
+            </template>
+          </el-upload>
+        </el-form-item>
+        <el-form-item label="分类">
+          <el-select v-model="uploadForm.category" placeholder="选择分类" clearable style="width: 100%">
+            <el-option v-for="cat in categoryList" :key="cat" :label="cat" :value="cat" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="来源">
+          <el-input v-model="uploadForm.source" placeholder="输入来源" />
+        </el-form-item>
+        <el-form-item label="标签">
+          <el-select
+            v-model="uploadForm.tag_ids"
+            multiple
+            filterable
+            placeholder="选择标签"
+            style="width: 100%"
+            @visible-change="fetchTags"
+          >
+            <el-option
+              v-for="tag in tagList"
+              :key="tag.id"
+              :label="tag.name"
+              :value="tag.id"
+            />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="uploadDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="uploading" :disabled="!uploadFile" @click="handleUpload">开始上传</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 待审核知识弹窗 -->
+    <el-dialog v-model="pendingDialogVisible" title="待审核知识列表" width="850px" @open="fetchPendingList">
+      <el-table
+        v-loading="pendingLoading"
+        :data="pendingList"
+        stripe
+        style="width: 100%"
+        max-height="450"
+      >
+        <el-table-column prop="id" label="ID" width="70" align="center" />
+        <el-table-column prop="title" label="标题" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="category" label="分类" width="100" align="center">
+          <template #default="{ row }">
+            <el-tag v-if="row.category" type="info" size="small">{{ row.category }}</el-tag>
+            <span v-else class="text-muted">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="source" label="来源" width="120" show-overflow-tooltip />
+        <el-table-column prop="uploader_name" label="上传者" width="100" align="center" />
+        <el-table-column prop="created_at" label="上传时间" width="160" align="center">
+          <template #default="{ row }">
+            <span class="time-text">{{ formatTime(row.created_at) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="150" fixed="right" align="center">
+          <template #default="{ row }">
+            <el-button type="success" size="small" link @click="handleApprove(row, 'approve')">通过</el-button>
+            <el-button type="danger" size="small" link @click="handleApprove(row, 'reject')">拒绝</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <el-empty v-if="pendingList.length === 0 && !pendingLoading" description="暂无待审核知识" />
+    </el-dialog>
   </div>
 </template>
 
@@ -258,28 +417,33 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  Search, Plus, Upload, RefreshRight, Folder, Delete, UploadFilled
+  Search, Plus, Upload, RefreshRight, Folder, Delete, UploadFilled, PriceTag, Clock
 } from '@element-plus/icons-vue'
 import {
   getKnowledgeList, addKnowledge, updateKnowledge, deleteKnowledge,
   batchDeleteKnowledge, importKnowledge, syncVector,
-  getCategories
+  getCategories, uploadKnowledgeFile, getPendingKnowledgeList, approveKnowledge
 } from '@/api/admin'
+import {
+  getKnowledgeTags, createKnowledgeTag, updateKnowledgeTag, deleteKnowledgeTag
+} from '@/api/knowledge'
 import { formatTime } from '@/utils/format'
-import { renderMarkdown } from '@/utils/markdown'
+import RichEditor from '@/components/RichEditor.vue'
 
 const loading = ref(false)
 const knowledgeList = ref([])
 const total = ref(0)
 const selectedIds = ref([])
 const categoryList = ref([])
+const tagList = ref([])
 
 const filters = reactive({
   page: 1,
   page_size: 20,
   category: '',
   keyword: '',
-  is_active: ''
+  is_active: '',
+  tag_id: ''
 })
 
 // 新增/编辑
@@ -293,7 +457,8 @@ const knowledgeForm = reactive({
   content: '',
   category: '',
   source: '',
-  is_active: true
+  is_active: true,
+  tag_ids: []
 })
 
 // 查看详情
@@ -326,12 +491,42 @@ const uploadRef = ref(null)
 const categoryDialogVisible = ref(false)
 const newCategoryName = ref('')
 
+// 标签管理
+const tagDialogVisible = ref(false)
+const newTagName = ref('')
+const newTagColor = ref('#409eff')
+const editTagDialogVisible = ref(false)
+const editingTag = reactive({
+  id: null,
+  name: '',
+  color: '#409eff'
+})
+
+// 文件上传
+const uploadDialogVisible = ref(false)
+const uploading = ref(false)
+const uploadFile = ref(null)
+const uploadForm = reactive({
+  category: '',
+  source: '',
+  tag_ids: []
+})
+
 async function fetchCategories() {
   try {
     const res = await getCategories()
     categoryList.value = res.categories || []
   } catch (e) {
     categoryList.value = []
+  }
+}
+
+async function fetchTags() {
+  try {
+    const res = await getKnowledgeTags()
+    tagList.value = res || []
+  } catch (e) {
+    tagList.value = []
   }
 }
 
@@ -369,7 +564,8 @@ function openAddDialog() {
     content: '',
     category: '',
     source: '',
-    is_active: true
+    is_active: true,
+    tag_ids: []
   })
   knowledgeDialogVisible.value = true
   setTimeout(() => knowledgeFormRef.value?.clearValidate(), 0)
@@ -383,7 +579,8 @@ function openEditDialog(row) {
     content: row.content,
     category: row.category || '',
     source: row.source || '',
-    is_active: row.is_active
+    is_active: row.is_active,
+    tag_ids: row.tags?.map(t => t.id) || []
   })
   knowledgeDialogVisible.value = true
   setTimeout(() => knowledgeFormRef.value?.clearValidate(), 0)
@@ -395,21 +592,19 @@ async function handleSubmitKnowledge() {
     if (!valid) return
     submitting.value = true
     try {
+      const data = {
+        title: knowledgeForm.title,
+        content: knowledgeForm.content,
+        category: knowledgeForm.category,
+        source: knowledgeForm.source,
+        tag_ids: knowledgeForm.tag_ids
+      }
       if (isEdit.value) {
-        await updateKnowledge(knowledgeForm.id, {
-          title: knowledgeForm.title,
-          content: knowledgeForm.content,
-          category: knowledgeForm.category,
-          is_active: knowledgeForm.is_active
-        })
+        data.is_active = knowledgeForm.is_active
+        await updateKnowledge(knowledgeForm.id, data)
         ElMessage.success('更新成功')
       } else {
-        await addKnowledge({
-          title: knowledgeForm.title,
-          content: knowledgeForm.content,
-          category: knowledgeForm.category,
-          source: knowledgeForm.source
-        })
+        await addKnowledge(data)
         ElMessage.success('添加成功')
       }
       knowledgeDialogVisible.value = false
@@ -492,6 +687,60 @@ function openCategoryDialog() {
   categoryDialogVisible.value = true
 }
 
+function openTagDialog() {
+  fetchTags()
+  tagDialogVisible.value = true
+}
+
+async function handleAddTag() {
+  if (!newTagName.value.trim()) {
+    ElMessage.warning('请输入标签名称')
+    return
+  }
+  try {
+    await createKnowledgeTag({
+      name: newTagName.value.trim(),
+      color: newTagColor.value
+    })
+    ElMessage.success('标签添加成功')
+    newTagName.value = ''
+    newTagColor.value = '#409eff'
+    fetchTags()
+  } catch (e) {}
+}
+
+function handleEditTag(tag) {
+  editingTag.id = tag.id
+  editingTag.name = tag.name
+  editingTag.color = tag.color || '#409eff'
+  editTagDialogVisible.value = true
+}
+
+async function handleSaveTag() {
+  if (!editingTag.name.trim()) {
+    ElMessage.warning('请输入标签名称')
+    return
+  }
+  try {
+    await updateKnowledgeTag(editingTag.id, {
+      name: editingTag.name.trim(),
+      color: editingTag.color
+    })
+    ElMessage.success('标签更新成功')
+    editTagDialogVisible.value = false
+    fetchTags()
+  } catch (e) {}
+}
+
+async function handleDeleteTag(tag) {
+  try {
+    await ElMessageBox.confirm(`确定要删除标签 "${tag.name}" 吗？`, '确认删除', { type: 'warning' })
+    await deleteKnowledgeTag(tag.id)
+    ElMessage.success('删除成功')
+    fetchTags()
+  } catch (e) {}
+}
+
 async function handleAddCategory() {
   if (!newCategoryName.value.trim()) {
     ElMessage.warning('请输入分类名称')
@@ -517,9 +766,89 @@ async function handleDeleteCategory(cat) {
   } catch (e) {}
 }
 
+function openUploadDialog() {
+  uploadFile.value = null
+  uploadForm.category = ''
+  uploadForm.source = ''
+  uploadForm.tag_ids = []
+  uploadDialogVisible.value = true
+}
+
+function handleUploadFileChange(file) {
+  uploadFile.value = file.raw
+}
+
+async function handleUpload() {
+  if (!uploadFile.value) return
+  uploading.value = true
+  try {
+    const formData = new FormData()
+    formData.append('file', uploadFile.value)
+    if (uploadForm.category) formData.append('category', uploadForm.category)
+    if (uploadForm.source) formData.append('source', uploadForm.source)
+    if (uploadForm.tag_ids.length > 0) formData.append('tag_ids', uploadForm.tag_ids.join(','))
+
+    await uploadKnowledgeFile(formData)
+    ElMessage.success('上传成功')
+    uploadDialogVisible.value = false
+    fetchList()
+  } finally {
+    uploading.value = false
+  }
+}
+
+// 待审核
+const pendingDialogVisible = ref(false)
+const pendingLoading = ref(false)
+const pendingList = ref([])
+const pendingCount = ref(0)
+
+async function fetchPendingCount() {
+  try {
+    const res = await getPendingKnowledgeList({ page: 1, page_size: 1 })
+    pendingCount.value = res.total || 0
+  } catch (e) {
+    pendingCount.value = 0
+  }
+}
+
+async function fetchPendingList() {
+  pendingLoading.value = true
+  try {
+    const res = await getPendingKnowledgeList({ page: 1, page_size: 100 })
+    pendingList.value = res.list || []
+    pendingCount.value = res.total || 0
+  } catch (e) {
+    pendingList.value = []
+  } finally {
+    pendingLoading.value = false
+  }
+}
+
+function openPendingDialog() {
+  pendingDialogVisible.value = true
+}
+
+async function handleApprove(row, action) {
+  const actionText = action === 'approve' ? '通过' : '拒绝'
+  try {
+    await ElMessageBox.confirm(
+      `确定要${actionText}知识 "${row.title}" 吗？`,
+      `确认${actionText}`,
+      { type: action === 'approve' ? 'success' : 'warning' }
+    )
+    await approveKnowledge(row.id, action)
+    ElMessage.success(`已${actionText}`)
+    fetchPendingList()
+    fetchList()
+  } catch (e) {}
+}
+
 onMounted(() => {
   fetchCategories()
+  fetchTags()
   fetchList()
+  fetchPendingCount()
 })
 </script>
 
@@ -590,6 +919,10 @@ onMounted(() => {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.pending-badge {
+  margin-top: 0;
 }
 
 .title-text {
@@ -677,145 +1010,62 @@ onMounted(() => {
   gap: 8px;
 }
 
-/* Markdown 编辑器 */
-.markdown-editor {
+/* 标签相关样式 */
+.tag-list-cell {
   display: flex;
-  gap: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px;
+}
+
+.tag-selector {
   width: 100%;
 }
 
-.editor-pane,
-.preview-pane {
-  flex: 1;
-  min-width: 0;
+.tag-option {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 8px;
 }
 
-.pane-header {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--color-text-secondary);
-  margin-bottom: 8px;
-  padding: 6px 0;
-  border-bottom: 1px solid var(--color-border-light);
-}
-
-.content-textarea {
-  flex: 1;
-}
-
-:deep(.content-textarea .el-textarea__inner) {
-  font-family: var(--font-family-mono);
-  font-size: 13px;
-  line-height: 1.6;
-  resize: none;
-  min-height: 340px;
-}
-
-.markdown-preview {
-  flex: 1;
-  padding: 12px 16px;
+.tag-add {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 12px;
   background: var(--color-bg-tertiary);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border-light);
+  border-radius: 8px;
+}
+
+.tag-management-list {
+  max-height: 400px;
   overflow-y: auto;
-  min-height: 340px;
-  font-size: 14px;
-  line-height: 1.7;
-  color: var(--color-text-secondary);
 }
 
-/* Markdown 内容通用样式 */
-.markdown-content :deep(h1),
-.markdown-content :deep(h2),
-.markdown-content :deep(h3),
-.markdown-content :deep(h4) {
-  margin: 16px 0 8px 0;
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.markdown-content :deep(h1) {
-  font-size: 20px;
-}
-
-.markdown-content :deep(h2) {
-  font-size: 18px;
-}
-
-.markdown-content :deep(h3) {
-  font-size: 16px;
-}
-
-.markdown-content :deep(p) {
-  margin: 8px 0;
-}
-
-.markdown-content :deep(ul),
-.markdown-content :deep(ol) {
-  margin: 8px 0;
-  padding-left: 24px;
-}
-
-.markdown-content :deep(li) {
-  margin: 4px 0;
-}
-
-.markdown-content :deep(strong) {
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.markdown-content :deep(code) {
-  background: rgba(0, 0, 0, 0.06);
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 13px;
-  font-family: var(--font-family-mono);
-}
-
-:deep(.dark .markdown-content code) {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.markdown-content :deep(pre) {
-  background: rgba(0, 0, 0, 0.06);
+.tag-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   padding: 12px 16px;
-  border-radius: var(--radius-md);
-  overflow-x: auto;
-  margin: 12px 0;
-}
-
-:deep(.dark .markdown-content pre) {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.markdown-content :deep(pre code) {
-  background: none;
-  padding: 0;
-}
-
-.markdown-content :deep(blockquote) {
-  border-left: 3px solid var(--color-accent);
-  padding-left: 12px;
-  margin: 12px 0;
-  color: var(--color-text-secondary);
   background: var(--color-bg-tertiary);
-  padding: 8px 12px;
-  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  border-radius: 8px;
+  margin-bottom: 8px;
 }
 
-.markdown-content :deep(a) {
-  color: var(--color-accent);
-  text-decoration: none;
+.tag-actions {
+  display: flex;
+  gap: 8px;
 }
 
-.markdown-content :deep(a:hover) {
-  text-decoration: underline;
+/* 内容编辑器 */
+.content-form-item :deep(.el-form-item__content) {
+  width: 100%;
 }
 
-/* 知识详情弹窗 */
+:deep(.knowledge-edit-dialog .el-dialog__body) {
+  padding-top: 10px;
+}
 .knowledge-detail {
   padding: 4px 0;
 }

@@ -62,6 +62,20 @@ export function syncVector() {
   return request.post('/admin/knowledge/sync-vector')
 }
 
+export function uploadKnowledgeFile(data) {
+  return request.post('/admin/knowledge/upload', data, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+}
+
+export function getPendingKnowledgeList(params) {
+  return request.get('/admin/knowledge/pending', { params })
+}
+
+export function approveKnowledge(id, action) {
+  return request.put(`/admin/knowledge/pending/${id}`, { action })
+}
+
 // ========== 分类管理 ==========
 
 export function getCategories() {

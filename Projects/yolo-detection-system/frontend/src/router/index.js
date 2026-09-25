@@ -33,6 +33,18 @@ const routes = [
         meta: { title: 'AI 问答', icon: 'ChatDotRound' }
       },
       {
+        path: 'knowledge-list',
+        name: 'KnowledgeList',
+        component: () => import('@/views/KnowledgeList.vue'),
+        meta: { title: '知识库', icon: 'Collection' }
+      },
+      {
+        path: 'knowledge-list/:id',
+        name: 'KnowledgeDetail',
+        component: () => import('@/views/KnowledgeDetail.vue'),
+        meta: { title: '知识详情', hidden: true }
+      },
+      {
         path: 'history',
         name: 'History',
         component: () => import('@/views/History.vue'),
