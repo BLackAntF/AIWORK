@@ -53,10 +53,20 @@
           <div class="article-content rich-content" v-html="renderedContent"></div>
 
           <div class="article-footer">
-            <el-button @click="goBack">
-              <el-icon><ArrowLeft /></el-icon>
-              返回知识库
-            </el-button>
+            <div class="footer-left">
+              <el-button @click="goBack">
+                <el-icon><ArrowLeft /></el-icon>
+                返回知识库
+              </el-button>
+              <el-button
+                :type="isFavorite ? 'warning' : 'default'"
+                :loading="favoriteLoading"
+                @click="toggleFavorite"
+              >
+                <el-icon><StarFilled v-if="isFavorite" /><Star v-else /></el-icon>
+                {{ isFavorite ? '已收藏' : '收藏' }}
+              </el-button>
+            </div>
             <el-button type="primary" @click="goToChat">
               <el-icon><ChatDotRound /></el-icon>
               咨询相关问题
@@ -104,8 +114,9 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { DocumentDelete, View, Clock, Link, Edit, ChatDotRound, ArrowLeft, Connection } from '@element-plus/icons-vue'
-import { getKnowledgeItem, getRelatedKnowledge } from '@/api/knowledge'
+import { DocumentDelete, View, Clock, Link, Edit, ChatDotRound, ArrowLeft, Connection, Star, StarFilled } from '@element-plus/icons-vue'
+import { getKnowledgeItem, getRelatedKnowledge, getFavoriteStatus, addFavorite, removeFavorite } from '@/api/knowledge'
+import { renderMarkdown } from '@/utils/markdown'
 import { useChatStore } from '@/store/modules/chat'
 
 const route = useRoute()
@@ -115,6 +126,8 @@ const chatStore = useChatStore()
 const loading = ref(false)
 const knowledge = ref(null)
 const relatedList = ref([])
+const isFavorite = ref(false)
+const favoriteLoading = ref(false)
 
 const categoryMap = {
   '病害识别': { label: '病害识别', type: 'danger' },
@@ -186,7 +199,7 @@ function goBack() {
 }
 
 function goToDetail(id) {
-  router.push(`/knowledge-detail/${id}`)
+  router.push(`/knowledge-list/${id}`)
 }
 
 function goToChat() {
@@ -200,8 +213,40 @@ function goToChat() {
   router.push('/knowledge')
 }
 
+async function fetchFavoriteStatus() {
+  const id = route.params.id
+  if (!id) return
+  try {
+    const res = await getFavoriteStatus(id)
+    isFavorite.value = !!res.is_favorite
+  } catch (e) {
+    isFavorite.value = false
+  }
+}
+
+async function toggleFavorite() {
+  const id = route.params.id
+  if (!id) return
+  favoriteLoading.value = true
+  try {
+    if (isFavorite.value) {
+      await removeFavorite(id)
+      isFavorite.value = false
+      ElMessage.success('已取消收藏')
+    } else {
+      await addFavorite(id)
+      isFavorite.value = true
+      ElMessage.success('收藏成功')
+    }
+  } catch (e) {
+  } finally {
+    favoriteLoading.value = false
+  }
+}
+
 onMounted(() => {
   fetchKnowledgeDetail()
+  fetchFavoriteStatus()
 })
 </script>
 
@@ -478,6 +523,11 @@ onMounted(() => {
   border-top: 1px solid var(--color-border-light);
 }
 
+.footer-left {
+  display: flex;
+  gap: 10px;
+}
+
 @media (max-width: 768px) {
   .knowledge-detail-page {
     padding: 16px;
@@ -501,6 +551,11 @@ onMounted(() => {
   }
 
   .article-footer {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .footer-left {
     flex-direction: column;
     gap: 12px;
   }

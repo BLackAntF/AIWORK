@@ -129,6 +129,45 @@
           </el-form>
         </div>
 
+        <div class="glass-card favorites-card">
+          <h3 class="card-title">
+            <el-icon><Star /></el-icon>
+            我的收藏
+            <span v-if="favoritesTotal > 0" class="favorites-count">{{ favoritesTotal }}</span>
+          </h3>
+          <div v-loading="favoritesLoading" class="favorites-list" v-if="favoritesList.length > 0">
+            <div
+              v-for="item in favoritesList"
+              :key="item.knowledge_id"
+              class="favorite-item"
+              @click="goToKnowledge(item.knowledge_id)"
+            >
+              <el-tag :type="getCategoryType(item.knowledge?.category)" effect="light" size="small" class="favorite-category">
+                {{ getCategoryLabel(item.knowledge?.category) }}
+              </el-tag>
+              <div class="favorite-info">
+                <p class="favorite-title">{{ item.knowledge?.title || '未知知识' }}</p>
+                <p class="favorite-time">{{ formatDate(item.created_at) }} 收藏</p>
+              </div>
+              <el-button
+                class="favorite-remove"
+                circle
+                text
+                size="small"
+                title="取消收藏"
+                @click.stop="handleRemoveFavorite(item)"
+              >
+                <el-icon><Close /></el-icon>
+              </el-button>
+            </div>
+          </div>
+          <div v-else-if="!favoritesLoading" class="favorites-empty">
+            <el-icon :size="40"><Star /></el-icon>
+            <p>暂无收藏，去知识库逛逛吧</p>
+            <el-button type="primary" size="small" @click="goToKnowledgeList">前往知识库</el-button>
+          </div>
+        </div>
+
         <div class="glass-card logout-card">
           <h3 class="card-title">
             <el-icon><SwitchButton /></el-icon>
@@ -165,11 +204,14 @@ import {
   TrendCharts,
   Sunny,
   Picture,
-  SwitchButton
+  SwitchButton,
+  Star,
+  Close
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/modules/user'
 import { changePassword } from '@/api/auth'
 import { getHistoryList } from '@/api/history'
+import { getMyFavorites, removeFavorite } from '@/api/knowledge'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -190,6 +232,58 @@ const stats = reactive({
   today: 0,
   image: 0
 })
+
+const favoritesLoading = ref(false)
+const favoritesList = ref([])
+const favoritesTotal = ref(0)
+
+const categoryMap = {
+  '病害识别': { label: '病害识别', type: 'danger' },
+  '防治方法': { label: '防治方法', type: 'warning' },
+  '栽培技术': { label: '栽培技术', type: 'success' },
+  '基础知识': { label: '基础知识', type: 'primary' },
+  '养护知识': { label: '养护知识', type: 'primary' },
+  '病害防治': { label: '病害防治', type: 'danger' }
+}
+
+function getCategoryLabel(category) {
+  return categoryMap[category]?.label || category || '其他'
+}
+
+function getCategoryType(category) {
+  return categoryMap[category]?.type || 'info'
+}
+
+const fetchFavorites = async () => {
+  favoritesLoading.value = true
+  try {
+    const res = await getMyFavorites({ page: 1, page_size: 20 })
+    favoritesList.value = res.list || []
+    favoritesTotal.value = res.total || 0
+  } catch (e) {
+    favoritesList.value = []
+    favoritesTotal.value = 0
+  } finally {
+    favoritesLoading.value = false
+  }
+}
+
+const goToKnowledge = (id) => {
+  router.push(`/knowledge-list/${id}`)
+}
+
+const goToKnowledgeList = () => {
+  router.push('/knowledge-list')
+}
+
+const handleRemoveFavorite = async (item) => {
+  try {
+    await removeFavorite(item.knowledge_id)
+    ElMessage.success('已取消收藏')
+    await fetchFavorites()
+  } catch (e) {
+  }
+}
 
 const validateConfirmPassword = (rule, value, callback) => {
   if (value !== passwordForm.newPassword) {
@@ -303,6 +397,7 @@ onMounted(() => {
     userStore.fetchUserInfo()
   }
   fetchStats()
+  fetchFavorites()
 })
 </script>
 
@@ -584,6 +679,95 @@ onMounted(() => {
   box-shadow: 0 6px 20px rgba(255, 77, 79, 0.3);
 }
 
+.favorites-card {
+  padding: 32px;
+}
+
+.favorites-count {
+  margin-left: auto;
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+  font-size: 12px;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 20px;
+}
+
+.favorites-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.favorite-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-light);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.favorite-item:hover {
+  transform: translateX(4px);
+  border-color: var(--color-primary);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.12);
+}
+
+.favorite-category {
+  flex-shrink: 0;
+}
+
+.favorite-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.favorite-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.favorite-time {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-top: 4px;
+}
+
+.favorite-remove {
+  flex-shrink: 0;
+  font-size: 16px;
+  color: var(--color-text-secondary);
+  padding: 6px;
+}
+
+.favorite-remove:hover {
+  color: var(--color-danger);
+  background: rgba(255, 77, 79, 0.1);
+}
+
+.favorites-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 32px 0;
+  color: var(--color-text-secondary);
+}
+
+.favorites-empty p {
+  font-size: 14px;
+}
+
 .w-full {
   width: 100%;
 }
@@ -613,7 +797,8 @@ onMounted(() => {
 
   .password-card,
   .logout-card,
-  .stats-card {
+  .stats-card,
+  .favorites-card {
     padding: 24px 20px;
   }
 
