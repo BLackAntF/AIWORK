@@ -1,11 +1,19 @@
 import csv
 import io
+from collections import defaultdict
 from datetime import datetime, date, timedelta
 from flask import request, Response
 from routes.admin import admin_bp
 from models import User, DetectionHistory, ChatHistory, Knowledge, db
 from utils.response import success, bad_request, error
 from middleware.auth_middleware import admin_required
+
+NON_DISEASE_CLASSES = {'健康', '健康叶片', '健康叶子', '正常叶片'}
+
+# 旧版数据集的类别别名归一化到当前名称，避免同一病害在统计中被拆成多项
+CLASS_ALIASES = {
+    '斑点病': '细菌性斑点病'
+}
 
 
 @admin_bp.route('/stats/dashboard', methods=['GET'])
@@ -141,6 +149,105 @@ def get_knowledge_stats(current_user):
     return success(data={
         'total': total,
         'category_distribution': category_stats
+    })
+
+
+@admin_bp.route('/stats/disease-distribution', methods=['GET'])
+@admin_required
+def get_disease_distribution(current_user):
+    """病害检出分布统计
+
+    Query Params:
+        days: 统计近 N 天（含今天），默认 30
+    """
+    days = int(request.args.get('days', 30))
+    if days < 1:
+        days = 30
+    if days > 365:
+        days = 365
+
+    since = datetime.combine(date.today() - timedelta(days=days - 1), datetime.min.time())
+
+    records = db.session.query(
+        DetectionHistory.class_names
+    ).filter(
+        DetectionHistory.created_at >= since,
+        DetectionHistory.class_names.isnot(None),
+        DetectionHistory.class_names != ''
+    ).all()
+
+    distribution = defaultdict(int)
+    for (class_names,) in records:
+        for name in class_names.split(','):
+            name = name.strip()
+            if name and name not in NON_DISEASE_CLASSES:
+                distribution[CLASS_ALIASES.get(name, name)] += 1
+
+    total_records = len(records)
+    return success(data={
+        'days': days,
+        'total_records': total_records,
+        'distribution': dict(sorted(distribution.items(), key=lambda x: -x[1]))
+    })
+
+
+@admin_bp.route('/stats/disease-trend', methods=['GET'])
+@admin_required
+def get_disease_trend(current_user):
+    """近 N 日病害检出趋势
+
+    Query Params:
+        days: 天数，默认 7
+    """
+    days = int(request.args.get('days', 7))
+    if days < 1:
+        days = 7
+    if days > 90:
+        days = 90
+
+    today = date.today()
+    since = datetime.combine(today - timedelta(days=days - 1), datetime.min.time())
+
+    records = db.session.query(
+        DetectionHistory.class_names,
+        DetectionHistory.created_at
+    ).filter(
+        DetectionHistory.created_at >= since,
+        DetectionHistory.class_names.isnot(None),
+        DetectionHistory.class_names != ''
+    ).all()
+
+    by_day = defaultdict(lambda: defaultdict(int))
+    for class_names, created_at in records:
+        day_key = created_at.date().strftime('%Y-%m-%d')
+        for name in class_names.split(','):
+            name = name.strip()
+            if name and name not in NON_DISEASE_CLASSES:
+                by_day[day_key][CLASS_ALIASES.get(name, name)] += 1
+
+    dates = []
+    for i in range(days - 1, -1, -1):
+        dates.append((today - timedelta(days=i)).strftime('%Y-%m-%d'))
+
+    all_names = set()
+    for day_dist in by_day.values():
+        all_names.update(day_dist.keys())
+
+    series_map = defaultdict(list)
+    for d in dates:
+        day_dist = by_day.get(d, {})
+        for name in all_names:
+            series_map[name].append(day_dist.get(name, 0))
+
+    series = [
+        {'name': name, 'data': counts}
+        for name, counts in series_map.items()
+    ]
+
+    return success(data={
+        'days': days,
+        'dates': dates,
+        'series': series
     })
 
 
