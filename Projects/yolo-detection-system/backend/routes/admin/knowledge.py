@@ -275,8 +275,22 @@ def import_knowledge(current_user):
 @admin_bp.route('/knowledge/sync-vector', methods=['POST'])
 @admin_required
 def sync_vector(current_user):
-    """同步向量库（Mock）"""
-    return success(message='向量库同步成功', data={'synced': True, 'count': 0})
+    """同步/重建 BM25 检索索引
+
+    重新从数据库构建检索索引（本方案为进程内 BM25，检索时数据变更会自动懒重建，
+    此接口用于主动重建并返回索引统计）。
+    """
+    result = knowledge_service.build_index()
+
+    log_knowledge_action(
+        user_id=current_user.id,
+        username=current_user.username,
+        action='sync_vector',
+        knowledge_id=None,
+        detail=f"重建检索索引：{result['synced_count']} 条，耗时 {result['elapsed_ms']}ms"
+    )
+
+    return success(message=f"索引同步完成，共 {result['synced_count']} 条知识", data=result)
 
 
 @admin_bp.route('/categories', methods=['GET'])

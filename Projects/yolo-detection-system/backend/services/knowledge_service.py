@@ -12,6 +12,13 @@ except ImportError:
     BM25Okapi = None
 
 
+def _build_bm25_index(corpus, docs):
+    """构建 BM25 索引（无 rank_bm25 时回退到文档列表原样存储）"""
+    if BM25Okapi is not None:
+        return BM25Okapi(corpus)
+    return docs
+
+
 # 病害领域常用词，确保 jieba 正确切分（如"早疫病"不被拆散）
 _DISEASE_TERMS = [
     '早疫病', '晚疫病', '灰霉病', '白粉病', '霜霉病', '叶霉病', '病毒病',
@@ -78,6 +85,11 @@ class KnowledgeService:
     """
     _instance = None
     _collection = None
+    # BM25 进程内索引缓存：key 为 (max_updated_at, total, total_chars) 组合签名
+    _bm25_index = None
+    _bm25_corpus = None
+    _bm25_docs = None
+    _bm25_signature = None
 
     def __new__(cls):
         if cls._instance is None:
@@ -97,6 +109,41 @@ class KnowledgeService:
                 raise RuntimeError("chromadb 未安装，请先安装: pip install chromadb")
         return self._collection
 
+    def _index_signature(self, all_knowledge):
+        """计算知识快照签名：数据有变化时索引自动重建"""
+        total = len(all_knowledge)
+        max_updated = max((kb.updated_at or kb.created_at or 0 for kb in all_knowledge), default=0)
+        total_chars = sum(len(kb.content or '') for kb in all_knowledge)
+        return (total, total_chars, max_updated)
+
+    def build_index(self):
+        """重建 BM25 内存索引
+
+        重新从数据库读取全部激活知识，构建分词语料与 BM25 索引。
+        检索时若数据签名变化会自动懒重建；此方法用于主动同步（管理端"同步索引"）。
+
+        Returns:
+            dict: {synced, count, synced_count, elapsed_ms, method}
+        """
+        import time
+        start = time.time()
+        all_knowledge = self._active_knowledge()
+        corpus, index = self._build_index(all_knowledge)
+        elapsed_ms = int((time.time() - start) * 1000)
+        return {
+            'synced': True,
+            'count': len(corpus),
+            'synced_count': len(corpus),
+            'elapsed_ms': elapsed_ms,
+            'method': 'bm25'
+        }
+
+    def _build_index(self, all_knowledge):
+        """构建语料与 BM25 索引（无数据时返回空）"""
+        corpus = self._build_corpus(all_knowledge)
+        index = _build_bm25_index(corpus, all_knowledge) if corpus else None
+        return corpus, index
+
     def _build_corpus(self, all_knowledge):
         """构建 BM25 语料：标题 token 复制两份实现加权，正文一份"""
         corpus = []
@@ -106,11 +153,21 @@ class KnowledgeService:
             corpus.append(title_tokens + title_tokens + content_tokens)
         return corpus
 
-    def _rank(self, all_knowledge, corpus, query_tokens, top_k=3):
-        """BM25 打分排序，返回 [(score, kb), ...]"""
-        if BM25Okapi is not None and corpus:
-            bm25 = BM25Okapi(corpus)
-            scores = bm25.get_scores(query_tokens)
+    def _get_snapshot(self):
+        """取激活知识快照，并按需重建缓存索引"""
+        all_knowledge = self._active_knowledge()
+        signature = self._index_signature(all_knowledge)
+        if self._bm25_signature != signature:
+            self._bm25_docs = all_knowledge
+            self._bm25_corpus, self._bm25_index = self._build_index(all_knowledge)
+            self._bm25_signature = signature
+        return self._bm25_docs, self._bm25_corpus, self._bm25_index
+
+    def _rank(self, query_tokens, top_k=3):
+        """用缓存索引打分排序，返回 [(score, kb), ...]"""
+        all_knowledge, corpus, index = self._get_snapshot()
+        if index is not None and corpus:
+            scores = index.get_scores(query_tokens)
         else:
             scores = self._fallback_scores(all_knowledge, query_tokens)
 
@@ -168,8 +225,7 @@ class KnowledgeService:
         raw_tokens = _tokenize(query)
         query_tokens = _expand_synonyms(raw_tokens) or raw_tokens
 
-        corpus = self._build_corpus(all_knowledge)
-        ranked = self._rank(all_knowledge, corpus, query_tokens, top_k)
+        ranked = self._rank(query_tokens, top_k)
         return [item[1].content for item in ranked[:top_k]]
 
     def search_with_titles(self, query, top_k=3):
@@ -189,8 +245,7 @@ class KnowledgeService:
         raw_tokens = _tokenize(query)
         query_tokens = _expand_synonyms(raw_tokens) or raw_tokens
 
-        corpus = self._build_corpus(all_knowledge)
-        ranked = self._rank(all_knowledge, corpus, query_tokens, top_k)
+        ranked = self._rank(query_tokens, top_k)
 
         return [{'title': item[1].title, 'content': item[1].content}
                 for item in ranked[:top_k]]

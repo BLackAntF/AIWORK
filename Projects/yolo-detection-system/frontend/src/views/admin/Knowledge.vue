@@ -42,7 +42,7 @@
             <el-button :icon="Clock" @click="openPendingDialog">待审核</el-button>
           </el-badge>
           <el-button :icon="Upload" @click="openImportDialog">批量导入</el-button>
-          <el-button :icon="RefreshRight" @click="handleSyncVector">同步向量库</el-button>
+          <el-button :icon="RefreshRight" @click="handleSyncVector">同步索引</el-button>
           <el-button :icon="Folder" @click="openCategoryDialog">分类管理</el-button>
           <el-button type="success" :icon="PriceTag" @click="openTagDialog">标签管理</el-button>
           <el-button type="danger" :icon="Delete" :disabled="selectedIds.length === 0" @click="handleBatchDelete">批量删除</el-button>
@@ -672,12 +672,12 @@ async function handleImport() {
 async function handleSyncVector() {
   try {
     await ElMessageBox.confirm(
-      '确定要同步向量数据库吗？这将重新同步所有知识条目到向量库。',
+      '确定要重建检索索引吗？将重新同步所有知识条目到检索索引。',
       '确认同步',
       { type: 'info' }
     )
     const res = await syncVector()
-    ElMessage.success(`同步完成，共同步 ${res.synced_count} 条`)
+    ElMessage.success(res.message || `同步完成，共同步 ${res.synced_count} 条`)
     fetchList()
   } catch (e) {}
 }
