@@ -105,6 +105,7 @@
 import { ref, computed } from 'vue'
 import { detectImage } from '@/api/detect'
 import { getFullUrl } from '@/utils/format'
+import { showError } from '@/utils/error'
 import LoadingOverlay from '@/components/LoadingOverlay.vue'
 import DiseaseCard from '@/components/DiseaseCard.vue'
 import AppIcon from '@/components/AppIcon.vue'
@@ -171,7 +172,7 @@ async function handleDetect() {
 		detectionResult.value = result
 		uni.showToast({ title: '检测完成', icon: 'success' })
 	} catch (e) {
-		uni.showToast({ title: '检测失败，请重试', icon: 'none' })
+		showError(e, '检测失败，请重试')
 	} finally {
 		isDetecting.value = false
 	}
