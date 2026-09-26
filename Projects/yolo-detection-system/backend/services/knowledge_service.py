@@ -1,13 +1,80 @@
-import random
 from flask import current_app
 from sqlalchemy import func, desc
 from models import Knowledge, Tag, KnowledgeTag, db
+
+try:
+    import jieba
+except ImportError:
+    jieba = None
+try:
+    from rank_bm25 import BM25Okapi
+except ImportError:
+    BM25Okapi = None
+
+
+# 病害领域常用词，确保 jieba 正确切分（如"早疫病"不被拆散）
+_DISEASE_TERMS = [
+    '早疫病', '晚疫病', '灰霉病', '白粉病', '霜霉病', '叶霉病', '病毒病',
+    '青枯病', '枯萎病', '根腐病', '炭疽病', '疮痂病', '脐腐病', '脐橙病',
+    '细菌性', '真菌性', '生理性', '黑斑病', '褐斑病', '斑枯病', '叶斑病',
+    '疮痂', '根结线虫', '红蜘蛛', '蚜虫', '白粉虱', '潜叶蛾', '棉铃虫',
+    '防治', '药剂', '轮作', '抗病品种', '种子处理', '生物防治', '化学防治'
+]
+
+# 口语查询 → 专业术语 同义映射（用户问"叶子发黄"，知识库里写的是"叶片黄化"）
+_SYNONYM_MAP = {
+    '叶子': '叶片', '叶面': '叶片',
+    '发黄': '黄化', '变黄': '黄化', '泛黄': '黄化', '发黄斑': '黄化',
+    '斑点': '病斑', '黑点': '黑斑', '水渍': '水渍状',
+    '发霉': '霉变', '长毛': '霉变', '腐烂': '腐烂',
+    '萎': '萎蔫', '枯死': '枯死', '干枯': '干枯',
+    '打药': '药剂', '用药': '药剂', '农药': '药剂',
+    '虫': '虫害', '虫子': '虫害', '红蜘蛛': '红蜘蛛',
+    '喷': '喷雾', '治': '防治'
+}
+
+
+def _ensure_jieba():
+    """初始化 jieba：注册领域词典（幂等）"""
+    if jieba is None:
+        return None
+    if not getattr(_ensure_jieba, '_ready', False):
+        for term in _DISEASE_TERMS:
+            jieba.add_word(term)
+        _ensure_jieba._ready = True
+    return jieba
+
+
+def _tokenize(text):
+    """中文分词，保留长度>=2 的实义词"""
+    jieba_engine = _ensure_jieba()
+    if jieba_engine is None:
+        return [t for t in text.lower().replace('，', ' ').replace('。', ' ').split() if len(t) >= 2]
+    tokens = []
+    for tok in jieba_engine.cut(text.lower()):
+        tok = tok.strip()
+        if len(tok) >= 2:
+            tokens.append(tok)
+    return tokens
+
+
+def _expand_synonyms(tokens):
+    """对查询词做同义扩展：口语词归一为专业术语（保留原词 + 映射词）"""
+    expanded = []
+    for tok in tokens:
+        mapped = _SYNONYM_MAP.get(tok, tok)
+        if mapped != tok:
+            expanded.append(tok)
+        expanded.append(mapped)
+    return expanded
 
 
 class KnowledgeService:
     """知识库服务
 
-    负责知识库的管理和检索，开发环境暂不接入向量数据库，使用关键词匹配
+    检索实现：中文分词 + BM25 + 标题/分类加权。
+    - 无需向量数据库 / embedding 服务 / 本地模型，纯 Python 实现
+    - 开发环境关键词模糊匹配为兜底
     """
     _instance = None
     _collection = None
@@ -30,10 +97,62 @@ class KnowledgeService:
                 raise RuntimeError("chromadb 未安装，请先安装: pip install chromadb")
         return self._collection
 
+    def _build_corpus(self, all_knowledge):
+        """构建 BM25 语料：标题 token 复制两份实现加权，正文一份"""
+        corpus = []
+        for kb in all_knowledge:
+            title_tokens = _tokenize(kb.title or '')
+            content_tokens = _tokenize(kb.content or '')
+            corpus.append(title_tokens + title_tokens + content_tokens)
+        return corpus
+
+    def _rank(self, all_knowledge, corpus, query_tokens, top_k=3):
+        """BM25 打分排序，返回 [(score, kb), ...]"""
+        if BM25Okapi is not None and corpus:
+            bm25 = BM25Okapi(corpus)
+            scores = bm25.get_scores(query_tokens)
+        else:
+            scores = self._fallback_scores(all_knowledge, query_tokens)
+
+        ranked = list(zip(scores, all_knowledge))
+        ranked.sort(key=lambda x: x[0], reverse=True)
+
+        # BM25 全 0（无命中）时，按浏览量降序兜底，避免随机
+        if ranked and ranked[0][0] <= 0:
+            ranked.sort(key=lambda x: (x[1].views or 0), reverse=True)
+
+        return ranked
+
+    def _fallback_scores(self, all_knowledge, query_tokens):
+        """无 rank_bm25 时的朴素打分（标题命中加权）"""
+        scores = []
+        for kb in all_knowledge:
+            score = 0
+            title_lower = (kb.title or '').lower()
+            content_lower = (kb.content or '').lower()
+            for tok in query_tokens:
+                if tok in title_lower:
+                    score += 10
+                elif tok in content_lower:
+                    score += 5
+            scores.append(score)
+        return scores
+
+    def _active_knowledge(self):
+        """获取检索候选：排除测试/临时数据（也过滤掉 is_inactive）"""
+        return Knowledge.query.filter(
+            Knowledge.is_active == True,
+            ~Knowledge.category.in_(['测试分类', 'test', '测试']),
+            ~Knowledge.title.like('test%'),
+            ~Knowledge.title.like('tmp%'),
+            ~Knowledge.title.like('kb_%')
+        ).all()
+
     def search(self, query, top_k=3):
         """搜索相关知识
 
-        开发环境使用关键词模糊匹配，生产环境接入向量数据库
+        基于 BM25 的中文检索：jieba 分词 + 同义扩展 + 标题加权。
+        无命中时按浏览量兜底返回。
 
         Args:
             query: 查询内容
@@ -42,43 +161,16 @@ class KnowledgeService:
         Returns:
             list: 知识内容列表
         """
-        # 开发环境：使用 SQL LIKE 进行关键词匹配
-        all_knowledge = Knowledge.query.filter_by(is_active=True).all()
+        all_knowledge = self._active_knowledge()
+        if not all_knowledge:
+            return []
 
-        # 简单的关键词匹配打分
-        scored = []
-        query_lower = query.lower()
-        for kb in all_knowledge:
-            score = 0
-            title_lower = kb.title.lower()
-            content_lower = kb.content.lower()
+        raw_tokens = _tokenize(query)
+        query_tokens = _expand_synonyms(raw_tokens) or raw_tokens
 
-            if query_lower in title_lower:
-                score += 10
-            if query_lower in content_lower:
-                score += 5
-
-            # 部分关键词匹配
-            keywords = query_lower.split()
-            for kw in keywords:
-                if kw in title_lower:
-                    score += 3
-                if kw in content_lower:
-                    score += 1
-
-            if score > 0:
-                scored.append((score, kb.content, kb.title))
-
-        # 按分数排序
-        scored.sort(key=lambda x: x[0], reverse=True)
-        results = [item[1] for item in scored[:top_k]]
-
-        # 如果没有匹配结果，返回部分随机知识
-        if not results and all_knowledge:
-            selected = random.sample(all_knowledge, min(top_k, len(all_knowledge)))
-            results = [kb.content for kb in selected]
-
-        return results
+        corpus = self._build_corpus(all_knowledge)
+        ranked = self._rank(all_knowledge, corpus, query_tokens, top_k)
+        return [item[1].content for item in ranked[:top_k]]
 
     def search_with_titles(self, query, top_k=3):
         """搜索相关知识，返回标题和内容
@@ -90,32 +182,18 @@ class KnowledgeService:
         Returns:
             list: [{'title': ..., 'content': ...}, ...]
         """
-        all_knowledge = Knowledge.query.filter_by(is_active=True).all()
+        all_knowledge = self._active_knowledge()
+        if not all_knowledge:
+            return []
 
-        scored = []
-        query_lower = query.lower()
-        for kb in all_knowledge:
-            score = 0
-            title_lower = kb.title.lower()
-            content_lower = kb.content.lower()
+        raw_tokens = _tokenize(query)
+        query_tokens = _expand_synonyms(raw_tokens) or raw_tokens
 
-            if query_lower in title_lower:
-                score += 10
-            if query_lower in content_lower:
-                score += 5
+        corpus = self._build_corpus(all_knowledge)
+        ranked = self._rank(all_knowledge, corpus, query_tokens, top_k)
 
-            if score > 0:
-                scored.append((score, kb))
-
-        scored.sort(key=lambda x: x[0], reverse=True)
-        results = [{'title': item[1].title, 'content': item[1].content}
-                   for item in scored[:top_k]]
-
-        if not results and all_knowledge:
-            selected = random.sample(all_knowledge, min(top_k, len(all_knowledge)))
-            results = [{'title': kb.title, 'content': kb.content} for kb in selected]
-
-        return results
+        return [{'title': item[1].title, 'content': item[1].content}
+                for item in ranked[:top_k]]
 
     def add_knowledge(self, title, content, category=None, source=None, summary=None, tag_ids=None):
         """添加知识条目
