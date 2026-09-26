@@ -174,6 +174,7 @@ import {
   QuestionFilled, CopyDocument, Refresh, Loading
 } from '@element-plus/icons-vue'
 import { askQuestion, getChatHistory, getSessions, deleteSession } from '@/api/knowledge'
+import { getToken } from '@/utils/storage'
 import { renderMarkdown } from '@/utils/markdown'
 import { useChatStore } from '@/store/modules/chat'
 
@@ -348,6 +349,67 @@ function sendFaqQuestion(question) {
   sendMessage()
 }
 
+async function streamAskQuestion(data, { onDelta, onDone }) {
+  const token = getToken()
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'
+  const response = await fetch(`${baseUrl}/knowledge/ask`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify(data)
+  })
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      import('@/utils/storage').then(({ removeToken, removeUser }) => {
+        removeToken()
+        removeUser()
+      })
+      router.push('/login')
+      throw new Error('登录已过期，请重新登录')
+    }
+    let message = '请求失败'
+    try {
+      const errData = await response.json()
+      message = errData.message || message
+    } catch (e) {
+    }
+    throw new Error(message)
+  }
+
+  if (!response.body) {
+    throw new Error('当前浏览器不支持流式读取')
+  }
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder('utf-8')
+  let buffer = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+
+    const events = buffer.split('\n\n')
+    buffer = events.pop() || ''
+    for (const event of events) {
+      const lines = event.split('\n').filter(l => l.startsWith('data:'))
+      if (lines.length === 0) continue
+      const payload = JSON.parse(lines.map(l => l.slice(5).trim()).join('\n'))
+      if (payload.type === 'delta') {
+        onDelta(payload.text || '')
+      } else if (payload.type === 'done') {
+        onDone(payload)
+        return
+      } else if (payload.type === 'error') {
+        throw new Error(payload.message || 'AI 服务暂时不可用，请稍后重试')
+      }
+    }
+  }
+}
+
 async function sendMessage() {
   const content = inputMessage.value.trim()
   if (!content || isTyping.value) return
@@ -363,35 +425,71 @@ async function sendMessage() {
   isTyping.value = true
   scrollToBottom()
 
+  const data = {
+    question: content,
+    session_id: currentSessionId.value || '',
+    stream: true
+  }
+  if (detectionContext.value) {
+    data.detection_context = detectionContext.value.detection_context || detectionContext.value
+    if (detectionContext.value.detected_class_id !== undefined) {
+      data.detected_class_id = detectionContext.value.detected_class_id
+    }
+  }
+
+  const aiMsg = {
+    role: 'assistant',
+    content: '',
+    sources: [],
+    displayHtml: '',
+    html: '',
+    isTypingDone: false
+  }
+  messages.value.push(aiMsg)
+
   try {
-    const data = {
-      question: content,
-      session_id: currentSessionId.value || ''
-    }
-    if (detectionContext.value) {
-      data.detection_context = detectionContext.value.detection_context || detectionContext.value
-      if (detectionContext.value.detected_class_id !== undefined) {
-        data.detected_class_id = detectionContext.value.detected_class_id
+    await streamAskQuestion(data, {
+      onDelta: (text) => {
+        aiMsg.content += text
+        aiMsg.displayHtml = renderMarkdown(aiMsg.content)
+        scrollToBottom()
+      },
+      onDone: (res) => {
+        aiMsg.content = res.answer || aiMsg.content
+        aiMsg.sources = res.sources || []
+        aiMsg.degraded = res.degraded
+        aiMsg.html = renderMarkdown(aiMsg.content)
+        aiMsg.displayHtml = aiMsg.html
+        aiMsg.isTypingDone = true
+        if (res.session_id && !currentSessionId.value) {
+          currentSessionId.value = res.session_id
+          loadSessions()
+        }
       }
-    }
-    const res = await askQuestion(data)
-    const aiMsg = {
-      role: 'assistant',
-      content: res.answer || res.content || '抱歉，我无法回答这个问题。',
-      sources: res.sources || [],
-      displayHtml: '',
-      html: '',
-      isTypingDone: false
-    }
-    if (res.session_id && !currentSessionId.value) {
-      currentSessionId.value = res.session_id
-      loadSessions()
-    }
-    aiMsg.html = renderMarkdown(aiMsg.content)
-    messages.value.push(aiMsg)
-    startTypewriterEffect(aiMsg)
+    })
   } catch (error) {
-    ElMessage.error('发送失败，请重试')
+    messages.value.pop()
+    try {
+      const fallbackData = { ...data, stream: false }
+      const res = await askQuestion(fallbackData)
+      const fallbackMsg = {
+        role: 'assistant',
+        content: res.answer || res.content || '抱歉，我无法回答这个问题。',
+        sources: res.sources || [],
+        displayHtml: '',
+        html: '',
+        isTypingDone: false
+      }
+      if (res.session_id && !currentSessionId.value) {
+        currentSessionId.value = res.session_id
+        loadSessions()
+      }
+      fallbackMsg.html = renderMarkdown(fallbackMsg.content)
+      messages.value.push(fallbackMsg)
+      startTypewriterEffect(fallbackMsg)
+    } catch (fallbackError) {
+      ElMessage.error(error.message || '发送失败，请重试')
+    }
   } finally {
     isTyping.value = false
     scrollToBottom()

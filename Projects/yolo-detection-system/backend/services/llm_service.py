@@ -119,28 +119,10 @@ class LLMService:
             'disease_profile': disease_profile
         }
 
-    def generate_answer(self, question, knowledge_list=None, detection_context='', disease_profile=None):
-        """生成回答
-
-        Args:
-            question: 用户问题
-            knowledge_list: 参考知识列表
-            detection_context: 检测结果上下文
-            disease_profile: 病害档案信息
-
-        Returns:
-            dict: {'answer': str, 'sources': list, 'disease_profile': dict}
-        """
-        if self._use_mock():
-            return self._generate_mock_answer(question, knowledge_list, detection_context, disease_profile)
-
-        # 真实 LLM 调用
-        client = self._get_client()
-
-        # 构建提示词
+    def _build_messages(self, question, knowledge_list=None, detection_context='', disease_profile=None):
+        """构建 LLM 消息列表（提示词构造，供普通/流式调用复用）"""
         context_parts = []
 
-        # 1. 优先添加病害档案
         if disease_profile:
             profile_text = f"""【病害档案】
 病害名称：{disease_profile.get('disease_name', '未知')}
@@ -151,11 +133,9 @@ class LLMService:
 推荐药剂：{disease_profile.get('pesticides', '未知')}"""
             context_parts.append(profile_text)
 
-        # 2. 添加知识库内容
         if knowledge_list:
             context_parts.append(f"【相关知识】\n{chr(10).join(knowledge_list)}")
 
-        # 3. 添加检测结果
         if detection_context:
             context_parts.append(f"【检测结果】{detection_context}")
 
@@ -204,18 +184,37 @@ class LLMService:
 以下是为本次回答提供的上下文：
 {chr(10).join(context_parts) if context_parts else '（无额外上下文，请基于通用农业植保知识回答）'}
 """
+        return [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": question}
+        ]
+
+    def generate_answer(self, question, knowledge_list=None, detection_context='', disease_profile=None):
+        """生成回答
+
+        Args:
+            question: 用户问题
+            knowledge_list: 参考知识列表
+            detection_context: 检测结果上下文
+            disease_profile: 病害档案信息
+
+        Returns:
+            dict: {'answer': str, 'sources': list, 'disease_profile': dict}
+        """
+        if self._use_mock():
+            return self._generate_mock_answer(question, knowledge_list, detection_context, disease_profile)
+
+        client = self._get_client()
+        messages = self._build_messages(question, knowledge_list, detection_context, disease_profile)
 
         try:
-             response = client.chat.completions.create(
-                 model=current_app.config['LLM_MODEL'],
-                 messages=[
-                     {"role": "system", "content": system_prompt},
-                     {"role": "user", "content": question}
-                 ],
-                 temperature=0.7,
-                 max_tokens=1000,
-                 timeout=current_app.config['LLM_TIMEOUT_SECONDS']
-             )
+            response = client.chat.completions.create(
+                model=current_app.config['LLM_MODEL'],
+                messages=messages,
+                temperature=0.7,
+                max_tokens=1000,
+                timeout=current_app.config['LLM_TIMEOUT_SECONDS']
+            )
         except Exception as e:
             current_app.logger.error(f"LLM API调用失败: {str(e)}")
             if not current_app.config.get('LLM_FALLBACK_TO_MOCK', True):
@@ -235,6 +234,68 @@ class LLMService:
             'answer': answer,
             'sources': sources,
             'disease_profile': disease_profile,
+            'degraded': False
+        }
+
+    def _stream_mock_answer(self, question, knowledge_list=None, detection_context='', disease_profile=None):
+        """mock 模式下的流式回答：按字符分段逐个产出，模拟真实逐字效果"""
+        result = self._generate_mock_answer(
+            question, knowledge_list, detection_context, disease_profile
+        )
+        answer = result['answer']
+        chunk_size = 4
+        for start in range(0, len(answer), chunk_size):
+            yield {'type': 'delta', 'text': answer[start:start + chunk_size]}
+            time.sleep(0.03)
+        yield {
+            'type': 'meta',
+            'sources': result.get('sources', []),
+            'degraded': True
+        }
+
+    def generate_answer_stream(self, question, knowledge_list=None, detection_context='', disease_profile=None):
+        """流式生成回答
+
+        Yields:
+            dict: {'type': 'delta', 'text': str} 逐个文本片段；
+                  最后一条为 {'type': 'meta', 'sources': list, 'degraded': bool}
+        """
+        if self._use_mock():
+            yield from self._stream_mock_answer(
+                question, knowledge_list, detection_context, disease_profile
+            )
+            return
+
+        client = self._get_client()
+        messages = self._build_messages(question, knowledge_list, detection_context, disease_profile)
+
+        try:
+            response = client.chat.completions.create(
+                model=current_app.config['LLM_MODEL'],
+                messages=messages,
+                temperature=0.7,
+                max_tokens=1000,
+                timeout=current_app.config['LLM_TIMEOUT_SECONDS'],
+                stream=True
+            )
+            for chunk in response:
+                delta = chunk.choices[0].delta.content if chunk.choices else None
+                if delta:
+                    yield {'type': 'delta', 'text': delta}
+        except Exception as e:
+            current_app.logger.error(f"LLM API流式调用失败: {str(e)}")
+            if not current_app.config.get('LLM_FALLBACK_TO_MOCK', True):
+                raise RuntimeError(f"LLM API调用失败: {str(e)}")
+
+            yield from self._stream_mock_answer(
+                question, knowledge_list, detection_context, disease_profile
+            )
+            return
+
+        sources = [k[:50] + '...' for k in knowledge_list] if knowledge_list else []
+        yield {
+            'type': 'meta',
+            'sources': sources,
             'degraded': False
         }
 

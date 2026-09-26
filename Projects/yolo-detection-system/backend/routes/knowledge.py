@@ -1,7 +1,8 @@
+import json
 import uuid
 import time
 from collections import defaultdict
-from flask import Blueprint, request, current_app
+from flask import Blueprint, request, current_app, Response, stream_with_context
 from models import ChatHistory, db
 from utils.response import success, bad_request, not_found, error
 from middleware.auth_middleware import login_required
@@ -26,6 +27,82 @@ def _check_rate_limit(user_id):
     return True
 
 
+def _persist_chat(user_id, question, session_id, is_new_session, session_title,
+                  answer, sources, detection_context):
+    """落库一次问答记录（用户消息 + 助手消息）"""
+    user_msg = ChatHistory(
+        user_id=user_id,
+        session_id=session_id,
+        role='user',
+        content=question
+    )
+    if is_new_session:
+        user_msg.set_metadata({'session_title': session_title})
+    db.session.add(user_msg)
+
+    assistant_msg = ChatHistory(
+        user_id=user_id,
+        session_id=session_id,
+        role='assistant',
+        content=answer
+    )
+    assistant_msg.set_metadata({
+        'sources': sources,
+        'detection_context': detection_context
+    })
+    db.session.add(assistant_msg)
+    db.session.commit()
+
+
+def _stream_answer_events(current_user, question, session_id, is_new_session,
+                          knowledge_list, detection_context, disease_profile):
+    """流式回答生成器：产出 SSE 事件，流结束后落库
+
+    Yields:
+        str: SSE 格式的 data 行
+    """
+    full_answer = []
+    sources = []
+    degraded = False
+
+    try:
+        for item in llm_service.generate_answer_stream(
+            question=question,
+            knowledge_list=knowledge_list,
+            detection_context=detection_context,
+            disease_profile=disease_profile
+        ):
+            if item['type'] == 'delta':
+                full_answer.append(item['text'])
+                yield f"data: {json.dumps({'type': 'delta', 'text': item['text']}, ensure_ascii=False)}\n\n"
+            elif item['type'] == 'meta':
+                sources = item.get('sources', [])
+                degraded = item.get('degraded', False)
+    except (RuntimeError, ValueError) as e:
+        current_app.logger.error(f"知识问答流式生成失败: {str(e)}")
+        yield f"data: {json.dumps({'type': 'error', 'code': 502, 'message': 'AI 服务暂时不可用，请稍后重试'}, ensure_ascii=False)}\n\n"
+        return
+
+    answer = ''.join(full_answer)
+    if not answer:
+        yield f"data: {json.dumps({'type': 'error', 'code': 502, 'message': 'AI 服务暂时不可用，请稍后重试'}, ensure_ascii=False)}\n\n"
+        return
+
+    session_title = question[:20]
+    _persist_chat(
+        user_id=current_user.id,
+        question=question,
+        session_id=session_id,
+        is_new_session=is_new_session,
+        session_title=session_title,
+        answer=answer,
+        sources=sources,
+        detection_context=detection_context
+    )
+
+    yield f"data: {json.dumps({'type': 'done', 'answer': answer, 'sources': sources, 'session_id': session_id, 'session_title': session_title, 'degraded': degraded}, ensure_ascii=False)}\n\n"
+
+
 @knowledge_bp.route('/ask', methods=['POST'])
 @login_required
 def ask_question(current_user):
@@ -37,6 +114,7 @@ def ask_question(current_user):
     detection_context = data.get('detection_context', '').strip()
     session_id = data.get('session_id', '').strip()
     detected_class_id = data.get('detected_class_id')
+    stream = bool(data.get('stream', False))
 
     if not question:
         return bad_request('问题不能为空')
@@ -57,6 +135,24 @@ def ask_question(current_user):
 
     knowledge_list = knowledge_service.search(question, top_k=3)
 
+    if stream:
+        return Response(
+            stream_with_context(_stream_answer_events(
+                current_user=current_user,
+                question=question,
+                session_id=session_id,
+                is_new_session=is_new_session,
+                knowledge_list=knowledge_list,
+                detection_context=detection_context,
+                disease_profile=disease_profile
+            )),
+            mimetype='text/event-stream',
+            headers={
+                'Cache-Control': 'no-cache',
+                'X-Accel-Buffering': 'no'
+            }
+        )
+
     try:
         llm_result = llm_service.generate_answer(
             question=question,
@@ -72,29 +168,16 @@ def ask_question(current_user):
 
     session_title = question[:20]
 
-    user_msg = ChatHistory(
+    _persist_chat(
         user_id=current_user.id,
+        question=question,
         session_id=session_id,
-        role='user',
-        content=question
+        is_new_session=is_new_session,
+        session_title=session_title,
+        answer=llm_result['answer'],
+        sources=llm_result.get('sources', []),
+        detection_context=detection_context
     )
-    if is_new_session:
-        user_msg.set_metadata({'session_title': session_title})
-    db.session.add(user_msg)
-
-    assistant_msg = ChatHistory(
-        user_id=current_user.id,
-        session_id=session_id,
-        role='assistant',
-        content=llm_result['answer']
-    )
-    assistant_msg.set_metadata({
-        'sources': llm_result.get('sources', []),
-        'detection_context': detection_context
-    })
-    db.session.add(assistant_msg)
-
-    db.session.commit()
 
     return success(data={
         'answer': llm_result['answer'],
