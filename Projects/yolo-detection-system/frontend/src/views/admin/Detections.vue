@@ -8,11 +8,11 @@
     <div class="stats-row">
       <div class="mini-stat glass-card">
         <div class="mini-stat-label">总检测数</div>
-        <div class="mini-stat-value">{{ stats.total_count || 0 }}</div>
+        <div class="mini-stat-value">{{ stats.total || 0 }}</div>
       </div>
       <div class="mini-stat glass-card">
         <div class="mini-stat-label">今日检测</div>
-        <div class="mini-stat-value">{{ stats.today_count || 0 }}</div>
+        <div class="mini-stat-value">{{ stats.today || 0 }}</div>
       </div>
       <div class="mini-stat glass-card">
         <div class="mini-stat-label">平均耗时</div>
@@ -221,8 +221,8 @@ async function fetchStats() {
     stats.value = await getDetectionStats()
   } catch (e) {
     stats.value = {
-      total_count: 0,
-      today_count: 0,
+      total: 0,
+      today: 0,
       avg_processing_time: 0
     }
   }

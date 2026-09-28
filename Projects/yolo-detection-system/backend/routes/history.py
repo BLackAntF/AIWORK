@@ -203,6 +203,39 @@ def get_history_list(current_user):
     })
 
 
+@history_bp.route('/stats', methods=['GET'])
+@login_required
+def get_history_stats(current_user):
+    """获取当前用户检测统计（累计检测 / 检出病害 / 健康叶片）
+
+    统计口径与移动端首页一致：
+    - 累计检测：该用户全部检测记录数
+    - 检出病害：存在检出目标且并非全部为健康类别
+    - 健康叶片：存在检出目标且全部为健康类别
+    - 无检出目标的记录只计入累计检测
+    """
+    records = DetectionHistory.query.filter(
+        DetectionHistory.user_id == current_user.id
+    ).all()
+
+    disease_count = 0
+    healthy_count = 0
+    for item in records:
+        names = [n.strip() for n in (item.class_names or '').split(',') if n.strip()]
+        if not names:
+            continue
+        if all(n in HEALTHY_CLASS_NAMES for n in names):
+            healthy_count += 1
+        else:
+            disease_count += 1
+
+    return success(data={
+        'total': len(records),
+        'disease_count': disease_count,
+        'healthy_count': healthy_count
+    })
+
+
 @history_bp.route('/export', methods=['GET'])
 @login_required
 def export_history(current_user):

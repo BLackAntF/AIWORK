@@ -15,6 +15,25 @@ knowledge_bp = Blueprint('knowledge', __name__, url_prefix='/api/knowledge')
 _rate_limit_store = defaultdict(list)
 RATE_LIMIT_WINDOW_SECONDS = 60
 
+# 会话列表过滤：排除测试脚本会话与编码异常产生的乱码标题
+_TEST_SESSION_IDS = {'speed-test', 'test-session-verify'}
+
+
+def _is_garbled_title(text):
+    """判断会话标题是否为编码异常产生的乱码
+
+    特征：不含任何中文，且出现多个问号占位符（如 ???????? 或 ????(???? 92.3%)）
+    正常的英文标题通常只有单个问号，因此不会被误判
+    """
+    if not text:
+        return False
+    stripped = text.strip()
+    if not stripped:
+        return False
+    if any('\u4e00' <= ch <= '\u9fff' for ch in stripped):
+        return False
+    return stripped.count('?') + stripped.count('？') >= 3
+
 
 def _check_rate_limit(user_id):
     limit = current_app.config.get('KNOWLEDGE_ASK_RATE_LIMIT_PER_MINUTE', 20)
@@ -250,6 +269,9 @@ def get_session_list(current_user):
 
     session_list = []
     for session_id, last_time in all_sessions:
+        if session_id in _TEST_SESSION_IDS:
+            continue
+
         first_user_msg = ChatHistory.query.filter_by(
             user_id=current_user.id,
             session_id=session_id,
@@ -263,6 +285,10 @@ def get_session_list(current_user):
                 title = meta['session_title']
             else:
                 title = first_user_msg.content[:20]
+
+        # 跳过编码异常导致的乱码会话，避免列表出现 ?????? 之类标题
+        if _is_garbled_title(title):
+            continue
 
         last_msg = ChatHistory.query.filter_by(
             user_id=current_user.id,
@@ -292,6 +318,7 @@ def list_knowledge_public():
     page_size = int(request.args.get('page_size', 12))
     category = request.args.get('category', '').strip() or None
     keyword = request.args.get('keyword', '').strip() or None
+    tag_id = request.args.get('tag_id', '').strip() or None
 
     if page < 1:
         page = 1
@@ -302,11 +329,13 @@ def list_knowledge_public():
         page=page,
         page_size=page_size,
         category=category,
-        keyword=keyword
+        keyword=keyword,
+        tag_id=int(tag_id) if tag_id and tag_id.isdigit() else None,
+        is_public=True
     )
 
     return success(data={
-        'items': [item.to_dict() for item in items],
+        'items': items,
         'total': total,
         'page': page,
         'page_size': page_size

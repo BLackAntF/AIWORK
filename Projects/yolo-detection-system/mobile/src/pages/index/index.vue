@@ -1,56 +1,92 @@
 <template>
 	<view class="home-page">
-		<!-- 顶部欢迎区 -->
-		<view class="header-section">
-			<view class="header-bg"></view>
-			<view class="header-content">
-				<view class="user-info">
-					<view class="avatar">{{ avatarText }}</view>
-					<view class="user-text">
-						<text class="greeting">你好</text>
-						<text class="username">{{ displayName }}</text>
+		<!-- 顶部品牌区 -->
+		<view class="hero-section">
+			<view class="hero-grid"></view>
+			<view class="hero-content">
+				<view class="hero-top">
+					<view class="user-info">
+						<view class="avatar">{{ avatarText }}</view>
+						<view class="user-text">
+							<text class="greeting">你好</text>
+							<text class="username">{{ displayName }}</text>
+						</view>
+					</view>
+					<view class="hero-badge" @click="goHistory">
+						<AppIcon name="calendar" :size="28" color="#DCE9DF" />
+						<text class="badge-text">{{ todayLabel }}</text>
 					</view>
 				</view>
-				<text class="header-tip">番茄叶片病害智能诊断平台</text>
+				<view class="hero-main">
+					<text class="hero-eyebrow">TOMATO LEAF DIAGNOSIS</text>
+					<text class="hero-title">今天，检查一下叶片状态</text>
+				</view>
 			</view>
 		</view>
 
-		<!-- 快速操作区 -->
-		<view class="quick-section">
-			<view class="quick-card detect-card" @click="goDetect">
-				<AppIcon class="card-icon" name="camera" :size="56" color="#E07A5F" />
-				<view class="card-text">
-					<text class="card-title">拍照检测</text>
-					<text class="card-desc">拍摄叶片识别病害</text>
-				</view>
-				<text class="card-arrow">›</text>
+		<!-- 统计概览 -->
+		<view class="stats-section">
+			<view class="stat-card">
+				<text class="stat-label">累计检测</text>
+				<text class="stat-value">{{ totalCount }}</text>
+				<text class="stat-unit">次</text>
 			</view>
-			<view class="quick-card chat-card" @click="goChat">
-				<AppIcon class="card-icon" name="chat" :size="56" color="#E07A5F" />
-				<view class="card-text">
-					<text class="card-title">AI 问答</text>
-					<text class="card-desc">智能咨询病害防治</text>
+			<view class="stat-card">
+				<text class="stat-label">检出病害</text>
+				<text class="stat-value danger">{{ diseaseCount }}</text>
+				<text class="stat-unit">次</text>
+			</view>
+			<view class="stat-card">
+				<text class="stat-label">健康叶片</text>
+				<text class="stat-value success">{{ healthyCount }}</text>
+				<text class="stat-unit">次</text>
+			</view>
+		</view>
+
+		<!-- 快速操作 -->
+		<view class="action-section">
+			<view class="action-card primary" @click="goDetect">
+				<view class="action-icon">
+					<AppIcon name="camera" :size="52" color="#FFFFFF" />
 				</view>
-				<text class="card-arrow">›</text>
+				<view class="action-text">
+					<text class="action-title">拍照检测</text>
+					<text class="action-desc">上传叶片，AI 识别病害</text>
+				</view>
+				<text class="action-arrow">→</text>
+			</view>
+			<view class="action-card secondary" @click="goChat">
+				<view class="action-icon light">
+					<AppIcon name="chat" :size="48" color="#C8442F" />
+				</view>
+				<view class="action-text">
+					<text class="action-title dark">AI 问答</text>
+					<text class="action-desc">咨询防治与用药建议</text>
+				</view>
+				<text class="action-arrow dark">→</text>
 			</view>
 		</view>
 
 		<!-- 最近检测 -->
 		<view class="recent-section">
 			<view class="section-header">
-				<text class="section-title">最近检测</text>
+				<view class="section-title-wrap">
+					<text class="section-title">最近检测</text>
+					<text class="section-count">{{ records.length }} 条</text>
+				</view>
 				<text class="view-all" @click="goHistory">查看全部</text>
 			</view>
 
 			<view v-if="loading" class="loading-row">
-				<text class="loading-text">加载中...</text>
+				<view class="skeleton-row"></view>
+				<view class="skeleton-row"></view>
 			</view>
 
 			<EmptyState
 				v-else-if="records.length === 0"
-				name="inbox"
-				title="暂无检测记录"
-				desc="点击上方'拍照检测'开始"
+				name="leaf"
+				title="还没有检测记录"
+				desc="上传一张番茄叶片，开始你的第一次检测"
 			/>
 
 			<view v-else class="record-list">
@@ -60,12 +96,23 @@
 					class="record-item"
 					@click="goHistoryDetail(record.id)"
 				>
-					<image :src="getRecordImage(record)" mode="aspectFill" class="record-image" />
+					<image
+						v-if="getRecordImage(record) && !isImageBroken(record.id)"
+						:src="getRecordImage(record)"
+						mode="aspectFill"
+						class="record-image"
+						@error="onImageError(record.id)"
+					/>
+					<view v-else class="record-image image-broken">
+						<AppIcon name="leaf" :size="28" color="#C3C9C3" />
+					</view>
 					<view class="record-info">
 						<text class="record-disease">{{ getDiseaseName(record) }}</text>
 						<text class="record-time">{{ formatTime(record.created_at) }}</text>
 					</view>
-					<text class="record-arrow">›</text>
+					<view class="record-status" :class="{ healthy: isHealthyRecord(record) }">
+						<text class="status-text">{{ getStatusLabel(record) }}</text>
+					</view>
 				</view>
 			</view>
 		</view>
@@ -73,10 +120,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { onPullDownRefresh } from '@dcloudio/uni-app'
+import { ref, computed } from 'vue'
+import { onShow, onPullDownRefresh } from '@dcloudio/uni-app'
 import { useUserStore } from '@/store/user'
-import { getHistoryList } from '@/api/history'
+import { getHistoryList, getHistoryStats } from '@/api/history'
 import { getFullUrl } from '@/utils/format'
 import EmptyState from '@/components/EmptyState.vue'
 import AppIcon from '@/components/AppIcon.vue'
@@ -84,6 +131,20 @@ import AppIcon from '@/components/AppIcon.vue'
 const userStore = useUserStore()
 const loading = ref(false)
 const records = ref([])
+const brokenImages = ref([])
+const stats = ref({ total: 0, disease_count: 0, healthy_count: 0 })
+
+const HEALTHY_NAMES = ['健康', '健康叶片', '健康叶子', '正常叶片', 'Healthy']
+
+function isImageBroken(id) {
+	return brokenImages.value.includes(id)
+}
+
+function onImageError(id) {
+	if (!brokenImages.value.includes(id)) {
+		brokenImages.value = [...brokenImages.value, id]
+	}
+}
 
 const displayName = computed(() => userStore.userInfo?.username || '用户')
 const avatarText = computed(() => {
@@ -91,20 +152,42 @@ const avatarText = computed(() => {
 	return name.charAt(0).toUpperCase()
 })
 
+const todayLabel = computed(() => {
+	const now = new Date()
+	const week = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+	return `${now.getMonth() + 1}月${now.getDate()}日 ${week[now.getDay()]}`
+})
+
+const totalCount = computed(() => stats.value.total || 0)
+const diseaseCount = computed(() => stats.value.disease_count || 0)
+const healthyCount = computed(() => stats.value.healthy_count || 0)
+
+function classList(record) {
+	return (record.class_names || '').split(',').map(n => n.trim()).filter(Boolean)
+}
+
+function isHealthyRecord(record) {
+	const names = classList(record)
+	return names.length > 0 && names.every(n => HEALTHY_NAMES.includes(n))
+}
+
+function getStatusLabel(record) {
+	const names = classList(record)
+	if (names.length === 0) return '待查看'
+	return names.every(n => HEALTHY_NAMES.includes(n)) ? '健康' : '需关注'
+}
+
 function getRecordImage(record) {
 	const path = record.result_path || record.original_path
 	return path ? getFullUrl(path) : ''
 }
 
 function getDiseaseName(record) {
-	const detections = record.detections || []
-	if (detections.length === 0) {
-		return record.original_filename || '未知病害'
+	const names = classList(record)
+	if (names.length === 0) {
+		return record.original_filename || '未知结果'
 	}
-	if (detections.length === 1) {
-		return detections[0].class_name
-	}
-	return detections.map(d => d.class_name).join(', ')
+	return names.join(', ')
 }
 
 function formatTime(dateStr) {
@@ -123,7 +206,16 @@ function formatTime(dateStr) {
 	}
 	if (days === 1) return '昨天'
 	if (days < 7) return `${days}天前`
-	return `${date.getMonth() + 1}/${date.getDate()}`
+	return `${date.getMonth() + 1}月${date.getDate()}日`
+}
+
+async function loadStats() {
+	try {
+		const data = await getHistoryStats()
+		stats.value = data || { total: 0, disease_count: 0, healthy_count: 0 }
+	} catch (e) {
+		// 统计失败保持原值，不影响列表展示
+	}
 }
 
 async function loadRecords() {
@@ -131,12 +223,14 @@ async function loadRecords() {
 	try {
 		const data = await getHistoryList({ page: 1, page_size: 5 })
 		records.value = data.list || []
+		brokenImages.value = []
 	} catch (e) {
 		// 静默失败，显示空状态
 	} finally {
 		loading.value = false
 		uni.stopPullDownRefresh()
 	}
+	loadStats()
 }
 
 onPullDownRefresh(() => {
@@ -159,7 +253,7 @@ function goHistoryDetail(id) {
 	uni.navigateTo({ url: `/pages/history/detail?id=${id}` })
 }
 
-onMounted(() => {
+onShow(() => {
 	if (userStore.token && !userStore.userInfo) {
 		userStore.fetchUserInfo().catch(() => {})
 	}
@@ -170,212 +264,362 @@ onMounted(() => {
 <style lang="scss" scoped>
 .home-page {
 	min-height: 100vh;
-	padding-bottom: 40rpx;
+	padding-bottom: 48rpx;
+	background: var(--bg-2);
 }
 
-/* 顶部欢迎区 */
-.header-section {
+/* 顶部品牌区 */
+.hero-section {
 	position: relative;
 	overflow: hidden;
+	background: var(--forest);
 }
 
-.header-bg {
+.hero-grid {
 	position: absolute;
 	top: 0;
 	left: 0;
 	right: 0;
-	height: 360rpx;
-	background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
-	border-radius: 0 0 48rpx 48rpx;
+	height: 420rpx;
+	background-image:
+		linear-gradient(rgba(255, 255, 255, 0.04) 1rpx, transparent 1rpx),
+		linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1rpx, transparent 1rpx);
+	background-size: 48rpx 48rpx;
 }
 
-.header-content {
+.hero-content {
 	position: relative;
-	padding: 60rpx 40rpx 80rpx;
+	padding: calc(32rpx + env(safe-area-inset-top)) 36rpx 56rpx;
 	z-index: 2;
+}
+
+.hero-top {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 48rpx;
 }
 
 .user-info {
 	display: flex;
 	align-items: center;
-	margin-bottom: 24rpx;
 }
 
 .avatar {
-	width: 96rpx;
-	height: 96rpx;
+	width: 80rpx;
+	height: 80rpx;
 	border-radius: 50%;
-	background: rgba(255, 255, 255, 0.3);
+	background: rgba(255, 255, 255, 0.14);
+	border: 2rpx solid rgba(255, 255, 255, 0.24);
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	font-size: 40rpx;
-	font-weight: 600;
+	font-size: 32rpx;
+	font-weight: 700;
 	color: #fff;
-	margin-right: 24rpx;
+	margin-right: 20rpx;
 }
 
 .user-text {
 	display: flex;
 	flex-direction: column;
+	gap: 4rpx;
 }
 
 .greeting {
-	font-size: 26rpx;
-	color: rgba(255, 255, 255, 0.85);
+	font-size: 22rpx;
+	color: rgba(255, 255, 255, 0.68);
+	letter-spacing: 2rpx;
 }
 
 .username {
-	font-size: 36rpx;
-	font-weight: 600;
+	font-size: 32rpx;
+	font-weight: 700;
 	color: #fff;
 }
 
-.header-tip {
-	font-size: 24rpx;
-	color: rgba(255, 255, 255, 0.8);
+.hero-badge {
+	display: flex;
+	align-items: center;
+	gap: 8rpx;
+	padding: 12rpx 20rpx;
+	border-radius: 999rpx;
+	background: rgba(255, 255, 255, 0.1);
+	border: 1rpx solid rgba(255, 255, 255, 0.14);
 }
 
-/* 快速操作区 */
-.quick-section {
-	padding: 0 32rpx;
-	margin-top: -40rpx;
+.badge-text {
+	font-size: 22rpx;
+	color: #DCE9DF;
+}
+
+.hero-main {
+	display: flex;
+	flex-direction: column;
+	gap: 12rpx;
+}
+
+.hero-eyebrow {
+	font-size: 20rpx;
+	color: #8FBF9F;
+	letter-spacing: 4rpx;
+}
+
+.hero-title {
+	font-size: 44rpx;
+	line-height: 1.25;
+	font-weight: 700;
+	color: #FFFFFF;
+}
+
+/* 统计概览 */
+.stats-section {
+	display: flex;
+	gap: 16rpx;
+	padding: 0 28rpx;
+	margin-top: -28rpx;
 	position: relative;
 	z-index: 3;
 }
 
-.quick-card {
-	display: flex;
-	align-items: center;
+.stat-card {
+	flex: 1;
 	background: var(--bg-1);
-	border-radius: 24rpx;
-	padding: 32rpx;
-	margin-bottom: 20rpx;
-	box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);
+	border: 1rpx solid var(--border-light);
+	border-radius: 20rpx;
+	padding: 24rpx 20rpx;
+	box-shadow: var(--shadow-sm);
 }
 
-.card-icon {
-	font-size: 56rpx;
+.stat-label {
+	display: block;
+	font-size: 22rpx;
+	color: var(--text-3);
+	margin-bottom: 12rpx;
+}
+
+.stat-value {
+	font-size: 40rpx;
+	font-weight: 700;
+	color: var(--text-1);
+	line-height: 1;
+}
+
+.stat-value.danger {
+	color: var(--brand);
+}
+
+.stat-value.success {
+	color: var(--success);
+}
+
+.stat-unit {
+	font-size: 20rpx;
+	color: var(--text-3);
+	margin-left: 4rpx;
+}
+
+/* 快速操作 */
+.action-section {
+	display: flex;
+	flex-direction: column;
+	gap: 16rpx;
+	padding: 28rpx 28rpx 0;
+}
+
+.action-card {
+	display: flex;
+	align-items: center;
+	border-radius: 24rpx;
+	padding: 28rpx;
+}
+
+.action-card.primary {
+	background: var(--brand);
+	box-shadow: var(--shadow-brand);
+}
+
+.action-card.secondary {
+	background: var(--bg-1);
+	border: 1rpx solid var(--border);
+}
+
+.action-icon {
+	width: 88rpx;
+	height: 88rpx;
+	border-radius: 24rpx;
+	background: rgba(255, 255, 255, 0.2);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
 	margin-right: 24rpx;
 }
 
-.card-text {
+.action-icon.light {
+	background: var(--forest-light);
+}
+
+.action-text {
 	flex: 1;
 	display: flex;
 	flex-direction: column;
+	gap: 6rpx;
 }
 
-.card-title {
+.action-title {
 	font-size: 32rpx;
-	font-weight: 600;
-	color: var(--text-1);
-	margin-bottom: 6rpx;
+	font-weight: 700;
+	color: #fff;
 }
 
-.card-desc {
+.action-title.dark {
+	color: var(--text-1);
+}
+
+.action-desc {
 	font-size: 24rpx;
+	color: rgba(255, 255, 255, 0.85);
+}
+
+.action-desc.dark {
 	color: var(--text-3);
 }
 
-.card-arrow {
-	font-size: 40rpx;
-	color: var(--text-disabled);
+.action-arrow {
+	font-size: 36rpx;
+	color: rgba(255, 255, 255, 0.8);
+}
+
+.action-arrow.dark {
+	color: var(--text-3);
 }
 
 /* 最近检测 */
 .recent-section {
-	padding: 40rpx 32rpx;
+	padding: 40rpx 28rpx 0;
 }
 
 .section-header {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	margin-bottom: 24rpx;
+	margin-bottom: 20rpx;
+}
+
+.section-title-wrap {
+	display: flex;
+	align-items: baseline;
+	gap: 12rpx;
 }
 
 .section-title {
-	font-size: 32rpx;
-	font-weight: 600;
+	font-size: 34rpx;
+	font-weight: 700;
 	color: var(--text-1);
 }
 
+.section-count {
+	font-size: 22rpx;
+	color: var(--text-3);
+}
+
 .view-all {
-	font-size: 26rpx;
+	font-size: 24rpx;
 	color: var(--brand);
+	font-weight: 500;
 }
 
 .loading-row {
-	padding: 40rpx;
-	text-align: center;
+	display: flex;
+	flex-direction: column;
+	gap: 16rpx;
 }
 
-.loading-text {
-	font-size: 26rpx;
-	color: var(--text-3);
+.skeleton-row {
+	height: 136rpx;
+	border-radius: 20rpx;
+	background: linear-gradient(90deg, var(--bg-3) 25%, var(--bg-1) 50%, var(--bg-3) 75%);
+	background-size: 200% 100%;
+	animation: shimmer 1.6s infinite;
+}
+
+@keyframes shimmer {
+	to { background-position: -200% 0; }
 }
 
 .record-list {
 	display: flex;
 	flex-direction: column;
-	gap: 16rpx;
+	gap: 12rpx;
 }
 
 .record-item {
 	display: flex;
 	align-items: center;
 	background: var(--bg-1);
+	border: 1rpx solid var(--border-light);
 	border-radius: 20rpx;
-	padding: 20rpx;
-	box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+	padding: 16rpx;
+	transition: transform 0.15s ease;
+}
+
+.record-item:active {
+	transform: scale(0.99);
 }
 
 .record-image {
-	width: 120rpx;
-	height: 120rpx;
-	border-radius: 12rpx;
+	width: 112rpx;
+	height: 112rpx;
+	border-radius: 16rpx;
 	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--bg-3);
 }
 
 .record-info {
 	flex: 1;
 	display: flex;
 	flex-direction: column;
-	gap: 8rpx;
+	gap: 6rpx;
 	padding: 0 20rpx;
+	min-width: 0;
 }
 
 .record-disease {
 	font-size: 28rpx;
 	font-weight: 600;
 	color: var(--text-1);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
 .record-time {
-	font-size: 24rpx;
+	font-size: 22rpx;
 	color: var(--text-3);
 }
 
-.record-arrow {
-	font-size: 36rpx;
-	color: var(--text-disabled);
+.record-status {
+	padding: 8rpx 16rpx;
+	border-radius: 999rpx;
+	background: rgba(200, 68, 47, 0.1);
+	flex-shrink: 0;
 }
 
-.empty-placeholder {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	padding: 80rpx 0;
+.record-status.healthy {
+	background: var(--forest-light);
 }
 
-.empty-text {
-	font-size: 28rpx;
-	color: var(--text-3);
-	margin-bottom: 12rpx;
+.status-text {
+	font-size: 22rpx;
+	font-weight: 600;
+	color: var(--brand);
 }
 
-.empty-sub {
-	font-size: 24rpx;
-	color: var(--text-disabled);
+.record-status.healthy .status-text {
+	color: var(--success);
 }
 </style>
