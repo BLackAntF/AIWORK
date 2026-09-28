@@ -45,9 +45,9 @@ function resizeCanvas() {
 function getColors() {
   const isDark = themeStore.isDark
   return {
-    particleColor: isDark ? 'rgba(212, 175, 55, 0.5)' : 'rgba(224, 122, 95, 0.5)',
-    lineColorBase: isDark ? 'rgba(212, 175, 55,' : 'rgba(224, 122, 95,',
-    mouseGlowColor: isDark ? 'rgba(212, 175, 55, 0.2)' : 'rgba(224, 122, 95, 0.2)'
+    particleColor: isDark ? 'rgba(227, 101, 73, 0.5)' : 'rgba(200, 68, 47, 0.5)',
+    lineColorBase: isDark ? 'rgba(227, 101, 73,' : 'rgba(200, 68, 47,',
+    mouseGlowColor: isDark ? 'rgba(227, 101, 73, 0.2)' : 'rgba(200, 68, 47, 0.2)'
   }
 }
 

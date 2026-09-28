@@ -255,10 +255,10 @@
       <div v-if="importResult" class="import-result">
         <el-descriptions :column="2" border size="small">
           <el-descriptions-item label="成功">
-            <span style="color: #67c23a">{{ importResult.success_count }}</span>
+            <span style="color: var(--color-success)">{{ importResult.success_count }}</span>
           </el-descriptions-item>
           <el-descriptions-item label="失败">
-            <span style="color: #f56c6c">{{ importResult.fail_count }}</span>
+            <span style="color: var(--color-error)">{{ importResult.fail_count }}</span>
           </el-descriptions-item>
         </el-descriptions>
         <div v-if="importResult.errors?.length" class="import-errors">
@@ -422,11 +422,9 @@ import {
 import {
   getKnowledgeList, addKnowledge, updateKnowledge, deleteKnowledge,
   batchDeleteKnowledge, importKnowledge, syncVector,
-  getCategories, uploadKnowledgeFile, getPendingKnowledgeList, approveKnowledge
-} from '@/api/admin'
-import {
+  getCategories, uploadKnowledgeFile, getPendingKnowledgeList, approveKnowledge,
   getKnowledgeTags, createKnowledgeTag, updateKnowledgeTag, deleteKnowledgeTag
-} from '@/api/knowledge'
+} from '@/api/admin'
 import { formatTime } from '@/utils/format'
 import RichEditor from '@/components/RichEditor.vue'
 
@@ -494,12 +492,12 @@ const newCategoryName = ref('')
 // 标签管理
 const tagDialogVisible = ref(false)
 const newTagName = ref('')
-const newTagColor = ref('#409eff')
+const newTagColor = ref('#C8442F')
 const editTagDialogVisible = ref(false)
 const editingTag = reactive({
   id: null,
   name: '',
-  color: '#409eff'
+  color: '#C8442F'
 })
 
 // 文件上传
@@ -515,7 +513,7 @@ const uploadForm = reactive({
 async function fetchCategories() {
   try {
     const res = await getCategories()
-    categoryList.value = res.categories || []
+    categoryList.value = res || []
   } catch (e) {
     categoryList.value = []
   }
@@ -704,7 +702,7 @@ async function handleAddTag() {
     })
     ElMessage.success('标签添加成功')
     newTagName.value = ''
-    newTagColor.value = '#409eff'
+    newTagColor.value = '#C8442F'
     fetchTags()
   } catch (e) {}
 }
@@ -712,7 +710,7 @@ async function handleAddTag() {
 function handleEditTag(tag) {
   editingTag.id = tag.id
   editingTag.name = tag.name
-  editingTag.color = tag.color || '#409eff'
+  editingTag.color = tag.color || '#C8442F'
   editTagDialogVisible.value = true
 }
 
@@ -975,7 +973,7 @@ onMounted(() => {
 
 .error-item {
   font-size: 12px;
-  color: #f56c6c;
+  color: var(--color-error);
   margin: 4px 0;
 }
 

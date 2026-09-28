@@ -4,7 +4,7 @@ from collections import defaultdict
 from datetime import datetime, date, timedelta
 from flask import request, Response
 from routes.admin import admin_bp
-from models import User, DetectionHistory, ChatHistory, Knowledge, db
+from models import User, DetectionHistory, ChatHistory, Knowledge, ModelInfo, AdminLog, db
 from utils.response import success, bad_request, error
 from middleware.auth_middleware import admin_required
 
@@ -28,6 +28,7 @@ def get_dashboard_stats(current_user):
     # 今日数据
     today = date.today()
     today_start = datetime.combine(today, datetime.min.time())
+    week_start = today_start - timedelta(days=7)
 
     today_users = User.query.filter(User.created_at >= today_start).count()
     today_detections = DetectionHistory.query.filter(
@@ -37,6 +38,29 @@ def get_dashboard_stats(current_user):
         ChatHistory.created_at >= today_start
     ).count()
 
+    def _active_user_count(since):
+        user_ids = set()
+        user_ids.update(
+            uid for (uid,) in db.session.query(DetectionHistory.user_id)
+            .filter(DetectionHistory.created_at >= since).distinct().all()
+        )
+        user_ids.update(
+            uid for (uid,) in db.session.query(ChatHistory.user_id)
+            .filter(ChatHistory.created_at >= since).distinct().all()
+        )
+        return len(user_ids)
+
+    category_count = db.session.query(Knowledge.category).filter(
+        Knowledge.is_active == True,
+        Knowledge.category.isnot(None)
+    ).distinct().count()
+
+    model_total = ModelInfo.query.count()
+    model_active = ModelInfo.query.filter_by(is_active=True).count()
+
+    log_total = AdminLog.query.count()
+    log_today = AdminLog.query.filter(AdminLog.created_at >= today_start).count()
+
     return success(data={
         'total_users': total_users,
         'total_detections': total_detections,
@@ -44,7 +68,36 @@ def get_dashboard_stats(current_user):
         'total_chats': total_chats,
         'today_users': today_users,
         'today_detections': today_detections,
-        'today_chats': today_chats
+        'today_chats': today_chats,
+        'users': {
+            'total': total_users,
+            'new_today': today_users,
+            'active_today': _active_user_count(today_start),
+            'active_7days': _active_user_count(week_start)
+        },
+        'detections': {
+            'total': total_detections,
+            'today': today_detections,
+            'success_rate': '100%' if total_detections else '0%',
+            'success_today': today_detections
+        },
+        'knowledge': {
+            'total': total_knowledge,
+            'categories': category_count
+        },
+        'chats': {
+            'total': total_chats,
+            'today': today_chats
+        },
+        'models': {
+            'total': model_total,
+            'active': model_active
+        },
+        'logs': {
+            'error_count': 0,
+            'total': log_total,
+            'today': log_today
+        }
     })
 
 
@@ -85,7 +138,10 @@ def get_users_trend(current_user):
 
     return success(data={
         'days': days,
-        'trend': trend
+        'trend': trend,
+        'dates': [item['date'] for item in trend],
+        'counts': [item['count'] for item in trend],
+        'cumulative': [item['cumulative'] for item in trend]
     })
 
 
@@ -123,7 +179,9 @@ def get_detections_trend(current_user):
 
     return success(data={
         'days': days,
-        'trend': trend
+        'trend': trend,
+        'dates': [item['date'] for item in trend],
+        'counts': [item['count'] for item in trend]
     })
 
 

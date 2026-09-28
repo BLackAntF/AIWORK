@@ -54,7 +54,7 @@
         </div>
         <div class="stat-info">
           <div class="stat-value">{{ dashboardData.chats?.total || 0 }}</div>
-          <div class="stat-label">今日对话数</div>
+          <div class="stat-label">总对话数</div>
           <div class="stat-trend">
             <el-icon class="trend-icon up"><TrendCharts /></el-icon>
             <span>今日 {{ dashboardData.chats?.today || 0 }}</span>
@@ -214,9 +214,9 @@ let diseaseDistChart = null
 let diseaseTrendChart = null
 
 const DISEASE_PALETTE = [
-  '#E07A5F', '#81B29A', '#F2CC8F', '#3D405B', '#B56576',
-  '#6D9DC5', '#81A4CD', '#C1666B', '#A8C686', '#D8A47F',
-  '#8E9AAF', '#8D6E63', '#78909C', '#FFB74D', '#4DB6AC'
+  '#C8442F', '#3A7D55', '#4E7A6D', '#D9A11E', '#A6694F',
+  '#5B665F', '#8A938C', '#C73E2D', '#335B46', '#7A8B5C',
+  '#DA6B52', '#6B9A8D', '#D6D3C2', '#A63625', '#2E563F'
 ]
 
 function goTo(path) {
@@ -227,9 +227,9 @@ function getChartOptions(xData, yData, title, color) {
   return {
     tooltip: {
       trigger: 'axis',
-      backgroundColor: 'rgba(0, 0, 0, 0.8)',
-      borderColor: 'transparent',
-      textStyle: { color: '#fff' }
+      backgroundColor: 'var(--color-bg-card)',
+      borderColor: 'var(--color-border)',
+      textStyle: { color: 'var(--color-text-primary)' }
     },
     grid: {
       left: '3%',
@@ -260,7 +260,7 @@ function getChartOptions(xData, yData, title, color) {
       symbolSize: 6,
       data: yData,
       lineStyle: { width: 2, color: color },
-      itemStyle: { color: color, borderColor: '#fff', borderWidth: 2 },
+      itemStyle: { color: color, borderColor: 'var(--color-bg-card)', borderWidth: 2 },
       areaStyle: {
         color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
           { offset: 0, color: color + '40' },
@@ -294,9 +294,9 @@ function getDiseaseDistOptions(distribution) {
     tooltip: {
       trigger: 'item',
       formatter: '{b}: {c} 次 ({d}%)',
-      backgroundColor: 'rgba(0, 0, 0, 0.8)',
-      borderColor: 'transparent',
-      textStyle: { color: '#fff' }
+      backgroundColor: 'var(--color-bg-card)',
+      borderColor: 'var(--color-border)',
+      textStyle: { color: 'var(--color-text-primary)' }
     },
     legend: {
       type: 'scroll',
@@ -328,9 +328,9 @@ function getDiseaseTrendOptions(dates, series) {
   return {
     tooltip: {
       trigger: 'axis',
-      backgroundColor: 'rgba(0, 0, 0, 0.8)',
-      borderColor: 'transparent',
-      textStyle: { color: '#fff' }
+      backgroundColor: 'var(--color-bg-card)',
+      borderColor: 'var(--color-border)',
+      textStyle: { color: 'var(--color-text-primary)' }
     },
     legend: {
       type: 'scroll',
@@ -532,43 +532,43 @@ onUnmounted(() => {
 }
 
 .users-icon {
-  background: rgba(64, 158, 255, 0.15);
-  color: #409eff;
-}
-
-.detections-icon {
-  background: rgba(103, 194, 58, 0.15);
-  color: #67c23a;
-}
-
-.knowledge-icon {
-  background: rgba(230, 162, 60, 0.15);
-  color: #e6a23c;
-}
-
-.chats-icon {
-  background: var(--color-accent-glow);
+  background: var(--color-accent-soft);
   color: var(--color-accent);
 }
 
+.detections-icon {
+  background: var(--color-forest-soft);
+  color: var(--color-forest);
+}
+
+.knowledge-icon {
+  background: rgba(217, 161, 30, 0.12);
+  color: var(--color-warning);
+}
+
+.chats-icon {
+  background: rgba(78, 122, 109, 0.12);
+  color: var(--color-info);
+}
+
 .success-icon {
-  background: rgba(103, 194, 58, 0.15);
-  color: #67c23a;
+  background: var(--color-forest-soft);
+  color: var(--color-forest);
 }
 
 .active-icon {
-  background: rgba(64, 158, 255, 0.15);
-  color: #409eff;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
 }
 
 .model-icon {
-  background: rgba(144, 147, 153, 0.15);
-  color: #909399;
+  background: rgba(90, 101, 95, 0.12);
+  color: var(--color-text-tertiary);
 }
 
 .logs-icon {
-  background: rgba(245, 108, 108, 0.15);
-  color: #f56c6c;
+  background: rgba(199, 62, 45, 0.1);
+  color: var(--color-error);
 }
 
 .stat-info {
@@ -600,7 +600,7 @@ onUnmounted(() => {
 }
 
 .trend-icon.up {
-  color: #67c23a;
+  color: var(--color-success);
 }
 
 .quick-actions {

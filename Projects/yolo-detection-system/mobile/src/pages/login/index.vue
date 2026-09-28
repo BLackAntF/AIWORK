@@ -2,9 +2,6 @@
 	<view class="login-page" :style="{ paddingTop: statusBarHeight + 'px' }">
 		<!-- 顶部品牌区 -->
 		<view class="brand-section">
-			<view class="decoration-circle circle-1"></view>
-			<view class="decoration-circle circle-2"></view>
-			<view class="decoration-circle circle-3"></view>
 			<view class="logo-wrap">
 				<view class="logo-icon">
 					<AppIcon class="logo-leaf" name="leaf" :size="72" color="#FFFFFF" />
@@ -23,7 +20,7 @@
 
 			<view class="input-group">
 				<view class="input-wrap" :class="{ focused: focusedField === 'username' }">
-					<AppIcon class="input-icon" name="user" :size="32" color="#ADB5BD" />
+					<AppIcon class="input-icon" name="user" :size="32" color="#C3C9C3" />
 					<input
 						v-model="form.username"
 						placeholder="请输入用户名"
@@ -35,7 +32,7 @@
 				</view>
 
 				<view class="input-wrap" :class="{ focused: focusedField === 'password' }">
-					<AppIcon class="input-icon" name="lock" :size="32" color="#ADB5BD" />
+					<AppIcon class="input-icon" name="lock" :size="32" color="#C3C9C3" />
 					<input
 						v-model="form.password"
 						:type="showPassword ? 'text' : 'password'"
@@ -46,7 +43,7 @@
 						@blur="focusedField = ''"
 					/>
 					<view class="pwd-toggle" @click="showPassword = !showPassword">
-						<AppIcon :name="showPassword ? 'eye-off' : 'eye'" :size="32" color="#ADB5BD" />
+						<AppIcon :name="showPassword ? 'eye-off' : 'eye'" :size="32" color="#C3C9C3" />
 					</view>
 				</view>
 			</view>
@@ -124,7 +121,7 @@ function goRegister() {
 <style lang="scss" scoped>
 .login-page {
 	min-height: 100vh;
-	background: linear-gradient(180deg, var(--brand) 0%, var(--brand-dark) 40%, var(--bg-2) 40%, var(--bg-2) 100%);
+	background: linear-gradient(180deg, var(--forest) 0%, var(--forest-2) 38%, var(--bg-2) 38%, var(--bg-2) 100%);
 	display: flex;
 	flex-direction: column;
 }
@@ -138,16 +135,17 @@ function goRegister() {
 	align-items: center;
 }
 
-.decoration-circle {
+.brand-section::after {
+	content: '';
 	position: absolute;
-	border-radius: 50%;
-	filter: blur(40rpx);
-	opacity: 0.35;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 100%;
+	background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1rpx, transparent 1rpx);
+	background-size: 24rpx 24rpx;
+	pointer-events: none;
 }
-
-.circle-1 { width: 200rpx; height: 200rpx; background: var(--brand-light); top: 40rpx; left: -40rpx; }
-.circle-2 { width: 160rpx; height: 160rpx; background: #F5AB96; top: 120rpx; right: -30rpx; }
-.circle-3 { width: 120rpx; height: 120rpx; background: #FF6B6B; top: 200rpx; left: 120rpx; opacity: 0.2; }
 
 .logo-wrap {
 	margin-bottom: 32rpx;
@@ -157,12 +155,12 @@ function goRegister() {
 	width: 140rpx;
 	height: 140rpx;
 	border-radius: 36rpx;
-	background: rgba(255, 255, 255, 0.25);
+	background: rgba(200, 68, 47, 0.9);
 	backdrop-filter: blur(20rpx);
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.1);
+	box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.18);
 }
 
 .logo-leaf {
@@ -237,7 +235,7 @@ function goRegister() {
 .input-wrap.focused {
 	border-color: var(--brand);
 	background: var(--bg-1);
-	box-shadow: 0 0 0 6rpx rgba(224, 122, 95, 0.08);
+	box-shadow: 0 0 0 6rpx rgba(200, 68, 47, 0.08);
 }
 
 .input-icon {
@@ -276,7 +274,7 @@ function goRegister() {
 	align-items: center;
 	justify-content: center;
 	border: none;
-	box-shadow: 0 8rpx 24rpx rgba(224, 122, 95, 0.3);
+	box-shadow: 0 8rpx 24rpx rgba(200, 68, 47, 0.3);
 	transition: all 0.2s ease;
 }
 

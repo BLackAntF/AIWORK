@@ -16,13 +16,15 @@
 		{
 			"path": "pages/chat/index",
 			"style": {
-				"navigationBarTitleText": "AI问答"
+				"navigationBarTitleText": "AI问答",
+				"navigationStyle": "custom"
 			}
 		},
 		{
 			"path": "pages/history/index",
 			"style": {
-				"navigationBarTitleText": "检测历史"
+				"navigationBarTitleText": "检测历史",
+				"navigationStyle": "custom"
 			}
 		},
 		{
@@ -56,19 +58,22 @@
 			"path": "pages/history/detail",
 			"style": {
 				"navigationBarTitleText": "检测详情",
+				"navigationStyle": "custom",
 				"enablePullDownRefresh": true
 			}
 		},
 		{
 			"path": "pages/knowledge/list",
 			"style": {
-				"navigationBarTitleText": "知识库"
+				"navigationBarTitleText": "知识库",
+				"navigationStyle": "custom"
 			}
 		},
 		{
 			"path": "pages/knowledge/detail",
 			"style": {
 				"navigationBarTitleText": "知识详情",
+				"navigationStyle": "custom",
 				"enablePullDownRefresh": true
 			}
 		},
@@ -76,50 +81,56 @@
 			"path": "pages/notifications/index",
 			"style": {
 				"navigationBarTitleText": "站内通知",
+				"navigationStyle": "custom",
 				"enablePullDownRefresh": true
 			}
 		},
 		{
 			"path": "pages/admin/users",
 			"style": {
-				"navigationBarTitleText": "用户管理"
+				"navigationBarTitleText": "用户管理",
+				"navigationStyle": "custom"
 			}
 		},
 		{
 			"path": "pages/admin/pending",
 			"style": {
-				"navigationBarTitleText": "待审核"
+				"navigationBarTitleText": "待审核",
+				"navigationStyle": "custom"
 			}
 		},
 		{
 			"path": "pages/admin/logs",
 			"style": {
-				"navigationBarTitleText": "操作日志"
+				"navigationBarTitleText": "操作日志",
+				"navigationStyle": "custom"
 			}
 		},
 		{
 			"path": "pages/admin/dashboard",
 			"style": {
-				"navigationBarTitleText": "数据看板"
+				"navigationBarTitleText": "数据看板",
+				"navigationStyle": "custom"
 			}
 		},
 		{
 			"path": "pages/mine/password",
 			"style": {
-				"navigationBarTitleText": "修改密码"
+				"navigationBarTitleText": "修改密码",
+				"navigationStyle": "custom"
 			}
 		}
 	],
 	"globalStyle": {
-		"navigationBarBackgroundColor": "#E07A5F",
+		"navigationBarBackgroundColor": "#1E3B2C",
 		"navigationBarTextStyle": "white",
 		"navigationBarTitleText": "番茄病害诊断",
-		"backgroundColor": "#F5F5F5"
+		"backgroundColor": "#F6F3EE"
 	},
 	"tabBar": {
-		"color": "#999999",
-		"selectedColor": "#E07A5F",
-		"backgroundColor": "#FFFFFF",
+		"color": "#8A938C",
+		"selectedColor": "#C8442F",
+		"backgroundColor": "#FCFBF8",
 		"list": [
 			{
 				"pagePath": "pages/index/index",

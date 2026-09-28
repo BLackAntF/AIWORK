@@ -171,8 +171,15 @@ onPullDownRefresh(() => {
 
 <style lang="scss" scoped>
 .notifications-page {
-	min-height: 100vh;
+	height: 100vh;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
 	background: var(--bg-2);
+}
+
+.notifications-page :deep(.page-header) {
+	flex-shrink: 0;
 }
 
 .read-all {
@@ -181,7 +188,8 @@ onPullDownRefresh(() => {
 }
 
 .notify-content {
-	height: calc(100vh - 140rpx);
+	flex: 1;
+	min-height: 0;
 }
 
 .loading-row {
@@ -265,7 +273,7 @@ onPullDownRefresh(() => {
 .notify-type {
 	font-size: 24rpx;
 	color: var(--brand);
-	background: rgba(224, 122, 95, 0.1);
+	background: var(--brand-glow);
 	padding: 6rpx 16rpx;
 	border-radius: 12rpx;
 }

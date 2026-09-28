@@ -2,15 +2,15 @@
 	<view class="chat-bubble-wrap" :class="{ self: isSelf }">
 		<view class="bubble" :class="{ self: isSelf }">
 			<text v-if="isSelf" class="bubble-text">{{ content }}</text>
-			<template v-else>
-				<text class="bubble-text">{{ content }}</text>
-			</template>
+			<MarkdownText v-else :content="content" />
 		</view>
 		<text class="bubble-time">{{ time }}</text>
 	</view>
 </template>
 
 <script setup>
+import MarkdownText from './MarkdownText.vue'
+
 defineProps({
 	isSelf: { type: Boolean, default: false },
 	content: { type: String, required: true },
@@ -22,7 +22,7 @@ defineProps({
 .chat-bubble-wrap {
 	display: flex;
 	flex-direction: column;
-	margin-bottom: 20rpx;
+	margin-bottom: 22rpx;
 }
 
 .chat-bubble-wrap.self {
@@ -31,14 +31,18 @@ defineProps({
 
 .bubble {
 	max-width: 80%;
-	padding: 20rpx 24rpx;
-	border-radius: var(--radius-lg);
+	padding: 22rpx 26rpx;
+	border-radius: 22rpx 22rpx 22rpx 8rpx;
 	background: var(--bg-1);
+	border: 1rpx solid var(--border-light);
 	box-shadow: var(--shadow-sm);
 }
 
 .bubble.self {
+	border: none;
+	border-radius: 22rpx 22rpx 8rpx 22rpx;
 	background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
+	box-shadow: var(--shadow-brand);
 }
 
 .bubble-text {
@@ -53,9 +57,9 @@ defineProps({
 }
 
 .bubble-time {
-	font-size: 22rpx;
+	font-size: 21rpx;
 	color: var(--text-disabled);
-	margin-top: 6rpx;
+	margin-top: 8rpx;
 	padding: 0 8rpx;
 }
 

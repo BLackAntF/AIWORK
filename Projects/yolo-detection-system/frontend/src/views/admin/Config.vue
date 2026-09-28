@@ -172,7 +172,7 @@ async function fetchConfig() {
   configLoading.value = true
   try {
     const res = await getConfigList()
-    configList.value = (res.configs || []).map(item => ({
+    configList.value = (Array.isArray(res) ? res : []).map(item => ({
       ...item,
       _editValue: item.value
     }))
@@ -187,7 +187,7 @@ async function fetchModels() {
   modelLoading.value = true
   try {
     const res = await getModelList()
-    modelList.value = res.models || []
+    modelList.value = res || []
   } catch (e) {
     modelList.value = []
   } finally {

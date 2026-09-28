@@ -206,7 +206,7 @@ async function fetchList() {
     }
 
     const res = await getOperationLogList(params)
-    logList.value = res.list || []
+    logList.value = res.logs || []
     total.value = res.total || 0
   } catch (e) {
     logList.value = []

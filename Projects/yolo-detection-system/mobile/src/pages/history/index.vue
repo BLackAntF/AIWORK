@@ -1,6 +1,10 @@
 <template>
 	<view class="history-page">
-		<PageHeader title="检测历史" />
+		<PageHeader
+			title="检测历史"
+			subtitle="全部检测记录都在这里"
+			eyebrow="DETECTION ARCHIVE"
+		/>
 
 		<scroll-view
 			class="history-content"
@@ -12,7 +16,9 @@
 			:show-scrollbar="false"
 		>
 			<view v-if="loading && !refreshing" class="loading-row">
-				<text class="loading-text">加载中...</text>
+				<view class="skeleton-item"></view>
+				<view class="skeleton-item"></view>
+				<view class="skeleton-item"></view>
 			</view>
 
 			<EmptyState v-else-if="records.length === 0" name="clipboard" title="暂无检测记录" desc="完成检测后会在这里显示" />
@@ -24,10 +30,22 @@
 					class="record-item"
 					@click="goDetail(record.id)"
 				>
-					<image :src="getRecordImage(record)" mode="aspectFill" class="record-image" />
+					<image
+						v-if="getRecordImage(record) && !isImageBroken(record.id)"
+						:src="getRecordImage(record)"
+						mode="aspectFill"
+						class="record-image"
+						@error="onImageError(record.id)"
+					/>
+					<view v-else class="record-image image-broken">
+						<AppIcon name="leaf" :size="30" color="#C3C9C3" />
+					</view>
 					<view class="record-info">
 						<text class="record-disease">{{ getDiseaseName(record) }}</text>
 						<text class="record-time">{{ formatTime(record.created_at) }}</text>
+					</view>
+					<view class="record-status" :class="{ healthy: isHealthyRecord(record) }">
+						<text class="status-text">{{ getStatusLabel(record) }}</text>
 					</view>
 					<text class="record-arrow">›</text>
 				</view>
@@ -44,12 +62,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { getHistoryList } from '@/api/history'
 import { getFullUrl } from '@/utils/format'
 import { showError } from '@/utils/error'
 import EmptyState from '@/components/EmptyState.vue'
 import PageHeader from '@/components/PageHeader.vue'
+import AppIcon from '@/components/AppIcon.vue'
 
 const records = ref([])
 const loading = ref(false)
@@ -57,6 +77,17 @@ const refreshing = ref(false)
 const page = ref(1)
 const pageSize = ref(10)
 const hasMore = ref(true)
+const brokenImages = ref([])
+
+function isImageBroken(id) {
+	return brokenImages.value.includes(id)
+}
+
+function onImageError(id) {
+	if (!brokenImages.value.includes(id)) {
+		brokenImages.value = [...brokenImages.value, id]
+	}
+}
 
 function getRecordImage(record) {
 	const path = record.result_path || record.original_path
@@ -68,6 +99,18 @@ function getDiseaseName(record) {
 	if (detections.length === 0) return record.original_filename || '未知病害'
 	if (detections.length === 1) return detections[0].class_name
 	return detections.map(d => d.class_name).join(', ')
+}
+
+function isHealthyRecord(record) {
+	const detections = record.detections || []
+	return detections.length > 0 && detections.every(d => d.class_name === '健康叶片')
+}
+
+function getStatusLabel(record) {
+	const detections = record.detections || []
+	if (detections.length === 0) return '待查看'
+	if (detections.every(d => d.class_name === '健康叶片')) return '健康'
+	return '需关注'
 }
 
 function formatTime(dateStr) {
@@ -85,6 +128,7 @@ async function loadRecords(isRefresh = false) {
 		const items = data.list || []
 		if (isRefresh) {
 			records.value = items
+			brokenImages.value = []
 		} else {
 			records.value = [...records.value, ...items]
 		}
@@ -115,30 +159,54 @@ function goDetail(id) {
 	uni.navigateTo({ url: `/pages/history/detail?id=${id}` })
 }
 
-onMounted(() => {
-	loadRecords()
+onShow(() => {
+	page.value = 1
+	hasMore.value = true
+	loadRecords(true)
 })
 </script>
 
 <style lang="scss" scoped>
 .history-page {
-	min-height: 100vh;
+	height: 100vh;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
 	background: var(--bg-2);
 }
 
+.history-page :deep(.page-header) {
+	flex-shrink: 0;
+}
+
 .history-content {
-	height: calc(100vh - 88rpx);
+	flex: 1;
+	min-height: 0;
 	padding: 24rpx;
 }
 
 .loading-row {
-	padding: 60rpx;
-	text-align: center;
+	padding: 60rpx 0;
+	display: flex;
+	flex-direction: column;
+	gap: 16rpx;
 }
 
-.loading-text {
-	font-size: 28rpx;
-	color: var(--text-3);
+.skeleton-item {
+	height: 180rpx;
+	border-radius: 20rpx;
+	background: linear-gradient(100deg, var(--bg-3) 40%, var(--bg-1) 50%, var(--bg-3) 60%);
+	background-size: 200% 100%;
+	animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+	0% {
+		background-position: 100% 0;
+	}
+	100% {
+		background-position: -100% 0;
+	}
 }
 
 .record-list {
@@ -153,7 +221,8 @@ onMounted(() => {
 	background: var(--bg-1);
 	border-radius: 20rpx;
 	padding: 20rpx;
-	box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+	border: 1rpx solid var(--border-light);
+	box-shadow: 0 2rpx 12rpx rgba(31, 36, 33, 0.05);
 }
 
 .record-image {
@@ -161,6 +230,10 @@ onMounted(() => {
 	height: 140rpx;
 	border-radius: 16rpx;
 	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--bg-2);
 }
 
 .record-info {
@@ -182,9 +255,31 @@ onMounted(() => {
 	color: var(--text-3);
 }
 
+.record-status {
+	flex-shrink: 0;
+	padding: 6rpx 16rpx;
+	border-radius: 999rpx;
+	background: var(--brand-glow);
+}
+
+.record-status .status-text {
+	font-size: 22rpx;
+	font-weight: 600;
+	color: var(--brand);
+}
+
+.record-status.healthy {
+	background: var(--forest-light);
+}
+
+.record-status.healthy .status-text {
+	color: var(--forest-2);
+}
+
 .record-arrow {
 	font-size: 40rpx;
 	color: var(--text-disabled);
+	margin-left: 16rpx;
 }
 
 .load-more {

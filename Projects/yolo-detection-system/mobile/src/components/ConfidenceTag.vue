@@ -14,9 +14,9 @@ const props = defineProps({
 })
 
 const LEVEL_STYLE = {
-	high: { icon: 'check-circle', color: '#E07A5F', label: '高可信' },
-	medium: { icon: 'alert', color: '#FAAD14', label: '中可信' },
-	low: { icon: 'info', color: '#6C757D', label: '仅供参考' }
+	high: { icon: 'check-circle', color: '#C8442F', label: '高可信' },
+	medium: { icon: 'alert', color: '#D9A11E', label: '中可信' },
+	low: { icon: 'info', color: '#8A938C', label: '仅供参考' }
 }
 
 const iconName = computed(() => LEVEL_STYLE[props.level].icon)
@@ -36,17 +36,17 @@ const label = computed(() => LEVEL_STYLE[props.level].label)
 }
 
 .confidence-tag.high {
-	background: rgba(224, 122, 95, 0.15);
+	background: var(--brand-glow);
 	color: var(--brand);
 }
 
 .confidence-tag.medium {
-	background: rgba(250, 173, 20, 0.15);
+	background: rgba(217, 161, 30, 0.14);
 	color: var(--warning);
 }
 
 .confidence-tag.low {
-	background: rgba(108, 117, 125, 0.12);
+	background: rgba(138, 147, 140, 0.12);
 	color: var(--text-3);
 }
 

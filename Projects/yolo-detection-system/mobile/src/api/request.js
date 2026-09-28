@@ -13,6 +13,8 @@ const BASE_URL = '/api'
 const BASE_URL = import.meta.env.VITE_API_BASE_URL
 // #endif
 
+export { BASE_URL }
+
 // Token 在本地存储的 key
 const TOKEN_KEY = 'token'
 
@@ -27,6 +29,8 @@ function buildHeader(customHeader = {}) {
     ...customHeader
   }
 }
+
+export { buildHeader }
 
 /**
  * 处理业务响应（code 判断）

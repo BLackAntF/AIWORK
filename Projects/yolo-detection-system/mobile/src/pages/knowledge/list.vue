@@ -4,7 +4,7 @@
 
 		<view class="search-section">
 			<view class="search-box">
-				<AppIcon class="search-icon" name="search" :size="32" color="#ADB5BD" />
+				<AppIcon class="search-icon" name="search" :size="32" color="#C3C9C3" />
 				<input
 					class="search-input"
 					v-model="keyword"
@@ -13,7 +13,7 @@
 					@confirm="onSearch"
 				/>
 				<view v-if="keyword" class="search-clear" @click="clearSearch">
-					<AppIcon name="close" :size="28" color="#ADB5BD" />
+					<AppIcon name="close" :size="28" color="#C3C9C3" />
 				</view>
 			</view>
 		</view>
@@ -171,8 +171,16 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 .knowledge-page {
-	min-height: 100vh;
+	height: 100vh;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
 	background: var(--bg-2);
+}
+
+.knowledge-page :deep(.page-header),
+.search-section {
+	flex-shrink: 0;
 }
 
 .search-section {
@@ -211,7 +219,8 @@ onMounted(() => {
 }
 
 .knowledge-content {
-	height: calc(100vh - 200rpx);
+	flex: 1;
+	min-height: 0;
 }
 
 .category-bar {
@@ -234,7 +243,7 @@ onMounted(() => {
 }
 
 .category-item.active {
-	background: rgba(224, 122, 95, 0.1);
+	background: var(--brand-glow);
 	color: var(--brand);
 	font-weight: 600;
 }
@@ -260,7 +269,8 @@ onMounted(() => {
 	background: var(--bg-1);
 	border-radius: 20rpx;
 	padding: 24rpx;
-	box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+	border: 1rpx solid var(--border-light);
+	box-shadow: 0 2rpx 12rpx rgba(31, 36, 33, 0.05);
 }
 
 .item-title {
@@ -291,7 +301,7 @@ onMounted(() => {
 .item-category {
 	font-size: 24rpx;
 	color: var(--brand);
-	background: rgba(224, 122, 95, 0.1);
+	background: var(--brand-glow);
 	padding: 6rpx 16rpx;
 	border-radius: 12rpx;
 }

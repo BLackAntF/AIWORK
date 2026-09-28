@@ -66,9 +66,9 @@ function getLineOptions(xData, yData, name) {
   return {
     tooltip: {
       trigger: 'axis',
-      backgroundColor: 'rgba(0, 0, 0, 0.8)',
-      borderColor: 'transparent',
-      textStyle: { color: '#fff' }
+      backgroundColor: 'var(--color-bg-card)',
+      borderColor: 'var(--color-border)',
+      textStyle: { color: 'var(--color-text-primary)' }
     },
     grid: {
       left: '3%',
@@ -99,7 +99,7 @@ function getLineOptions(xData, yData, name) {
       symbolSize: 6,
       data: yData,
       lineStyle: { width: 2, color: accent },
-      itemStyle: { color: accent, borderColor: '#fff', borderWidth: 2 },
+      itemStyle: { color: accent, borderColor: 'var(--color-bg-card)', borderWidth: 2 },
       areaStyle: {
         color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
           { offset: 0, color: accent + '40' },
@@ -114,20 +114,20 @@ function getPieOptions(data) {
   const accent = getAccentColor()
   const colors = [
     accent,
-    '#409eff',
-    '#67c23a',
-    '#e6a23c',
-    '#f56c6c',
-    '#909399',
-    '#6f7ad3',
-    '#58c7da'
+    '#3A7D55',
+    '#4E7A6D',
+    '#D9A11E',
+    '#A6694F',
+    '#5B665F',
+    '#8A938C',
+    '#C73E2D'
   ]
   return {
     tooltip: {
       trigger: 'item',
-      backgroundColor: 'rgba(0, 0, 0, 0.8)',
-      borderColor: 'transparent',
-      textStyle: { color: '#fff' },
+      backgroundColor: 'var(--color-bg-card)',
+      borderColor: 'var(--color-border)',
+      textStyle: { color: 'var(--color-text-primary)' },
       formatter: '{b}: {c} ({d}%)'
     },
     legend: {

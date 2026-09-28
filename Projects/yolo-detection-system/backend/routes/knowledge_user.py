@@ -1,5 +1,5 @@
 from flask import Blueprint, request
-from models import Knowledge, KnowledgeFavorite, db
+from models import Knowledge, KnowledgeFavorite, Tag, db
 from utils.response import success, not_found, bad_request, error
 from services.knowledge_service import knowledge_service
 from middleware.auth_middleware import login_required
@@ -14,33 +14,11 @@ CATEGORIES = [
 ]
 
 
-@knowledge_user_bp.route('/list', methods=['GET'])
-def get_knowledge_list():
-    """获取知识列表（公开接口）"""
-    page = int(request.args.get('page', 1))
-    page_size = int(request.args.get('page_size', 12))
-    category = request.args.get('category', '').strip()
-    keyword = request.args.get('keyword', '').strip()
-
-    if page < 1:
-        page = 1
-    if page_size < 1 or page_size > 100:
-        page_size = 12
-
-    items, total = knowledge_service.list_knowledge(
-        page=page,
-        page_size=page_size,
-        category=category if category else None,
-        keyword=keyword if keyword else None,
-        is_public=True
-    )
-
-    return success(data={
-        'items': items,
-        'total': total,
-        'page': page,
-        'page_size': page_size
-    })
+@knowledge_user_bp.route('/tags', methods=['GET'])
+def get_tags():
+    """获取标签列表（公开接口）"""
+    tags = Tag.query.order_by(Tag.name.asc()).all()
+    return success(data=[t.to_dict() for t in tags])
 
 
 @knowledge_user_bp.route('/<int:knowledge_id>', methods=['GET'])

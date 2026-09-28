@@ -4,9 +4,13 @@
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 html, body {
   width: 100%;
-  height: 100%;
+  min-height: 100%;
   font-family: var(--font-family-sans);
   font-size: 14px;
   line-height: 1.6;
@@ -29,7 +33,7 @@ a {
 }
 
 a:hover {
-  color: var(--color-accent-light);
+  color: var(--color-accent-dark);
 }
 
 button {
@@ -87,9 +91,14 @@ p {
   margin-bottom: 1em;
 }
 
+::selection {
+  background: var(--color-accent-soft);
+  color: var(--color-accent-dark);
+}
+
 .font-logo {
   font-family: var(--font-family-logo);
-  letter-spacing: 1px;
+  letter-spacing: 0;
 }
 
 .font-mono {
@@ -98,6 +107,10 @@ p {
 
 .text-accent {
   color: var(--color-accent);
+}
+
+.text-forest {
+  color: var(--color-forest);
 }
 
 .text-primary {

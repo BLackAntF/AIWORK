@@ -9,7 +9,7 @@ import { iconSrc } from '@/utils/icons'
 const props = defineProps({
 	name: { type: String, required: true },
 	size: { type: [Number, String], default: 32 },
-	color: { type: String, default: '#6C757D' }
+	color: { type: String, default: '#8A938C' }
 })
 
 const src = computed(() => iconSrc(props.name, props.color))

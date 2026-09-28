@@ -26,8 +26,6 @@
             </div>
           </div>
         </div>
-        <div class="decoration-circle circle-1"></div>
-        <div class="decoration-circle circle-2"></div>
       </div>
 
       <div class="form-section slide-in-right">
@@ -272,30 +270,6 @@ const handleRegister = async () => {
   font-size: 20px;
 }
 
-.decoration-circle {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(60px);
-  opacity: 0.4;
-  z-index: 1;
-}
-
-.circle-1 {
-  width: 200px;
-  height: 200px;
-  background: var(--color-accent);
-  top: -50px;
-  right: -30px;
-}
-
-.circle-2 {
-  width: 150px;
-  height: 150px;
-  background: var(--color-accent-light);
-  bottom: 20px;
-  left: -20px;
-}
-
 .form-section {
   width: 440px;
   flex-shrink: 0;
@@ -364,8 +338,7 @@ const handleRegister = async () => {
 }
 
 .login-link:hover {
-  color: var(--color-accent-light);
-  text-shadow: 0 0 10px var(--color-accent-glow);
+  color: var(--color-accent-dark);
 }
 
 @media (max-width: 968px) {

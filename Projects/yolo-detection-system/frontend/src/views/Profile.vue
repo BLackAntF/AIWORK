@@ -583,7 +583,7 @@ onMounted(() => {
 .stat-icon {
   width: 48px;
   height: 48px;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -591,15 +591,18 @@ onMounted(() => {
 }
 
 .stat-icon.total {
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
 }
 
 .stat-icon.today {
-  background: linear-gradient(135deg, #f093fb, #f5576c);
+  background: var(--color-forest-soft);
+  color: var(--color-forest);
 }
 
 .stat-icon.image {
-  background: linear-gradient(135deg, #4facfe, #00f2fe);
+  background: rgba(78, 122, 109, 0.12);
+  color: var(--color-info);
 }
 
 .stat-content {
@@ -676,7 +679,7 @@ onMounted(() => {
 
 .logout-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(255, 77, 79, 0.3);
+  box-shadow: 0 6px 20px rgba(199, 62, 45, 0.28);
 }
 
 .favorites-card {
@@ -685,8 +688,8 @@ onMounted(() => {
 
 .favorites-count {
   margin-left: auto;
-  background: var(--color-primary);
-  color: var(--color-primary-text);
+  background: var(--color-accent);
+  color: var(--color-bg-card);
   font-size: 12px;
   line-height: 1;
   padding: 4px 8px;
@@ -715,8 +718,8 @@ onMounted(() => {
 
 .favorite-item:hover {
   transform: translateX(4px);
-  border-color: var(--color-primary);
-  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.12);
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-md);
 }
 
 .favorite-category {
@@ -731,7 +734,7 @@ onMounted(() => {
 .favorite-title {
   font-size: 14px;
   font-weight: 500;
-  color: var(--color-text);
+  color: var(--color-text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -751,8 +754,8 @@ onMounted(() => {
 }
 
 .favorite-remove:hover {
-  color: var(--color-danger);
-  background: rgba(255, 77, 79, 0.1);
+  color: var(--color-error);
+  background: var(--color-error-soft, rgba(199, 62, 45, 0.1));
 }
 
 .favorites-empty {

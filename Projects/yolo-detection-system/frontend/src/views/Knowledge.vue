@@ -811,11 +811,13 @@ function clearDetectionContext() {
 }
 
 .user-message .message-avatar {
-  background: linear-gradient(135deg, #E07A5F, #F29780);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
 }
 
 .ai-message .message-avatar {
-  background: linear-gradient(135deg, #D4AF37, #E8C85A);
+  background: var(--color-forest-soft);
+  color: var(--color-forest);
 }
 
 .message-bubble {

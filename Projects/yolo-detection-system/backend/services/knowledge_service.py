@@ -76,6 +76,16 @@ def _expand_synonyms(tokens):
     return expanded
 
 
+def _exclude_test_data(query):
+    """排除测试/临时数据"""
+    return query.filter(
+        ~Knowledge.category.in_(['测试分类', 'test', '测试']),
+        ~Knowledge.title.like('test%'),
+        ~Knowledge.title.like('tmp%'),
+        ~Knowledge.title.like('kb_%')
+    )
+
+
 class KnowledgeService:
     """知识库服务
 
@@ -197,12 +207,8 @@ class KnowledgeService:
 
     def _active_knowledge(self):
         """获取检索候选：排除测试/临时数据（也过滤掉 is_inactive）"""
-        return Knowledge.query.filter(
-            Knowledge.is_active == True,
-            ~Knowledge.category.in_(['测试分类', 'test', '测试']),
-            ~Knowledge.title.like('test%'),
-            ~Knowledge.title.like('tmp%'),
-            ~Knowledge.title.like('kb_%')
+        return _exclude_test_data(
+            Knowledge.query.filter(Knowledge.is_active == True)
         ).all()
 
     def search(self, query, top_k=3):
@@ -322,7 +328,7 @@ class KnowledgeService:
         db.session.commit()
         return True
 
-    def list_knowledge(self, page=1, page_size=20, category=None, keyword=None, is_public=False):
+    def list_knowledge(self, page=1, page_size=20, category=None, keyword=None, is_public=False, tag_id=None):
         """获取知识列表
 
         Args:
@@ -331,11 +337,15 @@ class KnowledgeService:
             category: 分类筛选
             keyword: 关键词搜索
             is_public: 是否为用户端（返回简化字段）
+            tag_id: 标签ID筛选
 
         Returns:
             tuple: (list, total)
         """
         query = Knowledge.query.filter_by(is_active=True)
+
+        if is_public:
+            query = _exclude_test_data(query)
 
         if category:
             query = query.filter(Knowledge.category == category)
@@ -346,6 +356,10 @@ class KnowledgeService:
                 (Knowledge.title.like(keyword_pattern)) |
                 (Knowledge.content.like(keyword_pattern))
             )
+
+        if tag_id:
+            query = query.join(KnowledgeTag, KnowledgeTag.knowledge_id == Knowledge.id) \
+                .filter(KnowledgeTag.tag_id == tag_id)
 
         total = query.count()
         items = query.order_by(Knowledge.created_at.desc()) \
@@ -366,6 +380,7 @@ class KnowledgeService:
             'category': knowledge.category,
             'summary': knowledge.summary,
             'views': knowledge.views,
+            'tags': [t.to_dict() for t in knowledge.tags] if knowledge.tags else [],
             'created_at': knowledge.created_at.isoformat() if knowledge.created_at else None
         }
 
@@ -377,6 +392,7 @@ class KnowledgeService:
         """获取所有分类"""
         results = db.session.query(Knowledge.category) \
             .filter(Knowledge.is_active == True, Knowledge.category.isnot(None)) \
+            .filter(Knowledge.category.notin_(['测试分类', 'test', '测试'])) \
             .distinct() \
             .all()
         return [r[0] for r in results if r[0]]
@@ -398,9 +414,11 @@ class KnowledgeService:
         current_tag_ids = [t.id for t in kb.tags]
 
         if not current_tag_ids:
-            recent = Knowledge.query.filter(
-                Knowledge.is_active == True,
-                Knowledge.id != kb_id
+            recent = _exclude_test_data(
+                Knowledge.query.filter(
+                    Knowledge.is_active == True,
+                    Knowledge.id != kb_id
+                )
             ).order_by(desc(Knowledge.created_at)).limit(limit).all()
             return [self._to_related_dict(k) for k in recent]
 
@@ -415,7 +433,11 @@ class KnowledgeService:
         results = db.session.query(Knowledge, subq.c.common_count).join(
             subq, Knowledge.id == subq.c.knowledge_id
         ).filter(
-            Knowledge.is_active == True
+            Knowledge.is_active == True,
+            ~Knowledge.category.in_(['测试分类', 'test', '测试']),
+            ~Knowledge.title.like('test%'),
+            ~Knowledge.title.like('tmp%'),
+            ~Knowledge.title.like('kb_%')
         ).order_by(
             desc(subq.c.common_count),
             desc(Knowledge.created_at)
@@ -429,10 +451,12 @@ class KnowledgeService:
 
         if len(related) < limit:
             existing_ids = [r['id'] for r in related]
-            recent = Knowledge.query.filter(
-                Knowledge.is_active == True,
-                Knowledge.id != kb_id,
-                ~Knowledge.id.in_(existing_ids)
+            recent = _exclude_test_data(
+                Knowledge.query.filter(
+                    Knowledge.is_active == True,
+                    Knowledge.id != kb_id,
+                    ~Knowledge.id.in_(existing_ids)
+                )
             ).order_by(desc(Knowledge.created_at)).limit(limit - len(related)).all()
             for k in recent:
                 item_dict = self._to_related_dict(k)

@@ -18,7 +18,7 @@
 					@click="toggleCollapse(idx)"
 				>
 					<view class="collapse-header">
-						<AppIcon :name="item.icon" :size="36" color="#E07A5F" />
+						<AppIcon :name="item.icon" :size="36" color="#C8442F" />
 						<text class="collapse-title">{{ item.title }}</text>
 						<text class="collapse-arrow" :class="{ expanded: expandedIndex === idx }">›</text>
 					</view>
@@ -30,7 +30,7 @@
 
 			<!-- 推荐药剂 -->
 			<view v-if="profile.pesticides" class="pesticides-card">
-				<view class="card-title"><AppIcon name="pin" :size="30" color="#E07A5F" /><text>推荐药剂</text></view>
+				<view class="card-title"><AppIcon name="pin" :size="30" color="#C8442F" /><text>推荐药剂</text></view>
 				<view class="pesticides-list">
 					<text
 						v-for="(pesticide, idx) in pesticideList"
@@ -220,7 +220,7 @@ onMounted(() => {
 }
 
 .pesticide-item {
-	background: rgba(250, 173, 20, 0.15);
+	background: rgba(217, 161, 30, 0.14);
 	color: var(--warning);
 	font-size: 28rpx;
 	padding: 12rpx 24rpx;

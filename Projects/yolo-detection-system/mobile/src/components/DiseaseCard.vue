@@ -2,7 +2,7 @@
 	<view class="disease-card" @click="goDetail">
 		<view class="card-header">
 			<view class="disease-tag">
-				<AppIcon name="clipboard" :size="28" color="#E07A5F" />
+				<AppIcon name="clipboard" :size="28" color="#C8442F" />
 				<text class="tag-text">{{ profile.disease_name }}</text>
 			</view>
 			<text class="card-arrow">›</text>
@@ -83,7 +83,7 @@ function goDetail() {
 	display: flex;
 	align-items: center;
 	gap: 8rpx;
-	background: rgba(224, 122, 95, 0.1);
+	background: var(--brand-glow);
 	padding: 8rpx 20rpx;
 	border-radius: 20rpx;
 }
@@ -144,7 +144,7 @@ function goDetail() {
 }
 
 .pesticide-tag {
-	background: rgba(250, 173, 20, 0.15);
+	background: rgba(217, 161, 30, 0.14);
 	color: var(--warning);
 	font-size: 24rpx;
 	padding: 6rpx 16rpx;

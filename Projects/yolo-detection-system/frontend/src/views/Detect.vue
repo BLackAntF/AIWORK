@@ -407,16 +407,16 @@ const isDragOver = ref(false)
 let progressTimer = null
 
 const categoryColors = [
-  '#E07A5F',
-  '#3D9970',
-  '#0074D9',
-  '#FF851B',
-  '#B10DC9',
-  '#7FDBFF',
-  '#FFDC00',
-  '#01FF70',
-  '#F012BE',
-  '#39CCCC'
+  '#C8442F',
+  '#3A7D55',
+  '#4E7A6D',
+  '#D9A11E',
+  '#A6694F',
+  '#5B665F',
+  '#8A938C',
+  '#C73E2D',
+  '#335B46',
+  '#7A8B5C'
 ]
 
 const colorMap = {}
@@ -1062,31 +1062,18 @@ onUnmounted(() => {
 }
 
 .total-icon {
-  background: rgba(224, 122, 95, 0.15);
-  color: #E07A5F;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
 }
 
 .time-icon {
-  background: rgba(61, 153, 112, 0.15);
-  color: #3D9970;
+  background: rgba(78, 122, 109, 0.12);
+  color: var(--color-info);
 }
 
 .model-icon {
-  background: rgba(0, 116, 217, 0.15);
-  color: #0074D9;
-}
-
-[data-theme="dark"] .total-icon {
-  background: rgba(212, 175, 55, 0.15);
-  color: #D4AF37;
-}
-
-[data-theme="dark"] .time-icon {
-  background: rgba(61, 153, 112, 0.1);
-}
-
-[data-theme="dark"] .model-icon {
-  background: rgba(0, 116, 217, 0.1);
+  background: var(--color-forest-soft);
+  color: var(--color-forest);
 }
 
 .stat-content {

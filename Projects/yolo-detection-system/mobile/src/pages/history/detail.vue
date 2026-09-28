@@ -3,16 +3,38 @@
 		<LoadingOverlay :visible="loading" text="加载中..." />
 
 		<view v-if="record" class="content">
-			<PageHeader title="检测详情" :show-back="true" />
+			<PageHeader title="检测详情" subtitle="原始影像与识别结果" eyebrow="DETECTION REPORT" :show-back="true" />
 
 			<view class="image-section">
 				<view class="image-card">
 					<text class="card-label">原图</text>
-					<image :src="getFullUrl(record.original_path)" mode="widthFix" class="detail-image" @click="previewImage(record.original_path)" />
+					<image
+						v-if="getFullUrl(record.original_path) && !originalImageBroken"
+						:src="getFullUrl(record.original_path)"
+						mode="aspectFit"
+						class="detail-image"
+						@click="previewImage(record.original_path)"
+						@error="originalImageBroken = true"
+					/>
+					<view v-else class="detail-image image-broken">
+						<AppIcon name="leaf" :size="48" color="#C3C9C3" />
+						<text class="broken-text">原图加载失败</text>
+					</view>
 				</view>
 				<view class="image-card">
 					<text class="card-label">检测结果图</text>
-					<image :src="getFullUrl(record.result_path)" mode="widthFix" class="detail-image" @click="previewImage(record.result_path)" />
+					<image
+						v-if="getFullUrl(record.result_path) && !resultImageBroken"
+						:src="getFullUrl(record.result_path)"
+						mode="aspectFit"
+						class="detail-image"
+						@click="previewImage(record.result_path)"
+						@error="resultImageBroken = true"
+					/>
+					<view v-else class="detail-image image-broken">
+						<AppIcon name="leaf" :size="48" color="#C3C9C3" />
+						<text class="broken-text">结果图加载失败</text>
+					</view>
 				</view>
 			</view>
 
@@ -76,9 +98,12 @@ import LoadingOverlay from '@/components/LoadingOverlay.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import DiseaseCard from '@/components/DiseaseCard.vue'
+import AppIcon from '@/components/AppIcon.vue'
 
 const loading = ref(true)
 const record = ref(null)
+const originalImageBroken = ref(false)
+const resultImageBroken = ref(false)
 
 const detections = computed(() => record.value?.detection_result?.detections || [])
 
@@ -107,6 +132,8 @@ async function loadRecord() {
 
 	try {
 		record.value = await getHistoryDetail(id)
+		originalImageBroken.value = false
+		resultImageBroken.value = false
 	} catch (e) {
 		showError(e, '加载失败')
 	} finally {
@@ -145,6 +172,8 @@ onMounted(() => {
 	background: var(--bg-1);
 	border-radius: 20rpx;
 	padding: 20rpx;
+	border: 1rpx solid var(--border-light);
+	box-shadow: 0 2rpx 12rpx rgba(31, 36, 33, 0.05);
 }
 
 .card-label {
@@ -155,8 +184,26 @@ onMounted(() => {
 }
 
 .detail-image {
+	display: block;
 	width: 100%;
+	height: 480rpx;
 	border-radius: 12rpx;
+	background: var(--bg-2);
+}
+
+.detail-image.image-broken {
+	height: 480rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-direction: column;
+	gap: 16rpx;
+	background: var(--bg-2);
+}
+
+.broken-text {
+	font-size: 26rpx;
+	color: var(--text-3);
 }
 
 .info-section {
@@ -164,6 +211,8 @@ onMounted(() => {
 	margin: 0 24rpx;
 	border-radius: 20rpx;
 	padding: 24rpx;
+	border: 1rpx solid var(--border-light);
+	box-shadow: 0 2rpx 12rpx rgba(31, 36, 33, 0.05);
 }
 
 .info-row {
@@ -193,6 +242,8 @@ onMounted(() => {
 	margin: 24rpx;
 	border-radius: 20rpx;
 	padding: 24rpx;
+	border: 1rpx solid var(--border-light);
+	box-shadow: 0 2rpx 12rpx rgba(31, 36, 33, 0.05);
 }
 
 .section-title {
@@ -223,7 +274,7 @@ onMounted(() => {
 	width: 40rpx;
 	height: 40rpx;
 	border-radius: 50%;
-	background: rgba(224, 122, 95, 0.1);
+	background: var(--brand-glow);
 	color: var(--brand);
 	font-size: 24rpx;
 	font-weight: 600;
@@ -236,14 +287,14 @@ onMounted(() => {
 	font-size: 28rpx;
 	font-weight: 600;
 	color: var(--error);
-	background: rgba(255, 77, 79, 0.1);
+	background: rgba(199, 62, 45, 0.1);
 	padding: 6rpx 16rpx;
 	border-radius: 12rpx;
 }
 
 .item-tag.healthy {
-	color: var(--brand);
-	background: rgba(224, 122, 95, 0.1);
+	color: var(--forest-2);
+	background: var(--forest-light);
 }
 
 .item-confidence {
@@ -269,6 +320,6 @@ onMounted(() => {
 }
 
 .confidence-fill.healthy {
-	background: var(--brand);
+	background: var(--forest-2);
 }
 </style>

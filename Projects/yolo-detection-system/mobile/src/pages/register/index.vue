@@ -2,8 +2,6 @@
 	<view class="register-page">
 		<!-- 顶部品牌区 -->
 		<view class="brand-section">
-			<view class="decoration-circle circle-1"></view>
-			<view class="decoration-circle circle-2"></view>
 			<text class="brand-title">创建账号</text>
 			<text class="brand-desc">加入番茄病害诊断，开启智能种植之旅</text>
 		</view>
@@ -12,7 +10,7 @@
 		<view class="form-card">
 			<view class="input-group">
 				<view class="input-wrap" :class="{ focused: focusedField === 'username' }">
-					<AppIcon class="input-icon" name="user" :size="32" color="#ADB5BD" />
+					<AppIcon class="input-icon" name="user" :size="32" color="#C3C9C3" />
 					<input
 						v-model="form.username"
 						placeholder="请输入用户名（3-50字符）"
@@ -24,7 +22,7 @@
 				</view>
 
 				<view class="input-wrap" :class="{ focused: focusedField === 'email' }">
-					<AppIcon class="input-icon" name="mail" :size="32" color="#ADB5BD" />
+					<AppIcon class="input-icon" name="mail" :size="32" color="#C3C9C3" />
 					<input
 						v-model="form.email"
 						placeholder="请输入邮箱（选填）"
@@ -36,7 +34,7 @@
 				</view>
 
 				<view class="input-wrap" :class="{ focused: focusedField === 'password' }">
-					<AppIcon class="input-icon" name="lock" :size="32" color="#ADB5BD" />
+					<AppIcon class="input-icon" name="lock" :size="32" color="#C3C9C3" />
 					<input
 						v-model="form.password"
 						:type="showPassword ? 'text' : 'password'"
@@ -47,12 +45,12 @@
 						@blur="focusedField = ''"
 					/>
 					<view class="pwd-toggle" @click="showPassword = !showPassword">
-						<AppIcon :name="showPassword ? 'eye-off' : 'eye'" :size="32" color="#ADB5BD" />
+						<AppIcon :name="showPassword ? 'eye-off' : 'eye'" :size="32" color="#C3C9C3" />
 					</view>
 				</view>
 
 				<view class="input-wrap" :class="{ focused: focusedField === 'confirm' }">
-					<AppIcon class="input-icon" name="lock" :size="32" color="#ADB5BD" />
+					<AppIcon class="input-icon" name="lock" :size="32" color="#C3C9C3" />
 					<input
 						v-model="form.confirmPassword"
 						:type="showPassword ? 'text' : 'password'"
@@ -157,7 +155,7 @@ function goLogin() {
 <style lang="scss" scoped>
 .register-page {
 	min-height: 100vh;
-	background: linear-gradient(180deg, var(--brand) 0%, var(--brand-dark) 35%, var(--bg-2) 35%, var(--bg-2) 100%);
+	background: linear-gradient(180deg, var(--forest) 0%, var(--forest-2) 35%, var(--bg-2) 35%, var(--bg-2) 100%);
 	display: flex;
 	flex-direction: column;
 }
@@ -168,15 +166,17 @@ function goLogin() {
 	padding: 60rpx 48rpx 100rpx;
 }
 
-.decoration-circle {
+.brand-section::after {
+	content: '';
 	position: absolute;
-	border-radius: 50%;
-	filter: blur(40rpx);
-	opacity: 0.35;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 100%;
+	background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1rpx, transparent 1rpx);
+	background-size: 24rpx 24rpx;
+	pointer-events: none;
 }
-
-.circle-1 { width: 180rpx; height: 180rpx; background: var(--brand-light); top: 20rpx; right: -40rpx; }
-.circle-2 { width: 140rpx; height: 140rpx; background: #F5AB96; top: 80rpx; left: -30rpx; }
 
 .brand-title {
 	display: block;
@@ -229,7 +229,7 @@ function goLogin() {
 .input-wrap.focused {
 	border-color: var(--brand);
 	background: var(--bg-1);
-	box-shadow: 0 0 0 6rpx rgba(224, 122, 95, 0.08);
+	box-shadow: 0 0 0 6rpx rgba(200, 68, 47, 0.08);
 }
 
 .input-icon {
@@ -268,7 +268,7 @@ function goLogin() {
 	align-items: center;
 	justify-content: center;
 	border: none;
-	box-shadow: 0 8rpx 24rpx rgba(224, 122, 95, 0.3);
+	box-shadow: 0 8rpx 24rpx rgba(200, 68, 47, 0.3);
 }
 
 .register-btn.disabled {

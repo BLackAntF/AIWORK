@@ -8,6 +8,9 @@
         </el-icon>
       </button>
       <div class="logo">
+        <span class="logo-mark">
+          <el-icon :size="16"><Aim /></el-icon>
+        </span>
         <span class="logo-text font-logo">YOLO DETECT</span>
       </div>
     </div>
@@ -43,7 +46,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Fold, Expand, ArrowDown, User, SwitchButton } from '@element-plus/icons-vue'
+import { Fold, Expand, ArrowDown, User, SwitchButton, Aim } from '@element-plus/icons-vue'
 import ThemeToggle from '@/components/ThemeToggle.vue'
 import NotificationBell from '@/components/NotificationBell.vue'
 import { useUserStore } from '@/store/modules/user'
@@ -134,13 +137,26 @@ onUnmounted(() => {
 .logo {
   display: flex;
   align-items: center;
+  gap: 10px;
+}
+
+.logo-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-dark));
+  box-shadow: var(--shadow-accent);
+  flex-shrink: 0;
 }
 
 .logo-text {
   font-size: 20px;
   font-weight: 700;
   color: var(--color-accent);
-  text-shadow: 0 0 10px var(--color-accent-glow);
 }
 
 .header-right {
@@ -190,6 +206,11 @@ onUnmounted(() => {
 
   .logo-text {
     font-size: 16px;
+  }
+
+  .logo-mark {
+    width: 28px;
+    height: 28px;
   }
 }
 </style>

@@ -3,7 +3,7 @@
 		<PageHeader title="待审核" :show-back="true" />
 
 		<view class="read-only-hint">
-			<AppIcon name="alert" :size="28" color="#FAAD14" />
+			<AppIcon name="alert" :size="28" color="#D9A11E" />
 			<text class="hint-text">仅查看，审核请在 Web 端操作</text>
 		</view>
 
@@ -85,8 +85,16 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 .admin-page {
-	min-height: 100vh;
+	height: 100vh;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
 	background: var(--bg-2);
+}
+
+.admin-page :deep(.page-header),
+.admin-page .read-only-hint {
+	flex-shrink: 0;
 }
 
 .read-only-hint {
@@ -94,7 +102,7 @@ onMounted(() => {
 	align-items: center;
 	gap: 12rpx;
 	padding: 16rpx 24rpx;
-	background: rgba(250, 173, 20, 0.1);
+	background: rgba(217, 161, 30, 0.1);
 }
 
 .hint-text {
@@ -103,7 +111,8 @@ onMounted(() => {
 }
 
 .content {
-	height: calc(100vh - 180rpx);
+	flex: 1;
+	min-height: 0;
 	padding: 24rpx;
 }
 
@@ -147,7 +156,7 @@ onMounted(() => {
 .item-status {
 	font-size: 24rpx;
 	color: var(--warning);
-	background: rgba(250, 173, 20, 0.1);
+	background: rgba(217, 161, 30, 0.1);
 	padding: 6rpx 16rpx;
 	border-radius: 12rpx;
 	margin-left: 16rpx;

@@ -76,6 +76,22 @@ export function approveKnowledge(id, action) {
   return request.put(`/admin/knowledge/pending/${id}`, { action })
 }
 
+export function getKnowledgeTags() {
+  return request.get('/admin/knowledge/tags')
+}
+
+export function createKnowledgeTag(data) {
+  return request.post('/admin/knowledge/tags', data)
+}
+
+export function updateKnowledgeTag(id, data) {
+  return request.put(`/admin/knowledge/tags/${id}`, data)
+}
+
+export function deleteKnowledgeTag(id) {
+  return request.delete(`/admin/knowledge/tags/${id}`)
+}
+
 // ========== 分类管理 ==========
 
 export function getCategories() {

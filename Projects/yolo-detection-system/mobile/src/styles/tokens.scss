@@ -1,37 +1,41 @@
 /**
- * 设计 Token —— 唯一基准为 Web 端浅色主题
- * 来源：frontend/src/assets/styles/theme.css 的 :root 浅色值
- * 移动端只对齐浅色，不引入暗色主题
+ * 设计 Token —— 移动端「番茄田间精密工具」主题
+ * 番茄红 + 深墨绿 + 米色纸感背景，避开通用渐变模板感
  */
 
 page,
 :root {
 	/* 品牌色 */
-	--brand: #E07A5F;
-	--brand-light: #F29780;
-	--brand-dark: #C96247;
-	--brand-glow: rgba(224, 122, 95, 0.3);
+	--brand: #C8442F;
+	--brand-light: #DE6650;
+	--brand-dark: #A93322;
+	--brand-glow: rgba(200, 68, 47, 0.18);
+
+	/* 田间深绿 */
+	--forest: #1E3B2C;
+	--forest-2: #2C5740;
+	--forest-light: #EAF2EC;
 
 	/* 文本层级 */
-	--text-1: #1A1A2E;
-	--text-2: #4A4A68;
-	--text-3: #6C757D;
-	--text-disabled: #ADB5BD;
+	--text-1: #202A24;
+	--text-2: #5B665F;
+	--text-3: #8A938C;
+	--text-disabled: #C3C9C3;
 
 	/* 背景层级 */
-	--bg-1: #FFFFFF;
-	--bg-2: #F8F9FA;
-	--bg-3: #F1F3F5;
+	--bg-1: #FCFBF8;
+	--bg-2: #F6F3EE;
+	--bg-3: #EFEAE2;
 
 	/* 边框 */
-	--border: #E9ECEF;
-	--border-light: #F1F3F5;
+	--border: #E7E2D9;
+	--border-light: #F0ECE4;
 
 	/* 语义色 */
-	--success: #52C41A;
-	--warning: #FAAD14;
-	--error: #FF4D4F;
-	--info: #1890FF;
+	--success: #3C7A52;
+	--warning: #D9A11E;
+	--error: #C73E2D;
+	--info: #2F6B7A;
 
 	/* 圆角 */
 	--radius-sm: 8rpx;
@@ -40,8 +44,8 @@ page,
 	--radius-xl: 40rpx;
 
 	/* 阴影 */
-	--shadow-sm: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
-	--shadow-md: 0 4rpx 24rpx rgba(0, 0, 0, 0.08);
-	--shadow-lg: 0 8rpx 48rpx rgba(0, 0, 0, 0.12);
-	--shadow-brand: 0 4rpx 40rpx rgba(224, 122, 95, 0.3);
+	--shadow-sm: 0 1rpx 2rpx rgba(32, 42, 36, 0.04);
+	--shadow-md: 0 4rpx 16rpx rgba(32, 42, 36, 0.06);
+	--shadow-lg: 0 8rpx 32rpx rgba(32, 42, 36, 0.1);
+	--shadow-brand: 0 4rpx 20rpx rgba(200, 68, 47, 0.2);
 }

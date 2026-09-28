@@ -1,32 +1,32 @@
 :root {
-  --el-color-primary: #E07A5F;
-  --el-color-primary-light-3: #E8927D;
-  --el-color-primary-light-5: #EFAA99;
-  --el-color-primary-light-7: #F7C3B5;
-  --el-color-primary-light-8: #FAD1C6;
-  --el-color-primary-light-9: #FCE0D8;
-  --el-color-primary-dark-2: #C96247;
+  --el-color-primary: #C8442F;
+  --el-color-primary-light-3: #D47C6D;
+  --el-color-primary-light-5: #E4A197;
+  --el-color-primary-light-7: #EEC7C1;
+  --el-color-primary-light-8: #F4DAD5;
+  --el-color-primary-light-9: #FAECEA;
+  --el-color-primary-dark-2: #A03626;
 }
 
 [data-theme="dark"] {
-  --el-color-primary: #D4AF37;
-  --el-color-primary-light-3: #DCBC56;
-  --el-color-primary-light-5: #E5C975;
-  --el-color-primary-light-7: #EED694;
-  --el-color-primary-light-8: #F4DFAC;
-  --el-color-primary-light-9: #F9E8C4;
-  --el-color-primary-dark-2: #B8942A;
+  --el-color-primary: #E36549;
+  --el-color-primary-light-3: #E79281;
+  --el-color-primary-light-5: #F1B2A8;
+  --el-color-primary-light-7: #F8D1CB;
+  --el-color-primary-light-8: #FBDEDB;
+  --el-color-primary-light-9: #FDEEEC;
+  --el-color-primary-dark-2: #B6513A;
 }
 
 html.dark {
-  --el-color-primary: #D4AF37;
+  --el-color-primary: #E36549;
 }
 
 .el-button--primary {
   --el-button-bg-color: var(--el-color-primary);
   --el-button-border-color: var(--el-color-primary);
-  --el-button-hover-bg-color: var(--el-color-primary-light-3);
-  --el-button-hover-border-color: var(--el-color-primary-light-3);
+  --el-button-hover-bg-color: var(--el-color-primary-dark-2);
+  --el-button-hover-border-color: var(--el-color-primary-dark-2);
   --el-button-active-bg-color: var(--el-color-primary-dark-2);
   --el-button-active-border-color: var(--el-color-primary-dark-2);
 }
@@ -34,7 +34,7 @@ html.dark {
 .el-button {
   border-radius: var(--radius-md);
   font-weight: 500;
-  transition: all 0.3s ease;
+  transition: all 0.25s ease;
 }
 
 .el-button:hover {
@@ -49,7 +49,7 @@ html.dark {
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-border);
   box-shadow: var(--shadow-sm);
-  transition: all 0.3s ease;
+  transition: all 0.25s ease;
 }
 
 .el-card:hover {
@@ -176,7 +176,7 @@ html.dark {
 }
 
 .el-menu-item.is-active:hover {
-  background: var(--color-accent);
+  background: var(--color-accent-dark);
   color: #fff;
 }
 
@@ -313,7 +313,7 @@ html.dark {
   border-radius: var(--radius-lg);
   background: var(--color-bg-secondary);
   border: 2px dashed var(--color-border);
-  transition: all 0.3s ease;
+  transition: all 0.25s ease;
 }
 
 .el-upload-dragger:hover {

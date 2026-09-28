@@ -14,23 +14,23 @@
 		<view class="menu-section">
 			<view class="menu-group">
 				<view class="menu-item" @click="goChangePassword">
-					<AppIcon class="menu-icon" name="lock" :size="36" color="#6C757D" />
+					<AppIcon class="menu-icon" name="lock" :size="36" color="#8A938F" />
 					<text class="menu-text">修改密码</text>
 					<text class="menu-arrow">›</text>
 				</view>
 				<view class="menu-item" @click="goNotifications">
-					<AppIcon class="menu-icon" name="bell" :size="36" color="#6C757D" />
+					<AppIcon class="menu-icon" name="bell" :size="36" color="#8A938F" />
 					<text class="menu-text">站内通知</text>
 					<view v-if="unreadCount > 0" class="badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</view>
 					<text class="menu-arrow">›</text>
 				</view>
 				<view class="menu-item" @click="goKnowledge">
-					<AppIcon class="menu-icon" name="book" :size="36" color="#6C757D" />
+					<AppIcon class="menu-icon" name="book" :size="36" color="#8A938F" />
 					<text class="menu-text">知识库浏览</text>
 					<text class="menu-arrow">›</text>
 				</view>
 				<view class="menu-item" @click="showAbout">
-					<AppIcon class="menu-icon" name="info" :size="36" color="#6C757D" />
+					<AppIcon class="menu-icon" name="info" :size="36" color="#8A938F" />
 					<text class="menu-text">关于</text>
 					<text class="menu-arrow">›</text>
 				</view>
@@ -38,28 +38,28 @@
 
 			<view v-if="isAdmin" class="menu-group admin-group">
 				<view class="admin-header" @click="adminExpanded = !adminExpanded">
-					<AppIcon class="admin-icon" name="settings" :size="36" color="#E07A5F" />
+					<AppIcon class="admin-icon" name="settings" :size="36" color="#C8442F" />
 					<text class="admin-text">管理员入口</text>
 					<text class="admin-arrow" :class="{ expanded: adminExpanded }">›</text>
 				</view>
 				<view class="admin-submenu" :class="{ visible: adminExpanded }">
 					<view class="menu-item" @click="goAdmin('users')">
-						<AppIcon class="menu-icon" name="users" :size="36" color="#6C757D" />
+						<AppIcon class="menu-icon" name="users" :size="36" color="#8A938F" />
 						<text class="menu-text">用户管理</text>
 						<text class="menu-arrow">›</text>
 					</view>
 					<view class="menu-item" @click="goAdmin('pending')">
-						<AppIcon class="menu-icon" name="edit" :size="36" color="#6C757D" />
+						<AppIcon class="menu-icon" name="edit" :size="36" color="#8A938F" />
 						<text class="menu-text">待审核</text>
 						<text class="menu-arrow">›</text>
 					</view>
 					<view class="menu-item" @click="goAdmin('logs')">
-						<AppIcon class="menu-icon" name="log" :size="36" color="#6C757D" />
+						<AppIcon class="menu-icon" name="log" :size="36" color="#8A938F" />
 						<text class="menu-text">操作日志</text>
 						<text class="menu-arrow">›</text>
 					</view>
 					<view class="menu-item" @click="goAdmin('dashboard')">
-						<AppIcon class="menu-icon" name="chart" :size="36" color="#6C757D" />
+						<AppIcon class="menu-icon" name="chart" :size="36" color="#8A938F" />
 						<text class="menu-text">数据看板</text>
 						<text class="menu-arrow">›</text>
 					</view>
@@ -148,7 +148,7 @@ function handleLogout() {
 	uni.showModal({
 		title: '提示',
 		content: '确定退出登录吗？',
-		confirmColor: '#FF4D4F',
+		confirmColor: '#C73E2D',
 		success: (res) => {
 			if (res.confirm) {
 				userStore.logout()
@@ -171,13 +171,25 @@ function handleLogout() {
 	padding-top: calc(60rpx + env(safe-area-inset-top));
 }
 
+.user-section::after {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 360rpx;
+	background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1rpx, transparent 1rpx);
+	background-size: 24rpx 24rpx;
+	pointer-events: none;
+}
+
 .header-bg {
 	position: absolute;
 	top: 0;
 	left: 0;
 	right: 0;
 	height: 360rpx;
-	background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
+	background: linear-gradient(135deg, var(--forest) 0%, var(--forest-2) 100%);
 }
 
 .user-info {
@@ -223,8 +235,8 @@ function handleLogout() {
 }
 
 .role-tag.admin {
-	background: rgba(255, 152, 0, 0.3);
-	color: #FFEB3B;
+	background: rgba(200, 68, 47, 0.34);
+	color: #FFFFFF;
 }
 
 .menu-section {
@@ -283,8 +295,8 @@ function handleLogout() {
 }
 
 .admin-group {
-	background: rgba(224, 122, 95, 0.05);
-	border: 1rpx solid rgba(224, 122, 95, 0.2);
+	background: var(--brand-glow);
+	border: 1rpx solid rgba(200, 68, 47, 0.2);
 }
 
 .admin-header {
