@@ -3,7 +3,7 @@ import uuid
 import time
 from collections import defaultdict
 from flask import Blueprint, request, current_app, Response, stream_with_context
-from models import ChatHistory, db
+from models import ChatHistory, db, iso_utc
 from utils.response import success, bad_request, not_found, error
 from middleware.auth_middleware import login_required
 from services.knowledge_service import knowledge_service
@@ -303,7 +303,7 @@ def get_session_list(current_user):
             'session_id': session_id,
             'title': title,
             'last_message': last_message,
-            'last_time': last_time.isoformat() if last_time else None
+            'last_time': iso_utc(last_time)
         })
 
     return success(data={'sessions': session_list})

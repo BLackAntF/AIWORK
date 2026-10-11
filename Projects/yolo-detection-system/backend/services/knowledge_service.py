@@ -1,6 +1,6 @@
 from flask import current_app
 from sqlalchemy import func, desc
-from models import Knowledge, Tag, KnowledgeTag, db
+from models import Knowledge, Tag, KnowledgeTag, db, iso_utc
 
 try:
     import jieba
@@ -381,7 +381,7 @@ class KnowledgeService:
             'summary': knowledge.summary,
             'views': knowledge.views,
             'tags': [t.to_dict() for t in knowledge.tags] if knowledge.tags else [],
-            'created_at': knowledge.created_at.isoformat() if knowledge.created_at else None
+            'created_at': iso_utc(knowledge.created_at)
         }
 
     def get_knowledge_by_id(self, kb_id):
@@ -474,7 +474,7 @@ class KnowledgeService:
             'summary': knowledge.summary,
             'views': knowledge.views,
             'tags': [t.to_dict() for t in knowledge.tags] if knowledge.tags else [],
-            'created_at': knowledge.created_at.isoformat() if knowledge.created_at else None
+            'created_at': iso_utc(knowledge.created_at)
         }
 
 

@@ -1,7 +1,21 @@
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from werkzeug.security import generate_password_hash, check_password_hash
 from extensions import db
+
+
+def iso_utc(dt):
+    """将 naive UTC 时间序列化为带 +00:00 标记的 ISO 字符串
+
+    项目内 DateTime 列统一以 UTC 存储（default=datetime.utcnow）。
+    裸 isoformat() 输出无时区标记，前端 new Date() 会误判为本地时间，
+    导致相对时间偏差（如 +8 时区显示"8小时前"）。
+    """
+    if not dt:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.isoformat()
 
 
 class User(db.Model):
@@ -33,7 +47,7 @@ class User(db.Model):
             'username': self.username,
             'avatar': self.avatar,
             'role': self.role,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'created_at': iso_utc(self.created_at)
         }
         if include_email:
             data['email'] = self.email
@@ -96,7 +110,7 @@ class DetectionHistory(db.Model):
             'model_version': self.model_version,
             'class_names': self.class_names,
             'max_confidence': self.max_confidence,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'created_at': iso_utc(self.created_at)
         }
         if include_detail:
             data['original_path'] = self.original_path
@@ -136,7 +150,7 @@ class ChatHistory(db.Model):
             'role': self.role,
             'content': self.content,
             'metadata': self.get_metadata(),
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'created_at': iso_utc(self.created_at)
         }
 
 
@@ -179,7 +193,7 @@ class Knowledge(db.Model):
             'uploader_name': self.uploader.username if self.uploader else None,
             'file_path': self.file_path,
             'tags': [tag.to_dict() for tag in self.tags] if self.tags else [],
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'created_at': iso_utc(self.created_at)
         }
 
 
@@ -223,7 +237,7 @@ class ModelInfo(db.Model):
             'version': self.version,
             'is_active': self.is_active,
             'description': self.description,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'created_at': iso_utc(self.created_at)
         }
 
 
@@ -242,7 +256,7 @@ class KnowledgeCategory(db.Model):
             'id': self.id,
             'name': self.name,
             'description': self.description,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'created_at': iso_utc(self.created_at)
         }
 
 
@@ -274,7 +288,7 @@ class AdminLog(db.Model):
             'target_id': self.target_id,
             'detail': self.detail,
             'ip_address': self.ip_address,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'created_at': iso_utc(self.created_at)
         }
 
 
@@ -328,7 +342,7 @@ class Tag(db.Model):
             'id': self.id,
             'name': self.name,
             'color': self.color,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'created_at': iso_utc(self.created_at)
         }
 
 
@@ -381,7 +395,7 @@ class Notification(db.Model):
             'is_read': self.is_read,
             'related_type': self.related_type,
             'related_id': self.related_id,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'created_at': iso_utc(self.created_at)
         }
 
 
@@ -411,5 +425,5 @@ class KnowledgeFavorite(db.Model):
             'id': self.id,
             'user_id': self.user_id,
             'knowledge_id': self.knowledge_id,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'created_at': iso_utc(self.created_at)
         }

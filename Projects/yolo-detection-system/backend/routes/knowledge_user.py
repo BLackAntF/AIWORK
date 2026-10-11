@@ -1,5 +1,5 @@
 from flask import Blueprint, request
-from models import Knowledge, KnowledgeFavorite, Tag, db
+from models import Knowledge, KnowledgeFavorite, Tag, db, iso_utc
 from utils.response import success, not_found, bad_request, error
 from services.knowledge_service import knowledge_service
 from middleware.auth_middleware import login_required
@@ -42,7 +42,7 @@ def get_knowledge_detail(knowledge_id):
         'summary': knowledge.summary,
         'content': knowledge.content,
         'views': knowledge.views,
-        'created_at': knowledge.created_at.isoformat() if knowledge.created_at else None
+        'created_at': iso_utc(knowledge.created_at)
     })
 
 
@@ -113,7 +113,7 @@ def get_my_favorites(current_user):
         items.append({
             'id': fav.id,
             'knowledge_id': fav.knowledge_id,
-            'created_at': fav.created_at.isoformat() if fav.created_at else None,
+            'created_at': iso_utc(fav.created_at),
             'knowledge': {
                 'id': kb.id if kb else None,
                 'title': kb.title if kb else '',
