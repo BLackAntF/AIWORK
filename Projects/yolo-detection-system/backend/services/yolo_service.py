@@ -181,7 +181,7 @@ class YoloService:
             'class_summary': class_summary,
             'result_path': result_path,
             'processing_time': processing_time,
-            'model_version': 'yolo26s'
+            'model_version': 'yolo26n-tomato'
         }
 
     def detect_video(self, video_path, result_dir, save_result=True, progress_callback=None):

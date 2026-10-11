@@ -1,0 +1,17 @@
+path: /root/ultralytics-YOLO26/datasets/tomato
+train: images/train
+val: images/val
+test: images/val
+
+nc: 10
+names:
+  0: 细菌性斑点病
+  1: 早疫病
+  2: 健康叶片
+  3: 晚疫病
+  4: 叶霉病
+  5: 花叶病毒病
+  6: 斑枯病
+  7: 蜘蛛螨危害
+  8: 靶斑病
+  9: 黄化曲叶病毒病

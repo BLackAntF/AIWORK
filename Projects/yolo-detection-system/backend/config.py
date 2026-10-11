@@ -45,9 +45,10 @@ class Config:
     ALLOWED_VIDEO_EXTENSIONS = {'mp4', 'avi', 'mov', 'mkv'}
 
     YOLO_MODEL_PATH = os.path.join(BASE_DIR, 'data', 'model', 'best.pt')
-    YOLO_CONF_THRESHOLD = 0.5
-    YOLO_IOU_THRESHOLD = 0.45
-    YOLO_USE_MOCK = True
+    # 置信度阈值：200 轮完整模型置信度正常，恢复 0.5（可用环境变量覆盖）
+    YOLO_CONF_THRESHOLD = float(os.environ.get('YOLO_CONF_THRESHOLD', 0.5))
+    YOLO_IOU_THRESHOLD = float(os.environ.get('YOLO_IOU_THRESHOLD', 0.45))
+    YOLO_USE_MOCK = _str_to_bool(os.environ.get('YOLO_USE_MOCK', 'false'))
 
     LLM_API_KEY = os.environ.get('LLM_API_KEY') or ''
     LLM_BASE_URL = os.environ.get('LLM_BASE_URL') or ''
