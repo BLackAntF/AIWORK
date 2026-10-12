@@ -29,7 +29,8 @@ def get_detection_stats(current_user):
         if result:
             detections = result.get('detections', [])
             for d in detections:
-                label = d.get('label', 'unknown')
+                # 真实模型与 mock 均输出 class_name；兼容旧数据可能的 label 字段
+                label = d.get('class_name') or d.get('label') or 'unknown'
                 category_counts[label] = category_counts.get(label, 0) + 1
 
     return success(data={

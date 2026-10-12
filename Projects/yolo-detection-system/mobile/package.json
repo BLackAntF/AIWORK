@@ -31,6 +31,7 @@
     "build:mp-harmony": "uni build -p mp-harmony",
     "build:mp-weixin": "node scripts/build-mp-weixin.js",
     "build:app": "node scripts/build-mp-weixin.js --platform=app",
+    "build:app-plus": "node scripts/build-mp-weixin.js --platform=app",
     "build:mp-xhs": "uni build -p mp-xhs",
     "build:quickapp-webview": "uni build -p quickapp-webview",
     "build:quickapp-webview-huawei": "uni build -p quickapp-webview-huawei",
