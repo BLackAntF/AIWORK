@@ -197,3 +197,23 @@ export function uploadModel(file, name) {
 export function setActiveModel(model_id) {
   return request.put('/admin/models/active', { model_id })
 }
+
+// ========== 模型版本对比 ==========
+
+export function getModelCompare() {
+  return request.get('/admin/stats/model-compare')
+}
+
+// ========== 样本池（增量训练数据） ==========
+
+export function getSamplePoolList(params) {
+  return request.get('/admin/sample-pool', { params })
+}
+
+export function reviewSample(id, status, review_note) {
+  return request.put(`/admin/sample-pool/${id}/review`, { status, review_note })
+}
+
+export function exportSamplePool() {
+  return request.get('/admin/sample-pool/export', { responseType: 'blob' })
+}

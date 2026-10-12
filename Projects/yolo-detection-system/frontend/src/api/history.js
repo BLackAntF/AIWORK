@@ -23,3 +23,7 @@ export function exportHistory(params) {
 export function getHistoryReport(id) {
   return request.get(`/history/${id}/report`, { responseType: 'blob' })
 }
+
+export function downloadHistoryReportPdf(id) {
+  return request.get(`/history/${id}/report/pdf`, { responseType: 'blob' })
+}

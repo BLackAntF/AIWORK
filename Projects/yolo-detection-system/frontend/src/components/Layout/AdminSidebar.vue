@@ -27,6 +27,18 @@
           <el-icon><DataLine /></el-icon>
           <template #title>数据统计</template>
         </el-menu-item>
+        <el-menu-item index="/admin/model-compare">
+          <el-icon><TrendCharts /></el-icon>
+          <template #title>模型对比</template>
+        </el-menu-item>
+        <el-menu-item index="/admin/sample-pool">
+          <el-icon><DataAnalysis /></el-icon>
+          <template #title>样本池</template>
+        </el-menu-item>
+        <el-menu-item index="/admin/screen">
+          <el-icon><DataBoard /></el-icon>
+          <template #title>数据大屏</template>
+        </el-menu-item>
         <el-menu-item index="/admin/config">
           <el-icon><Setting /></el-icon>
           <template #title>系统配置</template>
@@ -49,7 +61,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Odometer, User, Document, Search, DataLine, Setting, Fold, Expand, Clock } from '@element-plus/icons-vue'
+import { Odometer, User, Document, Search, DataLine, Setting, Fold, Expand, Clock, TrendCharts, DataAnalysis, DataBoard } from '@element-plus/icons-vue'
 
 defineProps({
   collapsed: {

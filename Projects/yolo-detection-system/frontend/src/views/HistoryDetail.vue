@@ -30,6 +30,10 @@
             <el-icon><Document /></el-icon>
             <span>导出报告</span>
           </el-button>
+          <el-button :loading="pdfLoading" @click="handleDownloadPdf">
+            <el-icon><Download /></el-icon>
+            <span>下载 PDF</span>
+          </el-button>
           <el-button type="danger" @click="handleDelete">
             <el-icon><Delete /></el-icon>
             <span>删除</span>
@@ -188,9 +192,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   ArrowLeft, ChatDotRound, Refresh, Delete, DataAnalysis,
-  CollectionTag, Timer, ZoomIn, Warning, VideoCamera, Document
+  CollectionTag, Timer, ZoomIn, Warning, VideoCamera, Document, Download
 } from '@element-plus/icons-vue'
-import { getHistoryDetail, deleteHistory, getHistoryReport } from '@/api/history'
+import { getHistoryDetail, deleteHistory, getHistoryReport, downloadHistoryReportPdf } from '@/api/history'
 import { getFullUrl } from '@/utils/format'
 
 const route = useRoute()
@@ -200,6 +204,7 @@ const loading = ref(false)
 const detail = ref(null)
 const showImagePreview = ref(false)
 const exportLoading = ref(false)
+const pdfLoading = ref(false)
 
 const resultImageUrl = computed(() => {
   const img = detail.value?.result_path || detail.value?.original_path
@@ -362,6 +367,29 @@ async function handleExportReport() {
     console.error('导出报告失败', error)
   } finally {
     exportLoading.value = false
+  }
+}
+
+async function handleDownloadPdf() {
+  const id = route.params.id
+  if (!id) return
+  pdfLoading.value = true
+  try {
+    const res = await downloadHistoryReportPdf(id)
+    const url = URL.createObjectURL(res.data)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `detection_report_${id}.pdf`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    ElMessage.success('PDF 报告下载成功')
+  } catch (error) {
+    console.error('下载 PDF 失败', error)
+    ElMessage.error('下载 PDF 失败，请稍后重试')
+  } finally {
+    pdfLoading.value = false
   }
 }
 

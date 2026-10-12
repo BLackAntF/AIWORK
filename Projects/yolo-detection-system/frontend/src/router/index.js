@@ -107,6 +107,24 @@ const routes = [
         meta: { title: '数据统计', icon: 'DataLine' }
       },
       {
+        path: 'model-compare',
+        name: 'AdminModelCompare',
+        component: () => import('@/views/admin/ModelCompare.vue'),
+        meta: { title: '模型版本对比', icon: 'TrendCharts' }
+      },
+      {
+        path: 'sample-pool',
+        name: 'AdminSamplePool',
+        component: () => import('@/views/admin/SamplePool.vue'),
+        meta: { title: '样本池管理', icon: 'DataAnalysis' }
+      },
+      {
+        path: 'screen',
+        name: 'AdminDataScreen',
+        component: () => import('@/views/admin/DataScreen.vue'),
+        meta: { title: '数据大屏', icon: 'DataBoard' }
+      },
+      {
         path: 'config',
         name: 'AdminConfig',
         component: () => import('@/views/admin/Config.vue'),
