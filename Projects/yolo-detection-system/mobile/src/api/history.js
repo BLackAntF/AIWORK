@@ -22,3 +22,8 @@ export function getHistoryDetail(id) {
 export function deleteHistory(id) {
   return request({ url: `/history/${id}`, method: 'DELETE' })
 }
+
+/** 提交检测样本反馈（增量数据池） */
+export function submitSampleFeedback(data) {
+  return request({ url: '/sample-pool', method: 'POST', data })
+}
