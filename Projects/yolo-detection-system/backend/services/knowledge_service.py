@@ -1,6 +1,11 @@
+from collections import namedtuple
+
 from flask import current_app
 from sqlalchemy import func, desc
 from models import Knowledge, Tag, KnowledgeTag, db, iso_utc
+
+# 检索快照用的纯数据文档（避免缓存 ORM 实体导致 session 过期后 DetachedInstanceError）
+_KbDoc = namedtuple('_KbDoc', ['id', 'title', 'content', 'views', 'updated_at', 'created_at'])
 
 try:
     import jieba
@@ -164,12 +169,18 @@ class KnowledgeService:
         return corpus
 
     def _get_snapshot(self):
-        """取激活知识快照，并按需重建缓存索引"""
+        """取激活知识快照，并按需重建缓存索引
+
+        快照缓存 namedtuple 纯数据而非 ORM 实体：ORM 实体随请求 session
+        过期后访问属性会抛 DetachedInstanceError（长驻内存缓存的真实 bug）。
+        """
         all_knowledge = self._active_knowledge()
-        signature = self._index_signature(all_knowledge)
+        docs = [_KbDoc(kb.id, kb.title, kb.content, kb.views,
+                       kb.updated_at, kb.created_at) for kb in all_knowledge]
+        signature = self._index_signature(docs)
         if self._bm25_signature != signature:
-            self._bm25_docs = all_knowledge
-            self._bm25_corpus, self._bm25_index = self._build_index(all_knowledge)
+            self._bm25_docs = docs
+            self._bm25_corpus, self._bm25_index = self._build_index(docs)
             self._bm25_signature = signature
         return self._bm25_docs, self._bm25_corpus, self._bm25_index
 

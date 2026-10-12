@@ -4,7 +4,7 @@ from collections import defaultdict
 from datetime import datetime, date, timedelta
 from flask import request, Response
 from routes.admin import admin_bp
-from models import User, DetectionHistory, ChatHistory, Knowledge, ModelInfo, AdminLog, db
+from models import User, DetectionHistory, ChatHistory, Knowledge, ModelInfo, AdminLog, db, iso_utc
 from utils.response import success, bad_request, error
 from middleware.auth_middleware import admin_required
 
@@ -370,3 +370,82 @@ def export_stats(current_user):
             'Content-Disposition': f'attachment; filename="{filename}"'
         }
     )
+
+
+def _normalize_class_name(name):
+    """类别名归一化（别名映射），与病害分布统计保持同一口径"""
+    return CLASS_ALIASES.get(name, name)
+
+
+@admin_bp.route('/stats/model-compare', methods=['GET'])
+@admin_required
+def get_model_compare(current_user):
+    """按模型版本聚合检测数据，用于模型效果横向对比
+
+    聚合口径：每个 model_version 的检测总数、健康/病害占比、无检出数、
+    平均最高置信度、类别检出分布、使用起止时间
+    """
+    records = db.session.query(
+        DetectionHistory.model_version,
+        DetectionHistory.class_names,
+        DetectionHistory.max_confidence,
+        DetectionHistory.created_at
+    ).all()
+
+    versions = {}
+    for model_version, class_names, max_conf, created_at in records:
+        key = model_version or 'unknown'
+        v = versions.setdefault(key, {
+            'model_version': key,
+            'total': 0,
+            'disease_count': 0,
+            'healthy_count': 0,
+            'no_detection': 0,
+            'conf_sum': 0.0,
+            'conf_n': 0,
+            'class_distribution': defaultdict(int),
+            'first_used': created_at,
+            'last_used': created_at,
+        })
+        v['total'] += 1
+        if created_at:
+            if v['first_used'] is None or created_at < v['first_used']:
+                v['first_used'] = created_at
+            if v['last_used'] is None or created_at > v['last_used']:
+                v['last_used'] = created_at
+
+        names = [n.strip() for n in (class_names or '').split(',') if n.strip()]
+        if not names:
+            v['no_detection'] += 1
+            continue
+
+        if all(_normalize_class_name(n) in NON_DISEASE_CLASSES for n in names):
+            v['healthy_count'] += 1
+        else:
+            v['disease_count'] += 1
+
+        for n in names:
+            v['class_distribution'][_normalize_class_name(n)] += 1
+
+        if max_conf is not None:
+            v['conf_sum'] += max_conf
+            v['conf_n'] += 1
+
+    data = []
+    for key in sorted(versions, key=lambda k: versions[k]['last_used'] or datetime.min, reverse=True):
+        v = versions[key]
+        data.append({
+            'model_version': key,
+            'total': v['total'],
+            'disease_count': v['disease_count'],
+            'healthy_count': v['healthy_count'],
+            'no_detection': v['no_detection'],
+            'avg_confidence': round(v['conf_sum'] / v['conf_n'], 4) if v['conf_n'] else None,
+            'class_distribution': sorted(
+                v['class_distribution'].items(), key=lambda kv: kv[1], reverse=True
+            ),
+            'first_used': iso_utc(v['first_used']),
+            'last_used': iso_utc(v['last_used']),
+        })
+
+    return success(data={'versions': data})

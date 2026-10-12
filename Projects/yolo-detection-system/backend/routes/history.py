@@ -1,12 +1,13 @@
 import csv
 import io
+import json
 from datetime import datetime, timedelta
 from typing import Optional
 
 from flask import Blueprint, request, current_app, Response
 from markupsafe import escape
 from models import DetectionHistory, DiseaseProfile, db
-from utils.response import success, bad_request, not_found
+from utils.response import success, bad_request, not_found, server_error
 from middleware.auth_middleware import login_required
 
 history_bp = Blueprint('history', __name__, url_prefix='/api/history')
@@ -466,6 +467,207 @@ def get_history_report(current_user, history_id):
         html,
         mimetype='text/html',
         headers={'Content-Disposition': f'inline; filename="{filename}"'}
+    )
+
+
+# ==================== PDF 报告 ====================
+
+# Windows 自带中文字体；msyh.ttc 为正文，simhei.ttf 为标题（fpdf2 对 ttc 取第一个字体）
+PDF_FONT_REGULAR = r'C:\Windows\Fonts\msyh.ttc'
+PDF_FONT_BOLD = r'C:\Windows\Fonts\simhei.ttf'
+
+THEME_MAIN = (201, 98, 71)      # 主题色 c96247，与 HTML 报告一致
+THEME_TEXT = (45, 52, 54)       # 正文
+THEME_MUTED = (99, 110, 114)    # 次要文字
+THEME_LINE = (240, 240, 240)    # 分隔线
+
+
+def _pdf_ensure_fonts(pdf):
+    """注册中文字体（幂等）"""
+    import os
+    if not any('msyh' in f for f in pdf.fonts):
+        pdf.add_font('msyh', '', PDF_FONT_REGULAR)
+        pdf.add_font('msyh-b', '', PDF_FONT_BOLD)
+
+
+def _pdf_section_title(pdf, text):
+    pdf.ln(2)
+    pdf.set_font('msyh-b', '', 13)
+    pdf.set_text_color(*THEME_MAIN)
+    pdf.cell(4, 8, '')
+    pdf.cell(0, 8, text, new_x='LMARGIN', new_y='NEXT')
+    pdf.set_draw_color(*THEME_MAIN)
+    pdf.set_line_width(0.4)
+    pdf.line(pdf.l_margin + 2, pdf.get_y(), pdf.w - pdf.r_margin - 2, pdf.get_y())
+    pdf.ln(3)
+    pdf.set_text_color(*THEME_TEXT)
+
+
+def _pdf_info_row(pdf, label, value):
+    pdf.set_font('msyh', '', 10.5)
+    pdf.set_text_color(*THEME_MUTED)
+    pdf.set_fill_color(250, 250, 250)
+    pdf.cell(38, 8, label, border=1, fill=True)
+    pdf.set_text_color(*THEME_TEXT)
+    pdf.cell(0, 8, str(value), border=1, new_x='LMARGIN', new_y='NEXT')
+
+
+def _build_history_pdf(item):
+    """将检测记录渲染为 A4 PDF 报告（与 HTML 报告同一数据口径）"""
+    from fpdf import FPDF
+
+    pdf = FPDF(format='A4')
+    pdf.set_auto_page_break(auto=True, margin=18)
+    pdf.set_margins(16, 16, 16)
+    pdf.add_page()
+    _pdf_ensure_fonts(pdf)
+
+    # ---- 头部 ----
+    pdf.set_fill_color(*THEME_MAIN)
+    pdf.set_text_color(255, 255, 255)
+    pdf.rect(16, 16, pdf.w - 32, 22, style='F')
+    pdf.set_xy(20, 21)
+    pdf.set_font('msyh-b', '', 16)
+    pdf.cell(0, 10, '番茄病害检测报告')
+    pdf.set_xy(20, 30)
+    pdf.set_font('msyh', '', 9)
+    generated_text = datetime.now().strftime('%Y-%m-%d %H:%M')
+    pdf.cell(0, 6, f'番茄卫士系统自动生成 · {generated_text}')
+    pdf.set_y(44)
+    pdf.set_text_color(*THEME_TEXT)
+
+    # ---- 基本信息 ----
+    _pdf_section_title(pdf, '一、基本信息')
+    created_text = item.created_at.strftime('%Y-%m-%d %H:%M:%S') if item.created_at else '-'
+    _pdf_info_row(pdf, '文件名', item.original_filename)
+    _pdf_info_row(pdf, '检测类型', '图片检测' if item.type == 'image' else item.type)
+    _pdf_info_row(pdf, '检测时间', created_text)
+    _pdf_info_row(pdf, '模型版本', item.model_version or '-')
+    _pdf_info_row(pdf, '处理耗时', f'{item.processing_time or 0:.2f} 秒')
+    _pdf_info_row(pdf, '检测目标数', item.detection_count or 0)
+    pdf.ln(4)
+
+    # ---- 检测结论 ----
+    _pdf_section_title(pdf, '二、检测结论')
+    names = [n.strip() for n in (item.class_names or '').split(',') if n.strip()]
+    if not names:
+        pdf.set_font('msyh', '', 10.5)
+        pdf.cell(0, 8, '未检出目标', new_x='LMARGIN', new_y='NEXT')
+    else:
+        is_healthy = all(n in HEALTHY_CLASS_NAMES for n in names)
+        pdf.set_font('msyh-b', '', 11.5)
+        if is_healthy:
+            pdf.set_text_color(46, 158, 91)
+            pdf.cell(0, 9, '结论：叶片健康', new_x='LMARGIN', new_y='NEXT')
+        else:
+            pdf.set_text_color(201, 62, 47)
+            pdf.cell(0, 9, '结论：检出病害，建议及时处置', new_x='LMARGIN', new_y='NEXT')
+        pdf.set_text_color(*THEME_TEXT)
+        pdf.ln(2)
+
+        pdf.set_font('msyh', '', 10.5)
+        pdf.set_fill_color(250, 250, 250)
+        pdf.cell(90, 8, '病害类别', border=1, fill=True)
+        pdf.cell(0, 8, '置信度', border=1, new_x='LMARGIN', new_y='NEXT')
+        detections = []
+        if item.detection_result:
+            try:
+                parsed = json.loads(item.detection_result)
+                detections = parsed.get('detections', []) if isinstance(parsed, dict) else []
+            except (ValueError, TypeError):
+                detections = []
+        if detections:
+            for det in detections:
+                pdf.cell(90, 8, det.get('class_name', '-'), border=1)
+                pdf.cell(0, 8, f"{float(det.get('confidence', 0)) * 100:.1f}%", border=1,
+                         new_x='LMARGIN', new_y='NEXT')
+        else:
+            for n in names:
+                pdf.cell(90, 8, n, border=1)
+                conf = f"{item.max_confidence * 100:.1f}%" if item.max_confidence else '-'
+                pdf.cell(0, 8, conf, border=1, new_x='LMARGIN', new_y='NEXT')
+    pdf.ln(4)
+
+    # ---- 病害档案与防治建议 ----
+    if not is_healthy and names:
+        profile = DiseaseProfile.query.filter_by(disease_name=names[0], is_active=True).first()
+        if profile:
+            _pdf_section_title(pdf, f'三、病害档案：{profile.disease_name}')
+            pdf.set_font('msyh', '', 10.5)
+            sections = [
+                ('症状识别', profile.symptoms),
+                ('发生规律', profile.occurrence),
+                ('农业防治', profile.prevention),
+                ('药剂防治', profile.treatment or profile.pesticides),
+            ]
+            for title, body in sections:
+                if not body:
+                    continue
+                pdf.set_font('msyh-b', '', 10.5)
+                pdf.cell(0, 7, title, new_x='LMARGIN', new_y='NEXT')
+                pdf.set_font('msyh', '', 10)
+                pdf.multi_cell(0, 6.5, body)
+                pdf.ln(1.5)
+        pdf.ln(2)
+
+    # ---- 检测图片 ----
+    import os
+    images = [('原图', item.original_path), ('检测结果', item.result_path)]
+    available = [(label, path) for label, path in images if path and os.path.exists(path)]
+    if available:
+        _pdf_section_title(pdf, '四、检测图片')
+    for label, path in available:
+        try:
+            pdf.image(path, w=110, new_x='LMARGIN', new_y='NEXT')
+        except RuntimeError:
+            # 图片损坏时跳过，不阻断报告生成
+            continue
+        pdf.set_font('msyh', '', 9)
+        pdf.set_text_color(*THEME_MUTED)
+        pdf.cell(0, 6, label, align='C', new_x='LMARGIN', new_y='NEXT')
+        pdf.set_text_color(*THEME_TEXT)
+        pdf.ln(2)
+
+    # ---- 页脚声明 ----
+    pdf.set_y(-30)
+    pdf.set_draw_color(*THEME_LINE)
+    pdf.set_line_width(0.3)
+    pdf.line(16, pdf.get_y(), pdf.w - 16, pdf.get_y())
+    pdf.ln(2)
+    pdf.set_font('msyh', '', 8.5)
+    pdf.set_text_color(*THEME_MUTED)
+    pdf.multi_cell(0, 5,
+                   '本报告由番茄卫士系统基于 YOLO 模型自动生成，防治建议仅供参考。\n'
+                   '具体用药请遵医嘱，必要时建议咨询当地植保站。')
+
+    return pdf
+
+
+@history_bp.route('/<int:history_id>/report/pdf', methods=['GET'])
+@login_required
+def get_history_report_pdf(current_user, history_id):
+    """下载单条检测记录的 PDF 报告"""
+    item = DetectionHistory.query.filter_by(
+        id=history_id,
+        user_id=current_user.id
+    ).first()
+
+    if not item:
+        return not_found('记录不存在')
+
+    try:
+        pdf = _build_history_pdf(item)
+    except OSError as e:
+        # 字体缺失等环境问题：明确报错而非 500
+        current_app.logger.error(f"PDF 报告生成失败: {e}")
+        return server_error('PDF 生成失败：服务器缺少中文字体')
+
+    data = bytes(pdf.output())
+    filename = f'detection_report_{history_id}.pdf'
+    return Response(
+        data,
+        mimetype='application/pdf',
+        headers={'Content-Disposition': f'attachment; filename="{filename}"'}
     )
 
 

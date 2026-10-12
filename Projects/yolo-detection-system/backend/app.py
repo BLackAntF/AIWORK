@@ -45,7 +45,7 @@ def create_app(config_class=Config):
 
     # 注册蓝图
     from routes import auth_bp, detection_bp, knowledge_bp, history_bp, health_bp, admin_bp, \
-        knowledge_user_bp, disease_bp, notifications_bp
+        knowledge_user_bp, disease_bp, notifications_bp, sample_pool_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(detection_bp)
     app.register_blueprint(knowledge_bp)
@@ -55,6 +55,7 @@ def create_app(config_class=Config):
     app.register_blueprint(knowledge_user_bp)
     app.register_blueprint(disease_bp)
     app.register_blueprint(notifications_bp)
+    app.register_blueprint(sample_pool_bp)
 
     # 根路径重定向到健康检查
     @app.route('/')

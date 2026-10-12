@@ -427,3 +427,57 @@ class KnowledgeFavorite(db.Model):
             'knowledge_id': self.knowledge_id,
             'created_at': iso_utc(self.created_at)
         }
+
+
+class SamplePool(db.Model):
+    """增量训练样本池：用户对检测结果反馈纠错，管理员审核后用于下一轮训练"""
+    __tablename__ = 'sample_pool'
+
+    MARK_CORRECT = 'correct'          # 检出正确（可作正样本）
+    MARK_MISCLASSIFIED = 'misclassified'  # 类别识别错误（corrected_class 必填）
+    MARK_MISSED = 'missed'            # 漏检（图中有病害未被检出）
+    MARK_UNCERTAIN = 'uncertain'      # 不确定
+
+    MARK_TYPES = (MARK_CORRECT, MARK_MISCLASSIFIED, MARK_MISSED, MARK_UNCERTAIN)
+    STATUS_PENDING = 'pending'
+    STATUS_APPROVED = 'approved'
+    STATUS_REJECTED = 'rejected'
+    STATUSES = (STATUS_PENDING, STATUS_APPROVED, STATUS_REJECTED)
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    history_id = db.Column(db.Integer, db.ForeignKey('detection_history.id'), nullable=False, index=True)
+    image_path = db.Column(db.String(500), nullable=False)
+    predicted_class = db.Column(db.String(100))
+    predicted_confidence = db.Column(db.Float)
+    mark_type = db.Column(db.String(20), nullable=False)
+    corrected_class = db.Column(db.String(100))
+    note = db.Column(db.Text)
+    status = db.Column(db.String(20), default=STATUS_PENDING, index=True)
+    review_note = db.Column(db.String(255))
+    reviewed_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    reviewed_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+    user = db.relationship('User', foreign_keys=[user_id], backref='sample_pool')
+    history = db.relationship('DetectionHistory', backref='sample_pool')
+    reviewer = db.relationship('User', foreign_keys=[reviewed_by])
+
+    def to_dict(self) -> dict:
+        """转换为字典"""
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'username': self.user.username if self.user else None,
+            'history_id': self.history_id,
+            'image_path': self.image_path,
+            'predicted_class': self.predicted_class,
+            'predicted_confidence': self.predicted_confidence,
+            'mark_type': self.mark_type,
+            'corrected_class': self.corrected_class,
+            'note': self.note,
+            'status': self.status,
+            'review_note': self.review_note,
+            'reviewed_at': iso_utc(self.reviewed_at),
+            'created_at': iso_utc(self.created_at)
+        }

@@ -7,7 +7,7 @@ from middleware.auth_middleware import admin_required
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/api/admin')
 
-from . import users, knowledge, detections, stats, config
+from . import users, knowledge, detections, stats, config, sample_pool
 
 
 @admin_bp.route('/logs', methods=['GET'])
