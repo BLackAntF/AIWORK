@@ -65,3 +65,4 @@ Projects/yolo-detection-system/dataset/Tomato/images/
 Projects/yolo-detection-system/dataset/Tomato/tomato/images/
 Projects/yolo-detection-system/dataset/Tomato/tomato/labels/
 Projects/yolo-detection-system/dataset/Tomato_Leaf_Disease.zip
+Projects/yolo-detection-system/training/**/weights/
