@@ -83,7 +83,10 @@ class LLMService:
 症状：{disease_profile.get('symptoms', '未知')}
 预防措施：{disease_profile.get('prevention', '未知')}
 治疗方案：{disease_profile.get('treatment', '未知')}
-推荐药剂：{disease_profile.get('pesticides', '未知')}"""
+推荐药剂：{disease_profile.get('pesticides', '未知')}
+用药剂量：{disease_profile.get('dosage', '未知')}
+安全间隔期：{disease_profile.get('safety_interval', '未知')}
+生物防治：{disease_profile.get('biological_control', '未知')}"""
             context_parts = [profile_text]
             if knowledge_list:
                 context_parts.append(f"【相关知识】\n{chr(10).join(knowledge_list)}")
@@ -130,7 +133,10 @@ class LLMService:
 症状：{disease_profile.get('symptoms', '未知')}
 预防措施：{disease_profile.get('prevention', '未知')}
 治疗方案：{disease_profile.get('treatment', '未知')}
-推荐药剂：{disease_profile.get('pesticides', '未知')}"""
+推荐药剂：{disease_profile.get('pesticides', '未知')}
+用药剂量：{disease_profile.get('dosage', '未知')}
+安全间隔期：{disease_profile.get('safety_interval', '未知')}
+生物防治：{disease_profile.get('biological_control', '未知')}"""
             context_parts.append(profile_text)
 
         if knowledge_list:

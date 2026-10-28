@@ -1,13 +1,15 @@
+import base64
 import csv
 import io
 import json
+import secrets
 from datetime import datetime, timedelta
 from typing import Optional
 
 from flask import Blueprint, request, current_app, Response
 from markupsafe import escape
-from models import DetectionHistory, DiseaseProfile, db
-from utils.response import success, bad_request, not_found, server_error
+from models import DetectionHistory, DiseaseProfile, ShareLink, db, iso_utc
+from utils.response import success, bad_request, not_found, forbidden, server_error
 from middleware.auth_middleware import login_required
 
 history_bp = Blueprint('history', __name__, url_prefix='/api/history')
@@ -294,6 +296,143 @@ def get_history_detail(current_user, history_id):
         return not_found('记录不存在')
 
     return success(data=item.to_dict(include_detail=True))
+
+
+# ==================== 检测结果分享 ====================
+
+SHARE_TOKEN_BYTES = 24
+SHARE_DEFAULT_DAYS = 7
+SHARE_MAX_DAYS = 30
+
+
+def _parse_expires_days(raw) -> tuple:
+    """解析分享有效期天数（1~30，默认 7）
+
+    Args:
+        raw: 请求体中的 expires_days
+
+    Returns:
+        tuple: (天数, 错误消息)
+    """
+    if raw is None or raw == '':
+        return SHARE_DEFAULT_DAYS, None
+    try:
+        days = int(raw)
+    except (TypeError, ValueError):
+        return None, f'expires_days 必须为 1~{SHARE_MAX_DAYS} 的整数'
+    if days < 1 or days > SHARE_MAX_DAYS:
+        return None, f'expires_days 必须为 1~{SHARE_MAX_DAYS} 的整数'
+    return days, None
+
+
+def _make_qr_base64(url: str) -> Optional[str]:
+    """生成链接二维码（base64 编码的 PNG）
+
+    Args:
+        url: 分享链接
+
+    Returns:
+        str | None: base64 字符串，二维码库不可用时为 None
+    """
+    try:
+        import qrcode
+    except ImportError:
+        current_app.logger.warning('qrcode 未安装，分享链接不返回二维码')
+        return None
+    buffer = io.BytesIO()
+    qrcode.make(url).save(buffer, format='PNG')
+    return base64.b64encode(buffer.getvalue()).decode('ascii')
+
+
+def _share_payload(link: ShareLink, base_url: str) -> dict:
+    """组装分享响应（token / 链接 / 过期时间 / 二维码）
+
+    Args:
+        link: 分享链接记录
+        base_url: 前端站点根地址（如 http://localhost:5173），用于生成可访问的分享链接
+
+    Returns:
+        dict: 分享信息
+    """
+    share_url = f'{base_url.rstrip("/")}/share/{link.token}'
+    return {
+        'token': link.token,
+        'share_url': share_url,
+        'expires_at': iso_utc(link.expires_at),
+        'qr_code': _make_qr_base64(share_url)
+    }
+
+
+def _resolve_share_base(data: dict) -> str:
+    """解析分享链接使用的前端站点根地址
+
+    Args:
+        data: 请求 JSON
+
+    Returns:
+        str: 合法则用前端传入的 origin，否则回退当前请求站点
+    """
+    base = str(data.get('base_url') or '').strip()
+    if base.startswith(('http://', 'https://')) and len(base) <= 200:
+        return base
+    return request.host_url
+
+
+@history_bp.route('/<int:history_id>/share', methods=['POST'])
+@login_required
+def share_history(current_user, history_id):
+    """创建或复用一条检测结果的公开分享链接（仅本人或管理员）
+
+    Args:
+        history_id: 检测历史 ID
+    Body:
+        expires_days: 有效期天数 1~30，默认 7
+    """
+    item = DetectionHistory.query.filter_by(id=history_id).first()
+    if not item:
+        return not_found('记录不存在')
+    if item.user_id != current_user.id and current_user.role != 'admin':
+        return forbidden('只能分享自己的检测记录')
+
+    data = request.get_json(silent=True) or {}
+    days, error_message = _parse_expires_days(data.get('expires_days'))
+    if error_message:
+        return bad_request(error_message)
+
+    link = _find_or_create_share(item, current_user.id, days)
+    return success(data=_share_payload(link, _resolve_share_base(data)),
+                   message='分享链接已生成')
+
+
+def _find_or_create_share(item: DetectionHistory, user_id: int,
+                          days: int) -> ShareLink:
+    """复用未过期分享记录，否则新建一条
+
+    Args:
+        item: 检测历史记录
+        user_id: 当前用户 ID
+        days: 有效期天数
+
+    Returns:
+        ShareLink: 可用的分享记录
+    """
+    now = datetime.utcnow()
+    link = ShareLink.query.filter(
+        ShareLink.history_id == item.id,
+        ShareLink.expires_at > now
+    ).order_by(ShareLink.created_at.desc()).first()
+    if link:
+        return link
+
+    link = ShareLink(
+        token=secrets.token_urlsafe(SHARE_TOKEN_BYTES),
+        history_id=item.id,
+        user_id=user_id,
+        expires_at=now + timedelta(days=days)
+    )
+    db.session.add(link)
+    db.session.commit()
+    return link
 
 
 def _render_history_report(item: DetectionHistory) -> str:
@@ -599,6 +738,9 @@ def _build_history_pdf(item):
                 ('发生规律', profile.occurrence),
                 ('农业防治', profile.prevention),
                 ('药剂防治', profile.treatment or profile.pesticides),
+                ('用药剂量', profile.dosage),
+                ('安全间隔期', profile.safety_interval),
+                ('生物防治', profile.biological_control),
             ]
             for title, body in sections:
                 if not body:

@@ -307,6 +307,9 @@ class DiseaseProfile(db.Model):
     prevention = db.Column(db.Text)
     treatment = db.Column(db.Text)
     pesticides = db.Column(db.Text)
+    dosage = db.Column(db.Text)
+    safety_interval = db.Column(db.String(100))
+    biological_control = db.Column(db.Text)
 
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -324,6 +327,9 @@ class DiseaseProfile(db.Model):
             'prevention': self.prevention,
             'treatment': self.treatment,
             'pesticides': self.pesticides,
+            'dosage': self.dosage,
+            'safety_interval': self.safety_interval,
+            'biological_control': self.biological_control,
             'is_active': self.is_active
         }
 
@@ -453,6 +459,7 @@ class SamplePool(db.Model):
     mark_type = db.Column(db.String(20), nullable=False)
     corrected_class = db.Column(db.String(100))
     note = db.Column(db.Text)
+    auto_created = db.Column(db.Boolean, default=False, index=True)  # 低置信度自动收录
     status = db.Column(db.String(20), default=STATUS_PENDING, index=True)
     review_note = db.Column(db.String(255))
     reviewed_by = db.Column(db.Integer, db.ForeignKey('users.id'))
@@ -476,8 +483,40 @@ class SamplePool(db.Model):
             'mark_type': self.mark_type,
             'corrected_class': self.corrected_class,
             'note': self.note,
+            'auto_created': bool(self.auto_created),
             'status': self.status,
             'review_note': self.review_note,
             'reviewed_at': iso_utc(self.reviewed_at),
+            'created_at': iso_utc(self.created_at)
+        }
+
+
+class ShareLink(db.Model):
+    """检测结果公开分享链接（token 访问，无需登录）"""
+    __tablename__ = 'share_links'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    token = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    history_id = db.Column(db.Integer, db.ForeignKey('detection_history.id'),
+                           nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+    history = db.relationship('DetectionHistory', backref='share_links')
+    user = db.relationship('User', backref='share_links')
+
+    def is_expired(self):
+        """判断链接是否已过期"""
+        return bool(self.expires_at and self.expires_at < datetime.utcnow())
+
+    def to_dict(self):
+        """转换为字典（不含二维码）"""
+        return {
+            'id': self.id,
+            'token': self.token,
+            'history_id': self.history_id,
+            'user_id': self.user_id,
+            'expires_at': iso_utc(self.expires_at),
             'created_at': iso_utc(self.created_at)
         }

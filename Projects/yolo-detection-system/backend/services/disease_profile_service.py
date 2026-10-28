@@ -34,7 +34,10 @@ class DiseaseProfileService:
             "symptoms": profile.symptoms,
             "prevention": profile.prevention,
             "treatment": profile.treatment,
-            "pesticides": profile.pesticides
+            "pesticides": profile.pesticides,
+            "dosage": profile.dosage,
+            "safety_interval": profile.safety_interval,
+            "biological_control": profile.biological_control
         }
 
 

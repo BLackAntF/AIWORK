@@ -2,7 +2,7 @@ import os
 from typing import Optional
 
 from flask import Blueprint, request, current_app
-from models import DetectionHistory, db
+from models import DetectionHistory, SamplePool, SystemConfig, db
 from utils.response import success, bad_request, server_error
 from utils.file_utils import allowed_file, save_uploaded_file, get_file_size, get_relative_url
 from middleware.auth_middleware import login_required
@@ -84,6 +84,112 @@ def _save_history(user_id: int, original_name: str, original_image_url: str,
     return history.id
 
 
+def _get_low_confidence_threshold() -> float:
+    """读取低置信度阈值（SystemConfig 优先，其次应用配置）
+
+    Returns:
+        float: 阈值，默认 0.5
+    """
+    config = SystemConfig.query.filter_by(config_key='low_confidence_threshold').first()
+    if config and config.config_value:
+        try:
+            return float(config.config_value)
+        except (TypeError, ValueError):
+            current_app.logger.warning('low_confidence_threshold 配置值非法，回退默认值')
+    return float(current_app.config.get('LOW_CONFIDENCE_THRESHOLD', 0.5))
+
+
+def _aggregate_candidates(detections: list, limit: int = 3) -> list:
+    """按类别聚合检测置信度并取前 limit 个候选
+
+    Args:
+        detections: 检测结果列表
+        limit: 返回候选数量上限
+
+    Returns:
+        list: [{class_id, class_name, confidence}, ...]，按置信度降序
+    """
+    best = {}
+    for det in detections:
+        class_id = det.get('class_id')
+        confidence = det.get('confidence')
+        if class_id is None or not isinstance(confidence, (int, float)):
+            continue
+        if class_id not in best or confidence > best[class_id]['confidence']:
+            best[class_id] = {
+                'class_id': class_id,
+                'class_name': det.get('class_name'),
+                'confidence': confidence
+            }
+    return sorted(best.values(), key=lambda item: item['confidence'], reverse=True)[:limit]
+
+
+def _create_auto_sample(user_id: int, history_id: Optional[int], image_path: Optional[str],
+                        candidate: dict) -> Optional[int]:
+    """低置信度检测自动进入样本池（同一记录已有非驳回反馈则跳过）
+
+    Args:
+        user_id: 用户 ID
+        history_id: 检测历史 ID
+        image_path: 图片 URL
+        candidate: 置信度最高的候选
+
+    Returns:
+        int | None: 新建样本 ID，跳过时返回 None
+    """
+    if not history_id:
+        return None
+    existed = SamplePool.query.filter(
+        SamplePool.user_id == user_id,
+        SamplePool.history_id == history_id,
+        SamplePool.status != SamplePool.STATUS_REJECTED
+    ).first()
+    if existed:
+        return None
+
+    sample = SamplePool(
+        user_id=user_id,
+        history_id=history_id,
+        image_path=image_path or '',
+        predicted_class=candidate.get('class_name'),
+        predicted_confidence=candidate.get('confidence'),
+        mark_type=SamplePool.MARK_UNCERTAIN,
+        note='系统自动采集（低置信度）',
+        auto_created=True,
+        status=SamplePool.STATUS_PENDING
+    )
+    db.session.add(sample)
+    db.session.commit()
+    return sample.id
+
+
+def _low_confidence_meta(user_id: int, history_id: Optional[int], image_path: Optional[str],
+                         detections: list) -> dict:
+    """计算低置信度兜底信息，必要时自动写入样本池
+
+    Args:
+        user_id: 用户 ID
+        history_id: 检测历史 ID
+        image_path: 图片 URL
+        detections: 检测结果列表
+
+    Returns:
+        dict: low_confidence / confidence_threshold / top_candidates / sample_pool_id
+    """
+    candidates = _aggregate_candidates(detections)
+    threshold = _get_low_confidence_threshold()
+    max_confidence = candidates[0]['confidence'] if candidates else 0
+    low_confidence = bool(candidates) and max_confidence < threshold
+    sample_pool_id = _create_auto_sample(user_id, history_id, image_path, candidates[0]) \
+        if low_confidence else None
+    return {
+        'low_confidence': low_confidence,
+        'confidence_threshold': threshold,
+        'top_candidates': candidates,
+        'sample_pool_id': sample_pool_id
+    }
+
+
 def _detect_one(file, user_id: int, save_history: bool) -> dict:
     """处理单张图片检测，单图失败不影响整体
 
@@ -117,7 +223,7 @@ def _detect_one(file, user_id: int, save_history: bool) -> dict:
             det['disease_profile'] = disease_profile_service.get_profile_for_llm(class_id) \
                 if class_id is not None else None
 
-        return {
+        result = {
             'original_filename': original_name,
             'id': history_id,
             'result_image': result_image_url,
@@ -130,6 +236,10 @@ def _detect_one(file, user_id: int, save_history: bool) -> dict:
             'success': True,
             'error': None
         }
+        result.update(_low_confidence_meta(
+            user_id, history_id, original_image_url, detect_result['detections']
+        ))
+        return result
     except Exception as exc:  # noqa: BLE001 - 单图失败需降级为结果项而非中断批量
         current_app.logger.exception('图片检测失败: %s', original_name)
         db.session.rollback()

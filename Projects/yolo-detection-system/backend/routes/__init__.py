@@ -8,6 +8,9 @@ from .knowledge_user import knowledge_user_bp
 from .disease import disease_bp
 from .notifications import notifications_bp
 from .sample_pool import sample_pool_bp
+from .share import share_bp
+from .weather import weather_bp
 
 __all__ = ['auth_bp', 'detection_bp', 'knowledge_bp', 'history_bp', 'health_bp', 'admin_bp',
-           'knowledge_user_bp', 'disease_bp', 'notifications_bp', 'sample_pool_bp']
+           'knowledge_user_bp', 'disease_bp', 'notifications_bp', 'sample_pool_bp',
+           'share_bp', 'weather_bp']

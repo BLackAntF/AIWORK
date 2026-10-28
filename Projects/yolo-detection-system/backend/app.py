@@ -8,6 +8,40 @@ from config import Config
 from extensions import db, jwt, cors
 from utils.response import server_error
 
+# SQLite 新增列定义：db.create_all() 不会为已存在的表补列，启动时按需 ALTER
+TABLE_NEW_COLUMNS = {
+    'disease_profiles': {
+        'dosage': 'TEXT',
+        'safety_interval': 'VARCHAR(100)',
+        'biological_control': 'TEXT'
+    },
+    'sample_pool': {
+        'auto_created': 'BOOLEAN DEFAULT 0'
+    }
+}
+
+
+def _migrate_added_columns(app):
+    """为已存在的表补齐新增列（幂等）
+
+    Args:
+        app: Flask 应用实例（需已有应用上下文）
+    """
+    with app.app_context():
+        if db.engine.dialect.name != 'sqlite':
+            return
+        for table, columns in TABLE_NEW_COLUMNS.items():
+            rows = db.session.execute(db.text(f'PRAGMA table_info({table})')).fetchall()
+            existing = {row[1] for row in rows}
+            if not existing:
+                continue
+            for column, ddl in columns.items():
+                if column not in existing:
+                    db.session.execute(db.text(
+                        f'ALTER TABLE {table} ADD COLUMN {column} {ddl}'
+                    ))
+        db.session.commit()
+
 
 def create_app(config_class=Config):
     """创建 Flask 应用工厂
@@ -30,6 +64,7 @@ def create_app(config_class=Config):
     # 初始化扩展
     db.init_app(app)
     jwt.init_app(app)
+    _migrate_added_columns(app)
 
     # CORS 配置：使用具体的允许来源
     cors_origins = app.config.get('CORS_ORIGINS', 'http://localhost:5173')
@@ -45,7 +80,7 @@ def create_app(config_class=Config):
 
     # 注册蓝图
     from routes import auth_bp, detection_bp, knowledge_bp, history_bp, health_bp, admin_bp, \
-        knowledge_user_bp, disease_bp, notifications_bp, sample_pool_bp
+        knowledge_user_bp, disease_bp, notifications_bp, sample_pool_bp, share_bp, weather_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(detection_bp)
     app.register_blueprint(knowledge_bp)
@@ -56,6 +91,8 @@ def create_app(config_class=Config):
     app.register_blueprint(disease_bp)
     app.register_blueprint(notifications_bp)
     app.register_blueprint(sample_pool_bp)
+    app.register_blueprint(share_bp)
+    app.register_blueprint(weather_bp)
 
     # 根路径重定向到健康检查
     @app.route('/')

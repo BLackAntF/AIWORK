@@ -50,6 +50,9 @@ class Config:
     YOLO_IOU_THRESHOLD = float(os.environ.get('YOLO_IOU_THRESHOLD', 0.45))
     YOLO_USE_MOCK = _str_to_bool(os.environ.get('YOLO_USE_MOCK', 'false'))
 
+    # 低置信度兜底阈值：最高置信度低于该值时提示候选并自动采集样本
+    LOW_CONFIDENCE_THRESHOLD = float(os.environ.get('LOW_CONFIDENCE_THRESHOLD', 0.5))
+
     LLM_API_KEY = os.environ.get('LLM_API_KEY') or ''
     LLM_BASE_URL = os.environ.get('LLM_BASE_URL') or ''
     LLM_MODEL = os.environ.get('LLM_MODEL') or 'qwen-turbo'

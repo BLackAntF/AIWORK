@@ -42,7 +42,15 @@ def submit_sample(current_user):
         SamplePool.status != SamplePool.STATUS_REJECTED
     ).first()
     if existed:
-        return bad_request('该记录已提交过反馈，请等待审核')
+        if not existed.auto_created:
+            return bad_request('该记录已提交过反馈，请等待审核')
+        # 用户手动反馈覆盖系统自动收录的记录，避免重复条目
+        existed.mark_type = mark_type
+        existed.corrected_class = corrected_class or None
+        existed.note = note or None
+        existed.auto_created = False
+        db.session.commit()
+        return success(data=existed.to_dict(), message='反馈已提交，感谢协助改进模型')
 
     predicted_class = ''
     if item.class_names:
