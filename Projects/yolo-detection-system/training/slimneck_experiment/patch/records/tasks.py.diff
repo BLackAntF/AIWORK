@@ -1,0 +1,28 @@
+--- ultralytics/nn/tasks.py.orig
++++ ultralytics/nn/tasks.py.slimneck
+@@ -2027,6 +2027,8 @@
+     return model, ckpt
+ 
+ 
++from ultralytics.nn.modules.Slim_Neck import GSConv, GSBottleneck, GSBottleneckC, VoVGSCSP
++
+ def parse_model(d, ch, verbose=True):
+     """Parse a YOLO model.yaml dictionary into a PyTorch model.
+ 
+@@ -2069,6 +2071,8 @@
+     layers, save, c2 = [], [], ch[-1]  # layers, savelist, ch out
+     base_modules = frozenset(
+         {
++            GSConv,
++            VoVGSCSP,
+             Classify,
+             Conv,
+             ConvTranspose,
+@@ -2107,6 +2111,7 @@
+     )
+     repeat_modules = frozenset(  # modules with 'repeat' arguments
+         {
++            VoVGSCSP,
+             BottleneckCSP,
+             C1,
+             C2,

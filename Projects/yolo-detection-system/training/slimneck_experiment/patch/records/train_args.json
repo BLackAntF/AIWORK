@@ -1,0 +1,15 @@
+{
+  "data": "/root/ultralytics-YOLO26/datasets/tomato/data.yaml",
+  "epochs": 200,
+  "patience": 999,
+  "batch": 64,
+  "imgsz": 640,
+  "cache": true,
+  "device": "0",
+  "workers": 16,
+  "seed": 0,
+  "optimizer": "auto",
+  "project": "/root/ultralytics-YOLO26/runs/tomato",
+  "name": "yolo26n_slimneck_b64",
+  "exist_ok": true
+}

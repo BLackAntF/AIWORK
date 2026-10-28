@@ -1,0 +1,2 @@
+baseline_yolo26n: params=2,572,280 (2.572M)  GFLOPs=6.2
+slimneck_yolo26n: params=2,456,696 (2.457M)  GFLOPs=5.6
