@@ -43,6 +43,27 @@ def _migrate_added_columns(app):
         db.session.commit()
 
 
+# 默认系统配置：启动时若不存在则插入，使管理端配置页可见可改（幂等）
+DEFAULT_CONFIGS = {
+    'low_confidence_threshold': ('0.5', '低置信度兜底阈值：检测结果最高置信度低于该值时，自动收录样本池并提示候选类别')
+}
+
+
+def _ensure_default_configs(app):
+    """向 system_config 插入缺失的默认配置项（幂等）
+
+    Args:
+        app: Flask 应用实例（需已有应用上下文）
+    """
+    from models import SystemConfig
+    with app.app_context():
+        for key, (value, description) in DEFAULT_CONFIGS.items():
+            if not SystemConfig.query.filter_by(config_key=key).first():
+                db.session.add(SystemConfig(
+                    config_key=key, config_value=value, description=description))
+        db.session.commit()
+
+
 def create_app(config_class=Config):
     """创建 Flask 应用工厂
 
@@ -127,6 +148,7 @@ if __name__ == '__main__':
     # 确保数据库表已创建
     with app.app_context():
         db.create_all()
+    _ensure_default_configs(app)
 
     # 启动服务：Debug 模式通过环境变量控制
     debug = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'

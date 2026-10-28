@@ -46,6 +46,7 @@
         <el-table-column label="反馈类型" width="180">
           <template #default="{ row }">
             <el-tag :type="markMeta(row.mark_type).type" size="small">{{ markMeta(row.mark_type).label }}</el-tag>
+            <el-tag v-if="row.auto_created" type="info" size="small" class="auto-tag" title="低置信度检测由系统自动收录">自动</el-tag>
             <div v-if="row.corrected_class" class="corrected-text">→ 纠正为 {{ row.corrected_class }}</div>
           </template>
         </el-table-column>
@@ -343,6 +344,10 @@ onMounted(fetchList)
   font-size: 12px;
   color: var(--color-accent);
   margin-top: 4px;
+}
+
+.auto-tag {
+  margin-left: 6px;
 }
 
 .pred-class {
