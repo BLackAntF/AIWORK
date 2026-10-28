@@ -80,6 +80,31 @@
               <span>放大查看</span>
             </el-button>
           </div>
+          <el-alert
+            v-if="lowConfidence"
+            type="warning"
+            show-icon
+            :closable="false"
+            class="low-confidence-alert"
+          >
+            <template #title>
+              检测置信度偏低（阈值 {{ formatThreshold(lowConfidence.threshold) }}），建议重新拍摄清晰叶片照片
+            </template>
+            <div class="low-confidence-detail">
+              <div v-if="lowConfidence.candidates.length" class="candidate-line">
+                <span class="candidate-label">可能：</span>
+                <el-tag
+                  v-for="candidate in lowConfidence.candidates"
+                  :key="candidate.class_id ?? candidate.class_name"
+                  type="warning"
+                  effect="plain"
+                  size="small"
+                  class="candidate-tag"
+                >{{ candidate.class_name }}({{ formatConfidencePercent(candidate.confidence) }}%)</el-tag>
+              </div>
+              <p v-if="lowConfidence.samplePoolId" class="sample-pool-note">该图片已自动收录至样本池待人工复核</p>
+            </div>
+          </el-alert>
           <div class="result-image-wrapper">
             <img :src="resultImageUrl" alt="检测结果" class="result-image" @click="handlePreviewResult" />
           </div>
@@ -462,6 +487,26 @@ const resultImageUrl = computed(() => {
   if (!detectionResult.value?.result_image) return ''
   return getFullUrl(detectionResult.value.result_image)
 })
+
+const lowConfidence = computed(() => {
+  const result = detectionResult.value
+  if (!result || result.low_confidence !== true) return null
+  return {
+    threshold: typeof result.confidence_threshold === 'number' ? result.confidence_threshold : 0.5,
+    candidates: Array.isArray(result.top_candidates)
+      ? result.top_candidates.filter((item) => item && item.class_name)
+      : [],
+    samplePoolId: result.sample_pool_id ?? null
+  }
+})
+
+function formatThreshold(value) {
+  return typeof value === 'number' ? `${Math.round(value * 100)}%` : '-'
+}
+
+function formatConfidencePercent(value) {
+  return typeof value === 'number' ? Math.round(value * 100) : 0
+}
 
 const classSummaryList = computed(() => {
   if (!detectionResult.value?.class_summary) return []
@@ -946,6 +991,40 @@ onUnmounted(() => {
   width: 100%;
   display: flex;
   justify-content: center;
+}
+
+.low-confidence-alert {
+  margin-bottom: 16px;
+}
+
+.low-confidence-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.candidate-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.candidate-label {
+  font-weight: 500;
+}
+
+.candidate-tag {
+  margin: 0;
+}
+
+.sample-pool-note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
 }
 
 .result-image {

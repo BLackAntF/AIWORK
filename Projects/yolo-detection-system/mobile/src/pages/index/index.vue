@@ -43,6 +43,49 @@
 			</view>
 		</view>
 
+		<!-- 天气卡片 -->
+		<view v-if="weather" class="weather-section">
+			<view class="weather-card">
+				<view class="weather-main">
+					<view class="weather-info">
+						<view class="weather-title-row">
+							<AppIcon name="sprout" :size="34" color="#2C5740" />
+							<text class="weather-title">{{ weatherDescription }}</text>
+						</view>
+						<view class="weather-metrics">
+							<text class="weather-temp">{{ formatTemp(weather.current.temperature) }}°C</text>
+							<text class="weather-meta">湿度 {{ weather.current.humidity ?? '-' }}%</text>
+							<text class="weather-meta">风速 {{ weather.current.wind_speed ?? '-' }} m/s</text>
+						</view>
+					</view>
+					<view class="weather-location">
+						<AppIcon name="pin" :size="24" color="#8A938C" />
+						<text class="weather-location-text">当前位置</text>
+					</view>
+				</view>
+
+				<view v-if="forecastDays.length" class="weather-daily">
+					<view v-for="day in forecastDays" :key="day.date" class="daily-item">
+						<text class="daily-date">{{ formatDay(day.date) }}</text>
+						<text class="daily-weather">{{ weatherText(day.weather_code) }}</text>
+						<text class="daily-temp">
+							{{ formatTemp(day.temperature_2m_min) }}~{{ formatTemp(day.temperature_2m_max) }}°
+						</text>
+						<text class="daily-rain">降水 {{ day.precipitation_probability_max ?? 0 }}%</text>
+					</view>
+				</view>
+
+				<view v-if="weather.advice" class="weather-advice" :class="{ suitable: weather.advice.suitable }">
+					<AppIcon
+						:name="weather.advice.suitable ? 'check' : 'alert'"
+						:size="26"
+						:color="weather.advice.suitable ? '#3C7A52' : '#D9A11E'"
+					/>
+					<text class="advice-text">{{ adviceText }}</text>
+				</view>
+			</view>
+		</view>
+
 		<!-- 快速操作 -->
 		<view class="action-section">
 			<view class="action-card primary" @click="goDetect">
@@ -124,6 +167,7 @@ import { ref, computed } from 'vue'
 import { onShow, onPullDownRefresh } from '@dcloudio/uni-app'
 import { useUserStore } from '@/store/user'
 import { getHistoryList, getHistoryStats } from '@/api/history'
+import { getWeather } from '@/api/weather'
 import { getFullUrl } from '@/utils/format'
 import EmptyState from '@/components/EmptyState.vue'
 import AppIcon from '@/components/AppIcon.vue'
@@ -133,6 +177,73 @@ const loading = ref(false)
 const records = ref([])
 const brokenImages = ref([])
 const stats = ref({ total: 0, disease_count: 0, healthy_count: 0 })
+const weather = ref(null)
+const weatherRequested = ref(false)
+
+const DEFAULT_LOCATION = { lat: 39.9042, lon: 116.4074 }
+
+const weatherDescription = computed(() => weatherText(weather.value?.current?.weather_code))
+const forecastDays = computed(() => (weather.value?.daily || []).slice(0, 3))
+const adviceText = computed(() => {
+	const advice = weather.value?.advice
+	if (!advice) return ''
+	if (advice.suitable) return '近期适宜施药'
+	return `暂缓施药：${advice.reason || '天气条件不佳'}`
+})
+
+function weatherText(code) {
+	if (code === 0) return '晴'
+	if (code >= 1 && code <= 3) return '多云'
+	if (code === 45 || code === 48) return '雾'
+	if (code >= 51 && code <= 67) return '雨'
+	if (code >= 71 && code <= 77) return '雪'
+	if (code >= 80 && code <= 82) return '阵雨'
+	if (code >= 95 && code <= 99) return '雷雨'
+	return '未知'
+}
+
+function formatTemp(value) {
+	return typeof value === 'number' ? Math.round(value) : '--'
+}
+
+function formatDay(dateStr) {
+	if (!dateStr) return ''
+	const date = new Date(`${dateStr}T00:00:00`)
+	if (Number.isNaN(date.getTime())) return dateStr
+	const today = new Date()
+	const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1)
+	if (date.toDateString() === today.toDateString()) return '今天'
+	if (date.toDateString() === tomorrow.toDateString()) return '明天'
+	return `${date.getMonth() + 1}/${date.getDate()}`
+}
+
+function resolveLocation() {
+	return new Promise((resolve) => {
+		uni.getLocation({
+			type: 'wgs84',
+			success: (res) => {
+				if (typeof res.latitude === 'number' && typeof res.longitude === 'number') {
+					resolve({ lat: res.latitude, lon: res.longitude })
+				} else {
+					resolve(DEFAULT_LOCATION)
+				}
+			},
+			fail: () => resolve(DEFAULT_LOCATION)
+		})
+	})
+}
+
+async function loadWeather() {
+	if (weatherRequested.value) return
+	weatherRequested.value = true
+	try {
+		const location = await resolveLocation()
+		weather.value = await getWeather(location.lat, location.lon)
+	} catch (e) {
+		// 天气加载失败静默降级，不显示卡片，不影响首页其他内容
+		weather.value = null
+	}
+}
 
 const HEALTHY_NAMES = ['健康', '健康叶片', '健康叶子', '正常叶片', 'Healthy']
 
@@ -258,6 +369,7 @@ onShow(() => {
 		userStore.fetchUserInfo().catch(() => {})
 	}
 	loadRecords()
+	loadWeather()
 })
 </script>
 
@@ -417,6 +529,137 @@ onShow(() => {
 	font-size: 20rpx;
 	color: var(--text-3);
 	margin-left: 4rpx;
+}
+
+/* 天气卡片 */
+.weather-section {
+	padding: 0 28rpx;
+	margin-top: 24rpx;
+}
+
+.weather-card {
+	background: var(--bg-1);
+	border: 1rpx solid var(--border-light);
+	border-radius: 24rpx;
+	padding: 24rpx;
+	box-shadow: var(--shadow-sm);
+	display: flex;
+	flex-direction: column;
+	gap: 18rpx;
+}
+
+.weather-main {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16rpx;
+}
+
+.weather-info {
+	display: flex;
+	flex-direction: column;
+	gap: 12rpx;
+	min-width: 0;
+}
+
+.weather-title-row {
+	display: flex;
+	align-items: center;
+	gap: 10rpx;
+}
+
+.weather-title {
+	font-size: 30rpx;
+	font-weight: 700;
+	color: var(--text-1);
+}
+
+.weather-metrics {
+	display: flex;
+	align-items: baseline;
+	flex-wrap: wrap;
+	gap: 16rpx;
+}
+
+.weather-temp {
+	font-size: 52rpx;
+	font-weight: 700;
+	color: var(--forest);
+	line-height: 1;
+}
+
+.weather-meta {
+	font-size: 22rpx;
+	color: var(--text-3);
+}
+
+.weather-location {
+	display: flex;
+	align-items: center;
+	gap: 6rpx;
+	flex-shrink: 0;
+}
+
+.weather-location-text {
+	font-size: 20rpx;
+	color: var(--text-3);
+}
+
+.weather-daily {
+	display: flex;
+	gap: 12rpx;
+}
+
+.daily-item {
+	flex: 1;
+	background: var(--bg-2);
+	border-radius: 16rpx;
+	padding: 14rpx 12rpx;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 6rpx;
+}
+
+.daily-date {
+	font-size: 21rpx;
+	color: var(--text-3);
+}
+
+.daily-weather {
+	font-size: 24rpx;
+	font-weight: 600;
+	color: var(--text-1);
+}
+
+.daily-temp {
+	font-size: 22rpx;
+	color: var(--text-2);
+}
+
+.daily-rain {
+	font-size: 20rpx;
+	color: var(--info);
+}
+
+.weather-advice {
+	display: flex;
+	align-items: center;
+	gap: 10rpx;
+	padding: 14rpx 18rpx;
+	border-radius: 16rpx;
+	background: rgba(217, 161, 30, 0.12);
+}
+
+.weather-advice.suitable {
+	background: var(--forest-light);
+}
+
+.advice-text {
+	flex: 1;
+	font-size: 23rpx;
+	line-height: 1.5;
+	color: var(--text-1);
 }
 
 /* 快速操作 */

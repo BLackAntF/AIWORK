@@ -66,6 +66,27 @@
 
 			<view class="detection-section">
 				<text class="section-title">检测结果</text>
+				<view v-if="lowConfidence" class="low-confidence-card">
+					<view class="low-confidence-head">
+						<AppIcon name="alert" :size="32" color="#D9A11E" />
+						<text class="low-confidence-title">
+							检测置信度偏低（阈值 {{ formatPercent(lowConfidence.threshold) }}），建议重新拍摄清晰叶片照片
+						</text>
+					</view>
+					<view v-if="lowConfidence.candidates.length" class="candidate-row">
+						<text class="candidate-label">可能：</text>
+						<view
+							v-for="candidate in lowConfidence.candidates"
+							:key="candidate.class_id ?? candidate.class_name"
+							class="candidate-tag"
+						>
+							<text>{{ candidate.class_name }}({{ Math.round((candidate.confidence || 0) * 100) }}%)</text>
+						</view>
+					</view>
+					<text v-if="lowConfidence.samplePoolId" class="low-confidence-note">
+						该图片已自动收录至样本池待人工复核
+					</text>
+				</view>
 				<view
 					v-for="(item, index) in detections"
 					:key="index"
@@ -173,6 +194,46 @@ const markOptions = [
 ]
 
 const detections = computed(() => record.value?.detection_result?.detections || [])
+
+function deriveCandidates(list) {
+	const best = {}
+	list.forEach((item) => {
+		const confidence = item?.confidence
+		if (item?.class_id == null || typeof confidence !== 'number') return
+		if (!best[item.class_id] || confidence > best[item.class_id].confidence) {
+			best[item.class_id] = {
+				class_id: item.class_id,
+				class_name: item.class_name || item.category,
+				confidence
+			}
+		}
+	})
+	return Object.values(best).sort((a, b) => b.confidence - a.confidence).slice(0, 3)
+}
+
+const lowConfidence = computed(() => {
+	if (!record.value) return null
+	const result = record.value.detection_result || {}
+	const threshold = typeof result.confidence_threshold === 'number' ? result.confidence_threshold : 0.5
+	let isLow = result.low_confidence === true
+	if (result.low_confidence === undefined) {
+		const maxConfidence = record.value.max_confidence
+		isLow = typeof maxConfidence === 'number' && maxConfidence < threshold
+	}
+	if (!isLow) return null
+	const candidates = Array.isArray(result.top_candidates)
+		? result.top_candidates
+		: deriveCandidates(detections.value)
+	return {
+		threshold,
+		candidates: candidates.filter((item) => item && item.class_name),
+		samplePoolId: result.sample_pool_id ?? null
+	}
+})
+
+function formatPercent(value) {
+	return typeof value === 'number' ? `${Math.round(value * 100)}%` : '-'
+}
 
 function goToKnowledge() {
 	if (!record.value) return
@@ -358,6 +419,62 @@ onMounted(() => {
 	color: var(--text-1);
 	margin-bottom: 20rpx;
 	display: block;
+}
+
+.low-confidence-card {
+	display: flex;
+	flex-direction: column;
+	gap: 14rpx;
+	padding: 24rpx;
+	margin-bottom: 20rpx;
+	border-radius: 20rpx;
+	background: rgba(217, 161, 30, 0.12);
+	border: 1rpx solid rgba(217, 161, 30, 0.32);
+}
+
+.low-confidence-head {
+	display: flex;
+	align-items: flex-start;
+	gap: 12rpx;
+}
+
+.low-confidence-title {
+	flex: 1;
+	font-size: 25rpx;
+	line-height: 1.6;
+	font-weight: 600;
+	color: var(--text-1);
+}
+
+.candidate-row {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 10rpx;
+	padding-left: 44rpx;
+}
+
+.candidate-label {
+	font-size: 23rpx;
+	color: var(--text-2);
+}
+
+.candidate-tag {
+	padding: 4rpx 12rpx;
+	border-radius: 10rpx;
+	background: rgba(217, 161, 30, 0.18);
+}
+
+.candidate-tag text {
+	font-size: 22rpx;
+	color: #8A6410;
+}
+
+.low-confidence-note {
+	padding-left: 44rpx;
+	font-size: 23rpx;
+	line-height: 1.5;
+	color: var(--text-2);
 }
 
 .detection-item {

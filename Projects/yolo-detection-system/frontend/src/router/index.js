@@ -15,6 +15,12 @@ const routes = [
     meta: { title: '注册', requiresAuth: false }
   },
   {
+    path: '/share/:token',
+    name: 'Share',
+    component: () => import('@/views/ShareView.vue'),
+    meta: { title: '检测结果分享', public: true }
+  },
+  {
     path: '/',
     component: () => import('@/components/Layout/AppLayout.vue'),
     redirect: '/detect',
@@ -148,6 +154,11 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
   const userStore = useUserStore()
   document.title = to.meta.title ? `${to.meta.title} - YOLO智能检测系统` : 'YOLO智能检测系统'
+
+  if (to.meta.public) {
+    next()
+    return
+  }
 
   if (to.meta.requiresAuth && !userStore.token) {
     next({ path: '/login', query: { redirect: to.fullPath } })

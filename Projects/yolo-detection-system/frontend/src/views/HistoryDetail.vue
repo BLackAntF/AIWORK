@@ -26,6 +26,10 @@
             <el-icon><Refresh /></el-icon>
             <span>重新检测</span>
           </el-button>
+          <el-button :loading="shareLoading" @click="handleShare">
+            <el-icon><Share /></el-icon>
+            <span>分享</span>
+          </el-button>
           <el-button :loading="exportLoading" @click="handleExportReport">
             <el-icon><Document /></el-icon>
             <span>导出报告</span>
@@ -150,6 +154,31 @@
               检测明细
               <span class="detection-total">共 {{ detections.length }} 条</span>
             </h3>
+            <el-alert
+              v-if="lowConfidence"
+              type="warning"
+              show-icon
+              :closable="false"
+              class="low-confidence-alert"
+            >
+              <template #title>
+                检测置信度偏低（阈值 {{ formatThreshold(lowConfidence.threshold) }}），建议重新拍摄清晰叶片照片
+              </template>
+              <div class="low-confidence-detail">
+                <div v-if="lowConfidence.candidates.length" class="candidate-line">
+                  <span class="candidate-label">可能：</span>
+                  <el-tag
+                    v-for="candidate in lowConfidence.candidates"
+                    :key="candidate.class_id ?? candidate.class_name"
+                    type="warning"
+                    effect="plain"
+                    size="small"
+                    class="candidate-tag"
+                  >{{ candidate.class_name }}({{ formatConfidencePercent(candidate.confidence) }}%)</el-tag>
+                </div>
+                <p v-if="lowConfidence.samplePoolId" class="sample-pool-note">该图片已自动收录至样本池待人工复核</p>
+              </div>
+            </el-alert>
             <div class="detection-list">
               <div
                 v-for="(item, index) in detections"
@@ -183,6 +212,35 @@
       :initial-index="0"
       @close="showImagePreview = false"
     />
+
+    <el-dialog
+      v-model="shareVisible"
+      title="分享检测结果"
+      width="420px"
+      class="share-dialog"
+      append-to-body
+    >
+      <div v-loading="shareLoading" class="share-content">
+        <div v-if="shareError" class="share-error">
+          <el-icon><Warning /></el-icon>
+          <span>{{ shareError }}</span>
+        </div>
+        <template v-else-if="shareData">
+          <img
+            v-if="shareData.qr_code"
+            :src="'data:image/png;base64,' + shareData.qr_code"
+            alt="分享二维码"
+            class="share-qr"
+          />
+          <p v-else class="share-qr-missing">二维码生成失败，可复制链接分享</p>
+          <div class="share-link-row">
+            <el-input :model-value="shareData.share_url" readonly />
+            <el-button type="primary" @click="copyShareLink">复制链接</el-button>
+          </div>
+          <p class="share-expire">{{ shareExpireText }}</p>
+        </template>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -192,9 +250,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   ArrowLeft, ChatDotRound, Refresh, Delete, DataAnalysis,
-  CollectionTag, Timer, ZoomIn, Warning, VideoCamera, Document, Download
+  CollectionTag, Timer, ZoomIn, Warning, VideoCamera, Document, Download, Share
 } from '@element-plus/icons-vue'
-import { getHistoryDetail, deleteHistory, getHistoryReport, downloadHistoryReportPdf } from '@/api/history'
+import { getHistoryDetail, deleteHistory, getHistoryReport, downloadHistoryReportPdf, shareHistory } from '@/api/history'
 import { getFullUrl } from '@/utils/format'
 
 const route = useRoute()
@@ -205,6 +263,10 @@ const detail = ref(null)
 const showImagePreview = ref(false)
 const exportLoading = ref(false)
 const pdfLoading = ref(false)
+const shareVisible = ref(false)
+const shareLoading = ref(false)
+const shareError = ref('')
+const shareData = ref(null)
 
 const resultImageUrl = computed(() => {
   const img = detail.value?.result_path || detail.value?.original_path
@@ -214,6 +276,51 @@ const resultImageUrl = computed(() => {
 const detectionResult = computed(() => detail.value?.detection_result || {})
 
 const detections = computed(() => detectionResult.value.detections || [])
+
+function deriveCandidates(list) {
+  const best = {}
+  list.forEach((item) => {
+    const confidence = item?.confidence
+    if (item?.class_id == null || typeof confidence !== 'number') return
+    if (!best[item.class_id] || confidence > best[item.class_id].confidence) {
+      best[item.class_id] = {
+        class_id: item.class_id,
+        class_name: item.class_name || item.category,
+        confidence
+      }
+    }
+  })
+  return Object.values(best).sort((a, b) => b.confidence - a.confidence).slice(0, 3)
+}
+
+const lowConfidence = computed(() => {
+  const result = detectionResult.value
+  const threshold = typeof result.confidence_threshold === 'number'
+    ? result.confidence_threshold
+    : (typeof detail.value?.confidence_threshold === 'number' ? detail.value.confidence_threshold : 0.5)
+  let isLow = result.low_confidence === true || detail.value?.low_confidence === true
+  if (result.low_confidence === undefined && detail.value?.low_confidence === undefined) {
+    const maxConfidence = detail.value?.max_confidence
+    isLow = typeof maxConfidence === 'number' && maxConfidence < threshold
+  }
+  if (!isLow) return null
+  const candidates = Array.isArray(result.top_candidates)
+    ? result.top_candidates
+    : deriveCandidates(detections.value)
+  return {
+    threshold,
+    candidates: candidates.filter((item) => item && item.class_name),
+    samplePoolId: result.sample_pool_id ?? detail.value?.sample_pool_id ?? null
+  }
+})
+
+function formatThreshold(value) {
+  return typeof value === 'number' ? `${Math.round(value * 100)}%` : '-'
+}
+
+function formatConfidencePercent(value) {
+  return typeof value === 'number' ? Math.round(value * 100) : 0
+}
 
 const categoryColors = [
   '#C8442F',
@@ -393,6 +500,63 @@ async function handleDownloadPdf() {
   }
 }
 
+async function handleShare() {
+  const id = route.params.id
+  if (!id) return
+  shareVisible.value = true
+  shareLoading.value = true
+  shareError.value = ''
+  shareData.value = null
+  try {
+    shareData.value = await shareHistory(id)
+  } catch (error) {
+    shareError.value = error?.response?.data?.message || '分享链接生成失败，请稍后重试'
+  } finally {
+    shareLoading.value = false
+  }
+}
+
+const shareExpireText = computed(() => {
+  const expiresAt = shareData.value?.expires_at
+  if (!expiresAt) return ''
+  const expireTime = new Date(expiresAt).getTime()
+  if (Number.isNaN(expireTime)) return ''
+  const days = Math.ceil((expireTime - Date.now()) / (24 * 60 * 60 * 1000))
+  return days > 0 ? `${days} 天后失效` : '分享链接已失效'
+})
+
+function fallbackCopy(text) {
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.style.position = 'fixed'
+  textarea.style.opacity = '0'
+  document.body.appendChild(textarea)
+  textarea.select()
+  const copied = document.execCommand('copy')
+  document.body.removeChild(textarea)
+  if (!copied) throw new Error('copy failed')
+}
+
+async function copyShareLink() {
+  const link = shareData.value?.share_url
+  if (!link) return
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(link)
+    } else {
+      fallbackCopy(link)
+    }
+    ElMessage.success('链接已复制')
+  } catch (error) {
+    try {
+      fallbackCopy(link)
+      ElMessage.success('链接已复制')
+    } catch (fallbackError) {
+      ElMessage.warning('复制失败，请手动复制链接')
+    }
+  }
+}
+
 function goToKnowledge() {
   const diseaseItems = detections.value.filter(d => d.class_name !== '健康叶片')
   const topDisease = diseaseItems
@@ -517,6 +681,91 @@ function goToKnowledge() {
   font-size: 13px;
   font-weight: 400;
   color: var(--color-text-tertiary);
+}
+
+.low-confidence-alert {
+  margin-bottom: 16px;
+}
+
+.low-confidence-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.candidate-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.candidate-label {
+  font-weight: 500;
+}
+
+.candidate-tag {
+  margin: 0;
+}
+
+.sample-pool-note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.share-content {
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.share-qr {
+  width: 200px;
+  height: 200px;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  background: #fff;
+  padding: 8px;
+}
+
+.share-qr-missing {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+}
+
+.share-link-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.share-link-row .el-input {
+  flex: 1;
+}
+
+.share-expire {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+}
+
+.share-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  background: rgba(199, 62, 45, 0.1);
+  color: var(--color-error);
+  font-size: 13px;
 }
 
 .image-section {

@@ -27,3 +27,15 @@ export function getHistoryReport(id) {
 export function downloadHistoryReportPdf(id) {
   return request.get(`/history/${id}/report/pdf`, { responseType: 'blob' })
 }
+
+export function shareHistory(id, expires_days = 7) {
+  // base_url 让后端生成指向前端站点的分享链接（后端端口无法直接打开前端页面）
+  return request.post(`/history/${id}/share`, {
+    expires_days,
+    base_url: window.location.origin
+  })
+}
+
+export function getSharedResult(token) {
+  return request.get(`/share/${token}`, { skipErrorMessage: true })
+}

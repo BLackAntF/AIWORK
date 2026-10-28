@@ -35,7 +35,7 @@ export { buildHeader }
 /**
  * 处理业务响应（code 判断）
  */
-function handleBusinessResponse(resData, resolve, reject) {
+function handleBusinessResponse(resData, resolve, reject, options) {
   // 成功码 code=0（注意：不是 200）
   if (resData.code === 0) {
     resolve(resData.data)
@@ -49,13 +49,15 @@ function handleBusinessResponse(resData, resolve, reject) {
   }
   // 其他业务错误
   const msg = resData.message || '请求失败'
-  uni.showToast({ title: msg, icon: 'none' })
+  if (!options.silent) {
+    uni.showToast({ title: msg, icon: 'none' })
+  }
   reject(new Error(msg))
 }
 
 /**
  * 通用请求
- * @param {Object} options - { url, method, data, header }
+ * @param {Object} options - { url, method, data, header, silent }
  * @returns {Promise}
  */
 export function request(options) {
@@ -69,14 +71,18 @@ export function request(options) {
         // HTTP 状态码异常
         if (res.statusCode < 200 || res.statusCode >= 300) {
           const msg = `网络错误 ${res.statusCode}`
-          uni.showToast({ title: msg, icon: 'none' })
+          if (!options.silent) {
+            uni.showToast({ title: msg, icon: 'none' })
+          }
           reject(new Error(msg))
           return
         }
-        handleBusinessResponse(res.data, resolve, reject)
+        handleBusinessResponse(res.data, resolve, reject, options)
       },
       fail: (err) => {
-        uni.showToast({ title: '网络错误，请检查网络', icon: 'none' })
+        if (!options.silent) {
+          uni.showToast({ title: '网络错误，请检查网络', icon: 'none' })
+        }
         reject(err)
       }
     })
