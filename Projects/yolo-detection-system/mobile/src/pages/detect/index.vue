@@ -48,6 +48,18 @@
 					</view>
 					<switch :checked="saveHistory" @change="saveHistory = !saveHistory" color="#C8442F" />
 				</view>
+				<view v-if="userStore.isAdmin" class="save-toggle">
+					<view class="toggle-text">
+						<text class="toggle-label">检测模型</text>
+						<text class="toggle-desc">仅管理员可切换</text>
+					</view>
+					<picker mode="selector" :range="modelLabels" :value="modelIndex" @change="onModelChange">
+						<view class="model-picker-value">
+							<text class="model-picker-text">{{ modelLabels[modelIndex] }}</text>
+							<text class="model-picker-arrow">▾</text>
+						</view>
+					</picker>
+				</view>
 				<button
 					class="detect-btn"
 					:class="{ disabled: !imagePath || isDetecting }"
@@ -181,22 +193,61 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { detectImage } from '@/api/detect'
+import { getModelList } from '@/api/admin'
 import { getFullUrl } from '@/utils/format'
 import { showError } from '@/utils/error'
 import LoadingOverlay from '@/components/LoadingOverlay.vue'
 import DiseaseCard from '@/components/DiseaseCard.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import { useChatStore } from '@/store/chat'
+import { useUserStore } from '@/store/user'
 
 const chatStore = useChatStore()
+const userStore = useUserStore()
 
 const imagePath = ref('')
 const saveHistory = ref(true)
 const isDetecting = ref(false)
 const detectionResult = ref(null)
 const resultImageBroken = ref(false)
+
+// 模型切换仅对管理员开放，普通用户固定使用当前激活模型
+const modelOptions = ref([])
+const modelIndex = ref(0)
+
+const modelLabels = computed(() => [
+	'默认（当前激活模型）',
+	...modelOptions.value.map((m) => `${m.name}${m.version ? ' · ' + m.version : ''}`)
+])
+
+const selectedModelId = computed(() => {
+	if (modelIndex.value === 0) return null
+	const target = modelOptions.value[modelIndex.value - 1]
+	return target ? target.id : null
+})
+
+function onModelChange(event) {
+	modelIndex.value = Number(event.detail.value) || 0
+}
+
+onMounted(async () => {
+	if (!userStore.userInfo) {
+		try {
+			await userStore.fetchUserInfo()
+		} catch (e) {
+			return
+		}
+	}
+	if (!userStore.isAdmin) return
+	try {
+		const list = await getModelList()
+		modelOptions.value = Array.isArray(list) ? list : []
+	} catch (e) {
+		modelOptions.value = []
+	}
+})
 
 const resultImageUrl = computed(() => {
 	if (!detectionResult.value?.result_image) return ''
@@ -271,7 +322,7 @@ async function handleDetect() {
 
 	isDetecting.value = true
 	try {
-		const result = await detectImage(imagePath.value, saveHistory.value)
+		const result = await detectImage(imagePath.value, saveHistory.value, selectedModelId.value)
 		detectionResult.value = result
 		resultImageBroken.value = false
 		uni.showToast({ title: '检测完成', icon: 'success' })
@@ -483,6 +534,26 @@ function resetDetection() {
 	display: flex;
 	flex-direction: column;
 	gap: 6rpx;
+}
+
+.model-picker-value {
+	display: flex;
+	align-items: center;
+	gap: 8rpx;
+	max-width: 320rpx;
+}
+
+.model-picker-text {
+	font-size: 24rpx;
+	color: var(--forest);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.model-picker-arrow {
+	font-size: 22rpx;
+	color: var(--text-3);
 }
 
 .toggle-label {

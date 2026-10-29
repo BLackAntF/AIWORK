@@ -2,9 +2,10 @@ import os
 from typing import Optional
 
 from flask import Blueprint, request, current_app
-from models import DetectionHistory, SamplePool, SystemConfig, db
+from models import DetectionHistory, SamplePool, SystemConfig, ModelInfo, db
 from utils.response import success, bad_request, server_error
 from utils.file_utils import allowed_file, save_uploaded_file, get_file_size, get_relative_url
+from utils.params import to_int
 from middleware.auth_middleware import login_required
 from services.yolo_service import yolo_service
 from services.disease_profile_service import disease_profile_service
@@ -190,13 +191,32 @@ def _low_confidence_meta(user_id: int, history_id: Optional[int], image_path: Op
     }
 
 
-def _detect_one(file, user_id: int, save_history: bool) -> dict:
+def _resolve_model_choice(raw_model_id, user):
+    """解析管理员指定的模型
+
+    Args:
+        raw_model_id: 表单中的 model_id 原始值
+        user: 当前登录用户
+
+    Returns:
+        ModelInfo 或 None：None 表示不指定（使用当前激活模型）
+    """
+    if not raw_model_id or getattr(user, 'role', '') != 'admin':
+        return None
+    model_id = to_int(raw_model_id)
+    if model_id is None:
+        return None
+    return db.session.get(ModelInfo, model_id)
+
+
+def _detect_one(file, user_id: int, save_history: bool, model_info=None) -> dict:
     """处理单张图片检测，单图失败不影响整体
 
     Args:
         file: Flask 上传文件对象（调用前需已通过格式校验）
         user_id: 用户 ID
         save_history: 是否保存历史记录
+        model_info: 管理员指定的模型记录；None 表示使用当前激活模型
 
     Returns:
         dict: 单图检测结果，失败时含 success=False 与 error
@@ -208,7 +228,12 @@ def _detect_one(file, user_id: int, save_history: bool) -> dict:
         static_dir = os.path.join(current_app.root_path, 'static')
 
         save_path, _, original_name = save_uploaded_file(file, upload_dir)
-        detect_result = yolo_service.detect_image(save_path, result_dir, save_result=True)
+        chosen_model = yolo_service.get_model(model_info.id, model_info.path) \
+            if model_info is not None else None
+        detect_result = yolo_service.detect_image(
+            save_path, result_dir, save_result=True, model=chosen_model)
+        if model_info is not None:
+            detect_result['model_version'] = model_info.version or model_info.name
 
         result_image_url = get_relative_url(detect_result['result_path'], static_dir) \
             if detect_result.get('result_path') else None
@@ -253,7 +278,13 @@ def _detect_one(file, user_id: int, save_history: bool) -> dict:
 @detection_bp.route('/image', methods=['POST'])
 @login_required
 def detect_image(current_user):
-    """图片目标检测"""
+    """图片目标检测
+
+    Form:
+        file: 待检测图片
+        save_history: 是否保存历史记录，默认 true
+        model_id: 指定模型 ID，仅管理员生效，缺省使用当前激活模型
+    """
     if 'file' not in request.files:
         return bad_request('请上传图片文件')
 
@@ -262,7 +293,8 @@ def detect_image(current_user):
     if error_message:
         return bad_request(error_message)
 
-    result = _detect_one(file, current_user.id, _should_save_history())
+    model_info = _resolve_model_choice(request.form.get('model_id'), current_user)
+    result = _detect_one(file, current_user.id, _should_save_history(), model_info)
     if not result['success']:
         return server_error(result['error'])
 
@@ -277,6 +309,7 @@ def detect_batch(current_user):
     Form:
         files: 多张图片（字段名 files，1..MAX_BATCH_IMAGES）
         save_history: 是否保存历史记录，默认 true
+        model_id: 指定模型 ID，仅管理员生效，缺省使用当前激活模型
     """
     files = [f for f in request.files.getlist('files') if f and f.filename]
     if not files:
@@ -287,6 +320,7 @@ def detect_batch(current_user):
         return bad_request(f'单次最多上传 {max_batch} 张图片')
 
     save_history = _should_save_history()
+    model_info = _resolve_model_choice(request.form.get('model_id'), current_user)
     results = []
     for file in files:
         error_message = _validate_image_file(file.filename)
@@ -297,7 +331,7 @@ def detect_batch(current_user):
                 'error': error_message
             })
             continue
-        results.append(_detect_one(file, current_user.id, save_history))
+        results.append(_detect_one(file, current_user.id, save_history, model_info))
 
     success_count = sum(1 for item in results if item['success'])
     return success(data={

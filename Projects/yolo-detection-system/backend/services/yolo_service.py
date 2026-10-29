@@ -1,6 +1,7 @@
 import os
 import time
 import random
+import threading
 import uuid
 from flask import current_app
 
@@ -12,7 +13,12 @@ class YoloService:
     """
     _instance = None
     _model = None
+    _models = {}  # model_id -> YOLO 实例，供管理员按模型检测时复用
+    _lock = threading.Lock()
     _model_loaded = False
+
+    # 同时驻留内存的模型上限，超限按插入顺序淘汰最早的
+    MAX_CACHED_MODELS = 3
 
     # Mock 类别名称：与 dataset/Tomato 的 data.yaml 类别顺序及病害档案 class_id 保持一致
     MOCK_CLASSES = [
@@ -52,6 +58,38 @@ class YoloService:
     def is_model_loaded(self):
         """检查模型是否已加载"""
         return self._model_loaded
+
+    def get_model(self, model_id, model_path):
+        """按模型 ID 获取模型实例（带缓存，供管理员指定模型检测）
+
+        Args:
+            model_id: 模型记录 ID，用作缓存键
+            model_path: 模型文件绝对路径
+
+        Returns:
+            YOLO 实例；mock 模式下返回 None（由调用方走 mock 分支）
+        """
+        if self._use_mock():
+            return None
+
+        with self._lock:
+            cached = self._models.get(model_id)
+            if cached is not None:
+                return cached
+
+            if not os.path.exists(model_path):
+                raise FileNotFoundError(f"模型文件不存在: {model_path}")
+
+            try:
+                from ultralytics import YOLO
+            except ImportError:
+                raise RuntimeError("ultralytics 未安装，请先安装: pip install ultralytics")
+
+            if len(self._models) >= self.MAX_CACHED_MODELS:
+                self._models.pop(next(iter(self._models)))
+            model = YOLO(model_path)
+            self._models[model_id] = model
+            return model
 
     def get_class_names(self):
         """获取类别名称列表"""
@@ -95,13 +133,14 @@ class YoloService:
             'class_summary': class_summary
         }
 
-    def detect_image(self, image_path, result_dir, save_result=True):
+    def detect_image(self, image_path, result_dir, save_result=True, model=None):
         """检测单张图片
 
         Args:
             image_path: 图片路径
             result_dir: 结果保存目录
             save_result: 是否保存结果图
+            model: 指定使用的模型实例；None 表示使用当前激活模型
 
         Returns:
             dict: 检测结果
@@ -135,12 +174,14 @@ class YoloService:
             }
 
         # 真实模型检测
-        if not self.is_model_loaded():
-            self.load_model()
+        if model is None:
+            if not self.is_model_loaded():
+                self.load_model()
+            model = self._model
 
         import cv2
 
-        results = self._model(
+        results = model(
             image_path,
             conf=current_app.config['YOLO_CONF_THRESHOLD'],
             iou=current_app.config['YOLO_IOU_THRESHOLD']

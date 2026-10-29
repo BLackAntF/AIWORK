@@ -59,6 +59,18 @@
               <el-switch v-model="saveHistory" />
               <span class="save-history-text">保存到历史记录</span>
             </div>
+            <div v-if="isAdmin" class="model-select">
+              <span class="model-select-label">检测模型</span>
+              <el-select v-model="selectedModelId" placeholder="默认模型" class="model-select-input">
+                <el-option label="默认（当前激活模型）" value="" />
+                <el-option
+                  v-for="m in modelOptions"
+                  :key="m.id"
+                  :label="`${m.name}${m.version ? ' · ' + m.version : ''}${m.is_active ? '（已激活）' : ''}`"
+                  :value="m.id"
+                />
+              </el-select>
+            </div>
             <el-button
               type="primary"
               class="detect-btn glow-border"
@@ -381,7 +393,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -405,11 +417,40 @@ import {
   Warning
 } from '@element-plus/icons-vue'
 import { detectImage, detectBatch } from '@/api/detection'
+import { getModelList } from '@/api/admin'
+import { useUserStore } from '@/store/modules/user'
 import { useChatStore } from '@/store/modules/chat'
 import { getFullUrl } from '@/utils/format'
 
 const router = useRouter()
 const chatStore = useChatStore()
+const userStore = useUserStore()
+
+// 模型切换仅对管理员开放，普通用户固定使用当前激活模型
+const isAdmin = computed(() => userStore.userInfo?.role === 'admin')
+const modelOptions = ref([])
+const selectedModelId = ref('')
+
+async function loadModelOptions() {
+  if (!isAdmin.value) return
+  try {
+    const list = await getModelList()
+    modelOptions.value = Array.isArray(list) ? list : []
+  } catch (e) {
+    modelOptions.value = []
+  }
+}
+
+onMounted(async () => {
+  if (!userStore.userInfo) {
+    try {
+      await userStore.fetchUserInfo()
+    } catch (e) {
+      return
+    }
+  }
+  loadModelOptions()
+})
 
 // 与后端 config.MAX_BATCH_IMAGES 保持一致
 const MAX_BATCH_IMAGES = 20
@@ -621,13 +662,13 @@ async function handleDetect() {
 
   try {
     if (imageFiles.value.length > 1) {
-      const res = await detectBatch(imageFiles.value.map(item => item.file), saveHistory.value)
+      const res = await detectBatch(imageFiles.value.map(item => item.file), saveHistory.value, selectedModelId.value || null)
       batchResult.value = res
       batchRows.value = res.list || []
       stopProgressSimulation()
       ElMessage.success(`批量检测完成：成功 ${res.success_count} 张，失败 ${res.failed_count} 张`)
     } else {
-      const result = await detectImage(imageFiles.value[0].file, saveHistory.value)
+      const result = await detectImage(imageFiles.value[0].file, saveHistory.value, selectedModelId.value || null)
       detectionResult.value = result
       stopProgressSimulation()
       ElMessage.success('检测完成')
@@ -945,7 +986,7 @@ onUnmounted(() => {
 .upload-actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 16px;
   margin-top: 20px;
   padding-top: 20px;
   border-top: 1px solid var(--color-border-light);
@@ -955,6 +996,23 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
+  margin-right: auto;
+}
+
+.model-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.model-select-label {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.model-select-input {
+  width: 220px;
 }
 
 .save-history-text {

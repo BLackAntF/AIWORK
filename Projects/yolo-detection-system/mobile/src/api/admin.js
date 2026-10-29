@@ -8,6 +8,11 @@ export function getUsers(params) {
   return request({ url: '/admin/users', data: params })
 }
 
+/** 获取模型列表（管理员，用于检测时切换模型） */
+export function getModelList() {
+  return request({ url: '/admin/models' })
+}
+
 /** 获取待审核知识列表 */
 export function getPendingKnowledge(params) {
   return request({ url: '/admin/knowledge/pending', data: params })
