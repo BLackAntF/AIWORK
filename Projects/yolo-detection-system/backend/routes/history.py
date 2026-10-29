@@ -360,19 +360,54 @@ def _share_payload(link: ShareLink, base_url: str) -> dict:
     }
 
 
+def _lan_ip() -> Optional[str]:
+    """探测本机局域网 IPv4（UDP 连接不实际发包，仅取出口地址）
+
+    Returns:
+        str | None: 局域网 IP，探测失败时为 None
+    """
+    import socket
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        sock.connect(('8.8.8.8', 80))
+        return sock.getsockname()[0]
+    except OSError:
+        return None
+    finally:
+        sock.close()
+
+
+# 这些主机名在手机上无法解析到本机，需要替换为局域网 IP
+LOCAL_HOSTS = {'localhost', '127.0.0.1', '0.0.0.0', '::1'}
+
+
 def _resolve_share_base(data: dict) -> str:
     """解析分享链接使用的前端站点根地址
+
+    优先级：SHARE_PUBLIC_BASE_URL 配置 > 前端传入 origin > 当前请求站点。
+    前端传入 localhost 时自动替换为本机局域网 IP，否则手机扫码无法访问。
 
     Args:
         data: 请求 JSON
 
     Returns:
-        str: 合法则用前端传入的 origin，否则回退当前请求站点
+        str: 分享链接的站点根地址
     """
+    from urllib.parse import urlparse
+
+    configured = str(current_app.config.get('SHARE_PUBLIC_BASE_URL') or '').strip()
+    if configured.startswith(('http://', 'https://')):
+        return configured.rstrip('/')
+
     base = str(data.get('base_url') or '').strip()
     if base.startswith(('http://', 'https://')) and len(base) <= 200:
-        return base
-    return request.host_url
+        host = urlparse(base).hostname or ''
+        if host in LOCAL_HOSTS:
+            lan_ip = _lan_ip()
+            if lan_ip:
+                return base.replace(host, lan_ip).rstrip('/')
+        return base.rstrip('/')
+    return request.host_url.rstrip('/')
 
 
 @history_bp.route('/<int:history_id>/share', methods=['POST'])

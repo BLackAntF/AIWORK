@@ -53,6 +53,9 @@ class Config:
     # 低置信度兜底阈值：最高置信度低于该值时提示候选并自动采集样本
     LOW_CONFIDENCE_THRESHOLD = float(os.environ.get('LOW_CONFIDENCE_THRESHOLD', 0.5))
 
+    # 分享链接对外访问地址（如 http://192.168.1.10:5173）；留空时自动把 localhost 换成本机局域网 IP
+    SHARE_PUBLIC_BASE_URL = os.environ.get('SHARE_PUBLIC_BASE_URL', '')
+
     LLM_API_KEY = os.environ.get('LLM_API_KEY') or ''
     LLM_BASE_URL = os.environ.get('LLM_BASE_URL') or ''
     LLM_MODEL = os.environ.get('LLM_MODEL') or 'qwen-turbo'
