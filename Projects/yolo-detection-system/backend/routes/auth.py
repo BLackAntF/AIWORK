@@ -1,5 +1,8 @@
 import re
-from flask import Blueprint, request
+import time
+from collections import defaultdict
+
+from flask import Blueprint, request, current_app
 from flask_jwt_extended import create_access_token
 from models import User, db
 from utils.response import success, bad_request, unauthorized
@@ -10,10 +13,37 @@ auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 # 邮箱格式正则
 EMAIL_REGEX = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
 
+# 登录/注册滑动窗口限流（防密码爆破与批量注册）。
+# 进程内存储，重启失效；多 worker 部署时应换共享存储（如 Redis）。
+_rate_store = defaultdict(list)
+RATE_WINDOW_SECONDS = 60
+
+
+def _check_rate_limit(key, config_key, default_limit):
+    """滑动窗口限流：窗口内超过上限返回 False
+
+    Args:
+        key: 限流键（如 login:<ip>:<username>）
+        config_key: 读取上限的 app.config 键
+        default_limit: 配置缺失时的默认上限（次/分钟）
+    """
+    limit = current_app.config.get(config_key, default_limit)
+    now = time.time()
+    timestamps = _rate_store[key]
+    timestamps[:] = [t for t in timestamps if now - t < RATE_WINDOW_SECONDS]
+    if len(timestamps) >= limit:
+        return False
+    timestamps.append(now)
+    return True
+
 
 @auth_bp.route('/register', methods=['POST'])
 def register():
     """用户注册"""
+    ip = request.remote_addr or 'unknown'
+    if not _check_rate_limit(f'register:{ip}', 'REGISTER_RATE_LIMIT_PER_MINUTE', 5):
+        return bad_request('注册过于频繁，请 1 分钟后再试')
+
     data = request.get_json() or {}
     username = data.get('username', '').strip()
     password = data.get('password', '')
@@ -53,6 +83,11 @@ def login():
     data = request.get_json() or {}
     username = data.get('username', '').strip()
     password = data.get('password', '')
+
+    # 按 IP + 用户名限流，防止针对单账号的密码爆破
+    ip = request.remote_addr or 'unknown'
+    if not _check_rate_limit(f'login:{ip}:{username}', 'LOGIN_RATE_LIMIT_PER_MINUTE', 10):
+        return bad_request('登录尝试过于频繁，请 1 分钟后再试')
 
     if not username or not password:
         return bad_request('用户名和密码不能为空')

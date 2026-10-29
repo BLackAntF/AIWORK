@@ -10,6 +10,7 @@ from flask import Blueprint, request, current_app, Response
 from markupsafe import escape
 from models import DetectionHistory, DiseaseProfile, ShareLink, db, iso_utc
 from utils.response import success, bad_request, not_found, forbidden, server_error
+from utils.file_utils import url_to_fs_path
 from middleware.auth_middleware import login_required
 
 history_bp = Blueprint('history', __name__, url_prefix='/api/history')
@@ -689,11 +690,12 @@ def _build_history_pdf(item):
     # ---- 检测结论 ----
     _pdf_section_title(pdf, '二、检测结论')
     names = [n.strip() for n in (item.class_names or '').split(',') if n.strip()]
+    # 提前定义，避免 names 为空时下方引用抛 UnboundLocalError
+    is_healthy = bool(names) and all(n in HEALTHY_CLASS_NAMES for n in names)
     if not names:
         pdf.set_font('msyh', '', 10.5)
         pdf.cell(0, 8, '未检出目标', new_x='LMARGIN', new_y='NEXT')
     else:
-        is_healthy = all(n in HEALTHY_CLASS_NAMES for n in names)
         pdf.set_font('msyh-b', '', 11.5)
         if is_healthy:
             pdf.set_text_color(46, 158, 91)
@@ -754,8 +756,14 @@ def _build_history_pdf(item):
 
     # ---- 检测图片 ----
     import os
+    static_dir = os.path.join(current_app.root_path, 'static')
     images = [('原图', item.original_path), ('检测结果', item.result_path)]
-    available = [(label, path) for label, path in images if path and os.path.exists(path)]
+    # 数据库存的是 /static 相对 URL，需还原为磁盘路径再判断与读取
+    available = []
+    for label, url in images:
+        fs_path = url_to_fs_path(url, static_dir)
+        if fs_path and os.path.exists(fs_path):
+            available.append((label, fs_path))
     if available:
         _pdf_section_title(pdf, '四、检测图片')
     for label, path in available:

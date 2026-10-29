@@ -4,9 +4,10 @@ import os
 import zipfile
 from datetime import datetime
 
-from flask import request, Response
+from flask import request, Response, current_app
 from models import SamplePool, Notification, db
 from utils.response import success, bad_request, not_found
+from utils.file_utils import url_to_fs_path
 from utils.audit import log_admin_action
 from middleware.auth_middleware import admin_required
 from routes.admin import admin_bp
@@ -124,7 +125,9 @@ def export_sample_pool(current_user):
                 # missed / uncertain 无可靠类别标签，归入待人工标注目录
                 final_class = '_need_label'
 
-            src = s.image_path
+            # image_path 存的是 /static 相对 URL，需还原为磁盘路径
+            static_dir = os.path.join(current_app.root_path, 'static')
+            src = url_to_fs_path(s.image_path, static_dir)
             if src and os.path.exists(src):
                 ext = os.path.splitext(src)[1].lower() or '.jpg'
                 arcname = f'images/{final_class}/sample_{s.id}{ext}'

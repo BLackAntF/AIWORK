@@ -67,3 +67,23 @@ def get_relative_url(file_path, base_dir, url_prefix='/static'):
         return None
     rel_path = os.path.relpath(file_path, base_dir)
     return f"{url_prefix}/{rel_path.replace(os.sep, '/')}"
+
+
+def url_to_fs_path(url, base_dir, url_prefix='/static'):
+    """将 /static 相对 URL 还原为文件系统绝对路径（get_relative_url 的逆操作）
+
+    Args:
+        url: 数据库存储的相对 URL，如 /static/uploads/xxx.jpg
+        base_dir: 静态文件根目录（通常为 <root_path>/static）
+        url_prefix: URL 前缀
+
+    Returns:
+        str: 文件系统绝对路径；url 为空或不属于该前缀时返回 None
+    """
+    if not url:
+        return None
+    prefix = url_prefix.rstrip('/') + '/'
+    if not url.startswith(prefix):
+        return None
+    rel = url[len(prefix):]
+    return os.path.join(base_dir, rel.replace('/', os.sep))

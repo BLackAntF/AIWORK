@@ -211,8 +211,9 @@ async function fetchAllStats() {
 
 async function handleExport() {
   try {
-    const blob = await exportStats('all', '', '')
-    const url = window.URL.createObjectURL(new Blob([blob]))
+    // blob 请求拦截器返回完整 response，二进制数据在 .data
+    const res = await exportStats('all', '', '')
+    const url = window.URL.createObjectURL(new Blob([res.data]))
     const link = document.createElement('a')
     link.href = url
     link.setAttribute('download', `stats_${Date.now()}.csv`)

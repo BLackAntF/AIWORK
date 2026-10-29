@@ -42,7 +42,7 @@ TRAIN_ARGS = dict(
     optimizer="auto",
     project=PROJECT_DIR,
     name="yolo26n_slimneck_b64",
-    exist_ok=True,
+    exist_ok=False,  # 禁止覆盖已有 run 目录；断点续训请用 resume_slimneck.py
 )
 
 
@@ -104,7 +104,20 @@ def record_env() -> None:
     print(f"\n[记录] 环境与配置快照已写入 {RECORDS}")
 
 
+def _guard_against_overwrite() -> None:
+    """已有训练进度（results.csv / weights）时拒绝从头重跑，防止误覆盖成果"""
+    run_dir = Path(PROJECT_DIR) / TRAIN_ARGS["name"]
+    has_progress = (run_dir / "results.csv").exists() or (run_dir / "weights").exists()
+    if has_progress:
+        raise SystemExit(
+            f"[FAIL] 检测到已有训练进度: {run_dir}\n"
+            "       从头重跑会覆盖成果。断点续训请改用 resume_slimneck.py；\n"
+            "       确需重跑请先手动备份/删除该目录。"
+        )
+
+
 def main():
+    _guard_against_overwrite()
     record_env()
     model = YOLO(str(HERE / "yolo26n-SlimNeck.yaml"))
     print("\n===== Slim-Neck 模型结构 =====")

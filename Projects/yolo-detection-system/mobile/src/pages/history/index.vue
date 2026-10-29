@@ -94,22 +94,28 @@ function getRecordImage(record) {
 	return path ? getFullUrl(path) : ''
 }
 
+// 历史列表接口不返回 detections，类别信息在 class_names（逗号分隔字符串）
+const HEALTHY_NAMES = ['健康', '健康叶片', '健康叶子', '正常叶片', 'Healthy']
+
+function parseClassNames(record) {
+	return (record.class_names || '').split(',').map(s => s.trim()).filter(Boolean)
+}
+
 function getDiseaseName(record) {
-	const detections = record.detections || []
-	if (detections.length === 0) return record.original_filename || '未知病害'
-	if (detections.length === 1) return detections[0].class_name
-	return detections.map(d => d.class_name).join(', ')
+	const names = parseClassNames(record)
+	if (names.length === 0) return record.original_filename || '未知病害'
+	return names.join(', ')
 }
 
 function isHealthyRecord(record) {
-	const detections = record.detections || []
-	return detections.length > 0 && detections.every(d => d.class_name === '健康叶片')
+	const names = parseClassNames(record)
+	return names.length > 0 && names.every(n => HEALTHY_NAMES.includes(n))
 }
 
 function getStatusLabel(record) {
-	const detections = record.detections || []
-	if (detections.length === 0) return '待查看'
-	if (detections.every(d => d.class_name === '健康叶片')) return '健康'
+	const names = parseClassNames(record)
+	if (names.length === 0) return '待查看'
+	if (names.every(n => HEALTHY_NAMES.includes(n))) return '健康'
 	return '需关注'
 }
 

@@ -426,6 +426,7 @@ import {
   getKnowledgeTags, createKnowledgeTag, updateKnowledgeTag, deleteKnowledgeTag
 } from '@/api/admin'
 import { formatTime } from '@/utils/format'
+import { renderMarkdown } from '@/utils/markdown'
 import RichEditor from '@/components/RichEditor.vue'
 
 const loading = ref(false)

@@ -395,6 +395,22 @@ class KnowledgeService:
             'created_at': iso_utc(knowledge.created_at)
         }
 
+    def to_public_detail_dict(self, knowledge):
+        """公开详情字典：含正文，但剔除 file_path/uploader_id/vector_id 等内部字段
+
+        用于匿名可访问的公开详情接口，避免泄漏服务器路径与上传者主键。
+        """
+        return {
+            'id': knowledge.id,
+            'title': knowledge.title,
+            'content': knowledge.content,
+            'category': knowledge.category,
+            'summary': knowledge.summary,
+            'views': knowledge.views,
+            'tags': [t.to_dict() for t in knowledge.tags] if knowledge.tags else [],
+            'created_at': iso_utc(knowledge.created_at)
+        }
+
     def get_knowledge_by_id(self, kb_id):
         """根据ID获取知识条目"""
         return Knowledge.query.get(kb_id)

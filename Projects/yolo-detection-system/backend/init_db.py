@@ -3,10 +3,22 @@
 
 使用方法:
     python init_db.py
+
+环境变量（可选）:
+    INIT_ADMIN_PASSWORD   初始管理员密码（默认 password123，仅开发用）
+    INIT_TEST_PASSWORD    初始测试用户密码（默认 password123，仅开发用）
+    INIT_RESET_PASSWORD   设为 1/true 时，强制重置已存在账号的密码（默认不重置）
 """
+import os
+
 from app import create_app
 from extensions import db
 from models import User, Knowledge, SystemConfig, ModelInfo, KnowledgeCategory
+
+# 初始密码从环境变量读取，避免硬编码进入版本库；默认值仅用于本地开发
+ADMIN_PASSWORD = os.environ.get('INIT_ADMIN_PASSWORD', 'password123')
+TEST_PASSWORD = os.environ.get('INIT_TEST_PASSWORD', 'password123')
+RESET_EXISTING = os.environ.get('INIT_RESET_PASSWORD', '').lower() in ('1', 'true', 'yes')
 
 
 def init_database():
@@ -18,7 +30,8 @@ def init_database():
         db.create_all()
         print("=== 数据库表创建完成 ===")
 
-        # 创建默认管理员
+        # 创建默认管理员（不存在时创建；已存在则默认不改动密码，
+        # 仅当显式设置 INIT_RESET_PASSWORD 时才重置，避免生产环境被重置为弱密码）
         admin = User.query.filter_by(username='admin').first()
         if not admin:
             admin = User(
@@ -26,18 +39,20 @@ def init_database():
                 email='admin@example.com',
                 role='admin'
             )
-            admin.set_password('password123')
+            admin.set_password(ADMIN_PASSWORD)
             db.session.add(admin)
-            print("  默认管理员创建成功: admin / password123")
+            print("  默认管理员创建成功: admin（密码取自 INIT_ADMIN_PASSWORD 或开发默认值）")
         else:
-            # 重置管理员密码（修复 scrypt 哈希兼容问题）
-            admin.set_password('password123')
             if admin.role != 'admin':
                 admin.role = 'admin'
                 print("  管理员角色已修正为 admin")
-            print("  管理员密码已重置: admin / password123")
+            if RESET_EXISTING:
+                admin.set_password(ADMIN_PASSWORD)
+                print("  管理员密码已按 INIT_RESET_PASSWORD 要求重置")
+            else:
+                print("  管理员已存在，跳过密码重置（如需重置请设 INIT_RESET_PASSWORD=1）")
 
-        # 创建默认测试用户
+        # 创建默认测试用户（策略同管理员）
         test_user = User.query.filter_by(username='testuser').first()
         if not test_user:
             test_user = User(
@@ -45,13 +60,15 @@ def init_database():
                 email='test@example.com',
                 role='user'
             )
-            test_user.set_password('password123')
+            test_user.set_password(TEST_PASSWORD)
             db.session.add(test_user)
-            print("  测试用户创建成功: testuser / password123")
+            print("  测试用户创建成功: testuser（密码取自 INIT_TEST_PASSWORD 或开发默认值）")
         else:
-            # 重置测试用户密码（修复 scrypt 哈希兼容问题）
-            test_user.set_password('password123')
-            print("  测试用户密码已重置: testuser / password123")
+            if RESET_EXISTING:
+                test_user.set_password(TEST_PASSWORD)
+                print("  测试用户密码已按 INIT_RESET_PASSWORD 要求重置")
+            else:
+                print("  测试用户已存在，跳过密码重置")
 
         # 初始化默认知识分类
         default_categories = [

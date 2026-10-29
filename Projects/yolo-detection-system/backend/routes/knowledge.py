@@ -352,7 +352,8 @@ def get_knowledge_detail_public(kb_id):
     kb.views = (kb.views or 0) + 1
     db.session.commit()
 
-    return success(data=kb.to_dict())
+    # 公开接口返回精简字段，避免泄漏 file_path / uploader_id 等内部信息
+    return success(data=knowledge_service.to_public_detail_dict(kb))
 
 
 @knowledge_bp.route('/category-list', methods=['GET'])

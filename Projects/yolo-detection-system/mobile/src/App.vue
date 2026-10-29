@@ -1,9 +1,11 @@
 <script setup>
+import { onLaunch, onShow, onHide } from '@dcloudio/uni-app'
 import { useUserStore } from '@/store/user'
 
 const userStore = useUserStore()
 
-async function onLaunch() {
+// 通过组合式 API 注册应用生命周期，登录守卫才会真正执行
+onLaunch(async () => {
 	const token = uni.getStorageSync('token')
 	if (!token) {
 		uni.reLaunch({ url: '/pages/login/index' })
@@ -16,15 +18,15 @@ async function onLaunch() {
 		uni.removeStorageSync('token')
 		uni.reLaunch({ url: '/pages/login/index' })
 	}
-}
+})
 
-function onShow() {
+onShow(() => {
 	console.log('App Show')
-}
+})
 
-function onHide() {
+onHide(() => {
 	console.log('App Hide')
-}
+})
 </script>
 
 <style lang="scss">

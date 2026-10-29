@@ -1,9 +1,9 @@
 import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 
 marked.setOptions({
   breaks: true,
-  gfm: true,
-  sanitize: false
+  gfm: true
 })
 
 const entityMap = {
@@ -42,7 +42,8 @@ marked.use({ renderer })
 export function renderMarkdown(content) {
   if (!content) return ''
   try {
-    return marked.parse(content)
+    // marked 输出经 DOMPurify 消毒，防存储型 XSS（知识内容可由用户上传）
+    return DOMPurify.sanitize(marked.parse(content))
   } catch (e) {
     return escapeHtml(content)
   }
