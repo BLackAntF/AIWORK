@@ -10,6 +10,7 @@ from flask import Blueprint, request
 from models import Notification, db
 from services import notification_service
 from utils.response import success, bad_request, not_found
+from utils.params import parse_pagination
 from middleware.auth_middleware import login_required
 
 notifications_bp = Blueprint('notifications', __name__, url_prefix='/api/notifications')
@@ -22,25 +23,6 @@ VALID_TYPES = (
     Notification.TYPE_KNOWLEDGE_REJECTED,
     Notification.TYPE_SYSTEM,
 )
-
-
-def _parse_pagination() -> tuple:
-    """解析 page / page_size 查询参数
-
-    Returns:
-        tuple: (page, page_size)
-    """
-    try:
-        page = int(request.args.get('page', 1))
-        page_size = int(request.args.get('page_size', DEFAULT_PAGE_SIZE))
-    except (TypeError, ValueError):
-        return 1, DEFAULT_PAGE_SIZE
-
-    if page < 1:
-        page = 1
-    if page_size < 1 or page_size > MAX_PAGE_SIZE:
-        page_size = DEFAULT_PAGE_SIZE
-    return page, page_size
 
 
 def _parse_is_read() -> Optional[bool]:
@@ -68,7 +50,7 @@ def list_notifications(current_user) -> tuple:
         is_read: 已读状态筛选，true / false
         type: 通知类型筛选
     """
-    page, page_size = _parse_pagination()
+    page, page_size = parse_pagination(DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE)
     notify_type = request.args.get('type', '').strip() or None
     if notify_type and notify_type not in VALID_TYPES:
         return bad_request('无效的通知类型')

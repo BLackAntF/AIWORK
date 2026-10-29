@@ -7,6 +7,24 @@ from routes.admin import admin_bp
 from models import User, DetectionHistory, ChatHistory, Knowledge, ModelInfo, AdminLog, db, iso_utc
 from utils.response import success, bad_request, error
 from middleware.auth_middleware import admin_required
+from utils.params import to_int
+
+
+def _parse_days(default: int, max_days: int) -> int:
+    """解析 days 查询参数：非法值回退默认值，超出上限收敛到上限
+
+    Args:
+        default: 缺省天数
+        max_days: 允许的最大天数
+
+    Returns:
+        int: 解析结果
+    """
+    days = to_int(request.args.get('days'), default)
+    if days < 1:
+        return default
+    return min(days, max_days)
+
 
 NON_DISEASE_CLASSES = {'健康', '健康叶片', '健康叶子', '正常叶片'}
 
@@ -109,11 +127,7 @@ def get_users_trend(current_user):
     Query Params:
         days: 天数，默认 7
     """
-    days = int(request.args.get('days', 7))
-    if days < 1:
-        days = 7
-    if days > 90:
-        days = 90
+    days = _parse_days(7, 90)
 
     today = date.today()
     trend = []
@@ -153,11 +167,7 @@ def get_detections_trend(current_user):
     Query Params:
         days: 天数，默认 7
     """
-    days = int(request.args.get('days', 7))
-    if days < 1:
-        days = 7
-    if days > 90:
-        days = 90
+    days = _parse_days(7, 90)
 
     today = date.today()
     trend = []
@@ -218,11 +228,7 @@ def get_disease_distribution(current_user):
     Query Params:
         days: 统计近 N 天（含今天），默认 30
     """
-    days = int(request.args.get('days', 30))
-    if days < 1:
-        days = 30
-    if days > 365:
-        days = 365
+    days = _parse_days(30, 365)
 
     since = datetime.combine(date.today() - timedelta(days=days - 1), datetime.min.time())
 
@@ -257,11 +263,7 @@ def get_disease_trend(current_user):
     Query Params:
         days: 天数，默认 7
     """
-    days = int(request.args.get('days', 7))
-    if days < 1:
-        days = 7
-    if days > 90:
-        days = 90
+    days = _parse_days(7, 90)
 
     today = date.today()
     since = datetime.combine(today - timedelta(days=days - 1), datetime.min.time())

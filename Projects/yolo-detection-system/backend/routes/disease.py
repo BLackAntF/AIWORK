@@ -1,31 +1,13 @@
 from flask import Blueprint, request
 from models import DiseaseProfile
 from utils.response import success, not_found
+from utils.params import parse_pagination
 from middleware.auth_middleware import login_required
 
 disease_bp = Blueprint('disease', __name__, url_prefix='/api/disease-profiles')
 
 DEFAULT_PAGE_SIZE = 20
 MAX_PAGE_SIZE = 100
-
-
-def _parse_pagination() -> tuple:
-    """解析分页参数
-
-    Returns:
-        tuple: (page, page_size)
-    """
-    try:
-        page = int(request.args.get('page', 1))
-        page_size = int(request.args.get('page_size', DEFAULT_PAGE_SIZE))
-    except (TypeError, ValueError):
-        return 1, DEFAULT_PAGE_SIZE
-
-    if page < 1:
-        page = 1
-    if page_size < 1 or page_size > MAX_PAGE_SIZE:
-        page_size = DEFAULT_PAGE_SIZE
-    return page, page_size
 
 
 @disease_bp.route('', methods=['GET'])
@@ -38,7 +20,7 @@ def list_disease_profiles(current_user) -> tuple:
         page: 页码，默认 1
         page_size: 每页条数，1..100，默认 20
     """
-    page, page_size = _parse_pagination()
+    page, page_size = parse_pagination(DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE)
     keyword = request.args.get('keyword', '').strip() or None
 
     query = DiseaseProfile.query.filter_by(is_active=True)

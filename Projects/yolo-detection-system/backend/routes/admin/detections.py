@@ -6,6 +6,7 @@ from models import DetectionHistory, db
 from utils.response import success, bad_request, not_found, error
 from middleware.auth_middleware import admin_required
 from utils.audit import log_detection_action
+from utils.params import parse_pagination
 
 
 @admin_bp.route('/detections/stats', methods=['GET'])
@@ -54,17 +55,11 @@ def get_detections(current_user):
         start_date: 开始日期 (YYYY-MM-DD)
         end_date: 结束日期 (YYYY-MM-DD)
     """
-    page = int(request.args.get('page', 1))
-    page_size = int(request.args.get('page_size', 20))
+    page, page_size = parse_pagination()
     user_id = request.args.get('user_id', '').strip()
     detection_type = request.args.get('type', '').strip()
     start_date = request.args.get('start_date', '').strip()
     end_date = request.args.get('end_date', '').strip()
-
-    if page < 1:
-        page = 1
-    if page_size < 1 or page_size > 100:
-        page_size = 20
 
     query = DetectionHistory.query
 

@@ -7,6 +7,7 @@ from services.knowledge_service import knowledge_service
 from services import notification_service
 from utils.audit import log_knowledge_action, log_category_action
 from utils.html_utils import sanitize_html
+from utils.params import parse_pagination
 
 
 @admin_bp.route('/knowledge', methods=['GET'])
@@ -21,16 +22,10 @@ def get_knowledge_list(current_user):
         keyword: 关键词搜索
         is_active: 状态筛选
     """
-    page = int(request.args.get('page', 1))
-    page_size = int(request.args.get('page_size', 20))
+    page, page_size = parse_pagination()
     category = request.args.get('category', '').strip()
     keyword = request.args.get('keyword', '').strip()
     is_active_str = request.args.get('is_active', '').strip()
-
-    if page < 1:
-        page = 1
-    if page_size < 1 or page_size > 100:
-        page_size = 20
 
     query = Knowledge.query
 
@@ -545,13 +540,7 @@ def upload_knowledge_admin(current_user):
 @admin_required
 def get_pending_knowledge(current_user):
     """获取待审核知识列表"""
-    page = int(request.args.get('page', 1))
-    page_size = int(request.args.get('page_size', 20))
-    
-    if page < 1:
-        page = 1
-    if page_size < 1 or page_size > 100:
-        page_size = 20
+    page, page_size = parse_pagination()
 
     query = Knowledge.query.filter(Knowledge.status == 'pending')
     total = query.count()

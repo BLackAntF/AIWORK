@@ -69,3 +69,6 @@ Projects/yolo-detection-system/training/**/weights/
 
 # 用户自有文档，不入版本库
 Projects/yolo-detection-system/docs/任务书-*.doc
+
+# 数据库自动备份产物
+Projects/yolo-detection-system/backend/backups/

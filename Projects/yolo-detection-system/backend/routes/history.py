@@ -11,6 +11,7 @@ from markupsafe import escape
 from models import DetectionHistory, DiseaseProfile, ShareLink, db, iso_utc
 from utils.response import success, bad_request, not_found, forbidden, server_error
 from utils.file_utils import url_to_fs_path
+from utils.params import parse_pagination
 from middleware.auth_middleware import login_required
 
 history_bp = Blueprint('history', __name__, url_prefix='/api/history')
@@ -181,12 +182,7 @@ def get_history_list(current_user):
         min_confidence: 最低置信度 0~1
         model_version: 按模型版本精确匹配
     """
-    page = int(request.args.get('page', 1))
-    page_size = int(request.args.get('page_size', 10))
-    if page < 1:
-        page = 1
-    if page_size < 1 or page_size > 100:
-        page_size = 10
+    page, page_size = parse_pagination(default_page_size=10)
 
     filters, error_message = _parse_filters()
     if error_message:

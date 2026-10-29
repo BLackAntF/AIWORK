@@ -3,15 +3,9 @@ from models import Knowledge, KnowledgeFavorite, Tag, db, iso_utc
 from utils.response import success, not_found, bad_request, error
 from services.knowledge_service import knowledge_service
 from middleware.auth_middleware import login_required
+from utils.params import parse_pagination
 
 knowledge_user_bp = Blueprint('knowledge_user', __name__, url_prefix='/api/knowledge')
-
-CATEGORIES = [
-    {"value": "disease", "label": "病害识别"},
-    {"value": "method", "label": "防治方法"},
-    {"value": "cultivation", "label": "栽培技术"},
-    {"value": "knowledge", "label": "基础知识"}
-]
 
 
 @knowledge_user_bp.route('/tags', methods=['GET'])
@@ -19,68 +13,6 @@ def get_tags():
     """获取标签列表（公开接口）"""
     tags = Tag.query.order_by(Tag.name.asc()).all()
     return success(data=[t.to_dict() for t in tags])
-
-
-@knowledge_user_bp.route('/<int:knowledge_id>', methods=['GET'])
-def get_knowledge_detail(knowledge_id):
-    """获取知识详情（公开接口，自动增加阅读量）"""
-    knowledge = Knowledge.query.filter_by(
-        id=knowledge_id,
-        is_active=True
-    ).first()
-
-    if not knowledge:
-        return not_found('知识不存在')
-
-    knowledge.views = (knowledge.views or 0) + 1
-    db.session.commit()
-
-    return success(data={
-        'id': knowledge.id,
-        'title': knowledge.title,
-        'category': knowledge.category,
-        'summary': knowledge.summary,
-        'content': knowledge.content,
-        'views': knowledge.views,
-        'created_at': iso_utc(knowledge.created_at)
-    })
-
-
-@knowledge_user_bp.route('/categories', methods=['GET'])
-def get_categories():
-    """获取分类列表（公开接口）"""
-    return success(data={
-        'categories': CATEGORIES
-    })
-
-
-@knowledge_user_bp.route('/<int:knowledge_id>/related', methods=['GET'])
-def get_related_knowledge(knowledge_id):
-    """获取相关知识（公开接口）
-
-    Query Params:
-        limit: 返回数量，默认5
-    """
-    kb = Knowledge.query.filter_by(
-        id=knowledge_id,
-        is_active=True
-    ).first()
-
-    if not kb:
-        return not_found('知识不存在')
-
-    limit = int(request.args.get('limit', 5))
-    if limit < 1:
-        limit = 5
-    if limit > 20:
-        limit = 20
-
-    related = knowledge_service.get_related_knowledge(knowledge_id, limit=limit)
-
-    return success(data={
-        'list': related,
-        'total': len(related)
-    })
 
 
 @knowledge_user_bp.route('/favorites', methods=['GET'])
@@ -92,13 +24,7 @@ def get_my_favorites(current_user):
         page: 页码，默认1
         page_size: 每页数量，默认12
     """
-    page = int(request.args.get('page', 1))
-    page_size = int(request.args.get('page_size', 12))
-
-    if page < 1:
-        page = 1
-    if page_size < 1 or page_size > 100:
-        page_size = 12
+    page, page_size = parse_pagination(default_page_size=12)
 
     query = KnowledgeFavorite.query.filter_by(user_id=current_user.id)
 

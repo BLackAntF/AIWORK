@@ -5,6 +5,7 @@ from collections import defaultdict
 from flask import Blueprint, request, current_app, Response, stream_with_context
 from models import ChatHistory, db, iso_utc
 from utils.response import success, bad_request, not_found, error
+from utils.params import parse_int_arg, parse_pagination, to_int
 from middleware.auth_middleware import login_required
 from services.knowledge_service import knowledge_service
 from services.llm_service import llm_service
@@ -17,6 +18,11 @@ RATE_LIMIT_WINDOW_SECONDS = 60
 
 # 会话列表过滤：排除测试脚本会话与编码异常产生的乱码标题
 _TEST_SESSION_IDS = {'speed-test', 'test-session-verify'}
+
+# 问答入参长度上限，避免超长文本撑爆 prompt 与数据行
+MAX_QUESTION_LENGTH = 2000
+MAX_CONTEXT_LENGTH = 4000
+MAX_SESSION_ID_LENGTH = 128
 
 
 def _is_garbled_title(text):
@@ -129,14 +135,21 @@ def ask_question(current_user):
         return error(code=429, message='提问过于频繁，请稍后再试')
 
     data = request.get_json() or {}
-    question = data.get('question', '').strip()
-    detection_context = data.get('detection_context', '').strip()
-    session_id = data.get('session_id', '').strip()
+    question = str(data.get('question') or '').strip()
+    detection_context = str(data.get('detection_context') or '').strip()
+    session_id = str(data.get('session_id') or '').strip()
     detected_class_id = data.get('detected_class_id')
     stream = bool(data.get('stream', False))
 
     if not question:
         return bad_request('问题不能为空')
+    # 限制入参长度，避免超长文本撑爆 LLM prompt 与 chat_history 行
+    if len(question) > MAX_QUESTION_LENGTH:
+        return bad_request(f'问题长度不能超过 {MAX_QUESTION_LENGTH} 字')
+    if len(detection_context) > MAX_CONTEXT_LENGTH:
+        return bad_request(f'检测上下文长度不能超过 {MAX_CONTEXT_LENGTH} 字')
+    if len(session_id) > MAX_SESSION_ID_LENGTH:
+        return bad_request('会话ID非法')
 
     if not session_id:
         session_id = f"session_{uuid.uuid4().hex[:12]}"
@@ -150,7 +163,10 @@ def ask_question(current_user):
 
     disease_profile = None
     if detected_class_id is not None:
-        disease_profile = disease_profile_service.get_profile_for_llm(int(detected_class_id))
+        class_id = to_int(detected_class_id)
+        if class_id is None:
+            return bad_request('detected_class_id 必须为整数')
+        disease_profile = disease_profile_service.get_profile_for_llm(class_id)
 
     knowledge_list = knowledge_service.search(question, top_k=3)
 
@@ -213,13 +229,7 @@ def ask_question(current_user):
 def get_chat_history(current_user):
     """获取对话历史"""
     session_id = request.args.get('session_id', '').strip()
-    page = int(request.args.get('page', 1))
-    page_size = int(request.args.get('page_size', 20))
-
-    if page < 1:
-        page = 1
-    if page_size < 1 or page_size > 100:
-        page_size = 20
+    page, page_size = parse_pagination()
 
     query = ChatHistory.query.filter_by(user_id=current_user.id)
 
@@ -314,16 +324,10 @@ def get_session_list(current_user):
 @knowledge_bp.route('/list', methods=['GET'])
 def list_knowledge_public():
     """获取知识库列表（公开接口）"""
-    page = int(request.args.get('page', 1))
-    page_size = int(request.args.get('page_size', 12))
+    page, page_size = parse_pagination(default_page_size=12)
     category = request.args.get('category', '').strip() or None
     keyword = request.args.get('keyword', '').strip() or None
     tag_id = request.args.get('tag_id', '').strip() or None
-
-    if page < 1:
-        page = 1
-    if page_size < 1 or page_size > 100:
-        page_size = 12
 
     items, total = knowledge_service.list_knowledge(
         page=page,
@@ -369,15 +373,9 @@ def get_categories_public():
 @login_required
 def list_knowledge(current_user):
     """获取知识库列表"""
-    page = int(request.args.get('page', 1))
-    page_size = int(request.args.get('page_size', 20))
+    page, page_size = parse_pagination()
     category = request.args.get('category', '').strip() or None
     keyword = request.args.get('keyword', '').strip() or None
-
-    if page < 1:
-        page = 1
-    if page_size < 1 or page_size > 100:
-        page_size = 20
 
     items, total = knowledge_service.list_knowledge(
         page=page,
@@ -412,7 +410,7 @@ def get_related_knowledge(kb_id):
     if not kb or not kb.is_active:
         return not_found('知识不存在')
 
-    limit = min(int(request.args.get('limit', 5)), 20)
+    limit = parse_int_arg('limit', 5, min_value=1, max_value=20)
     related = knowledge_service.get_related_knowledge(kb_id, limit=limit)
 
     return success(data={

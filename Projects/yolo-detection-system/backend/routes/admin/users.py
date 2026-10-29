@@ -5,6 +5,7 @@ from models import User, DetectionHistory, ChatHistory, db
 from utils.response import success, bad_request, not_found, error
 from middleware.auth_middleware import admin_required
 from utils.audit import log_user_action
+from utils.params import parse_pagination
 
 
 def _get_user_with_counts(user):
@@ -28,16 +29,10 @@ def get_users(current_user):
         status: 状态筛选 active/inactive
         keyword: 用户名/邮箱搜索
     """
-    page = int(request.args.get('page', 1))
-    page_size = int(request.args.get('page_size', 20))
+    page, page_size = parse_pagination()
     role_filter = request.args.get('role', '').strip()
     status_filter = request.args.get('status', '').strip()
     keyword = request.args.get('keyword', '').strip()
-
-    if page < 1:
-        page = 1
-    if page_size < 1 or page_size > 100:
-        page_size = 20
 
     query = User.query
 
