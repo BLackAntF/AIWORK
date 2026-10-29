@@ -729,16 +729,23 @@ function handleAiConsult() {
   const detections = detectionResult.value.detections || []
   const diseaseItems = detections.filter(d => d.class_name !== '健康叶片')
   const firstDisease = diseaseItems[0] || null
+  const summary = formatClassSummary(detectionResult.value.class_summary)
   chatStore.setDetectionContext({
     class_id: firstDisease?.class_id ?? null,
     disease_name: firstDisease?.disease_profile?.disease_name || firstDisease?.class_name || '',
     detection_context: `本次检测共检出 ${detectionResult.value.detection_count ?? detections.length} 个目标，`
-      + `病害分布：${formatClassSummary(detectionResult.value.class_summary)}`
+      + `病害分布：${summary}`
   })
-  const resultData = encodeURIComponent(JSON.stringify(detectionResult.value))
+  // 带上问题一起跳转，问答页会自动发送，避免用户再手动输入
+  const question = firstDisease
+    ? `本次检测检出【${firstDisease.disease_profile?.disease_name || firstDisease.class_name}】`
+      + `（置信度 ${(firstDisease.confidence * 100).toFixed(1)}%，病害分布：${summary}），`
+      + '请给出诊断结论、症状依据和具体防治方案。'
+    : `本次检测未发现病害（共检出 ${detectionResult.value.detection_count ?? detections.length} 个目标），`
+      + '请给出番茄叶片的日常养护与病害预防建议。'
   router.push({
     path: '/knowledge',
-    query: { result: resultData }
+    query: { question: encodeURIComponent(question) }
   })
 }
 
@@ -785,7 +792,14 @@ function handleBatchAiConsult() {
       + `失败 ${batchResult.value.failed_count} 张，检出目标 ${batchTotalCount.value} 个，`
       + `病害分布：${formatClassSummary(batchClassSummary.value)}`
   })
-  router.push('/knowledge')
+  // 带上问题一起跳转，问答页会自动发送
+  const question = `本次批量检测 ${batchRows.value.length} 张图片，检出目标 ${batchTotalCount.value} 个，`
+    + `病害分布：${formatClassSummary(batchClassSummary.value)}。`
+    + '请给出整体诊断结论、最需要优先处理的病害及对应防治方案。'
+  router.push({
+    path: '/knowledge',
+    query: { question: encodeURIComponent(question) }
+  })
 }
 
 function handleDownload() {

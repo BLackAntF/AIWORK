@@ -98,6 +98,10 @@
                   <span>重新生成</span>
                 </el-button>
               </div>
+              <div v-if="msg.role === 'assistant' && msg.degraded" class="degraded-tip">
+                <el-icon><Warning /></el-icon>
+                <span>当前为本地知识模板回答（大模型服务不可用或未配置 API Key）</span>
+              </div>
               <div v-if="msg.role === 'assistant' && msg.sources && msg.sources.length > 0" class="message-sources">
                 <div class="sources-title">引用来源：</div>
                 <div class="source-list">
@@ -171,7 +175,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Plus, Delete, ChatDotRound, Menu, User, Cpu,
   Document, Close, Promotion, Picture,
-  QuestionFilled, CopyDocument, Refresh, Loading
+  QuestionFilled, CopyDocument, Refresh, Loading, Warning
 } from '@element-plus/icons-vue'
 import { askQuestion, getChatHistory, getSessions, deleteSession } from '@/api/knowledge'
 import { getToken } from '@/utils/storage'
@@ -476,6 +480,7 @@ async function sendMessage() {
         role: 'assistant',
         content: res.answer || res.content || '抱歉，我无法回答这个问题。',
         sources: res.sources || [],
+        degraded: res.degraded,
         displayHtml: '',
         html: '',
         isTypingDone: false
@@ -958,6 +963,19 @@ function clearDetectionContext() {
   margin-top: 12px;
   padding-top: 12px;
   border-top: 1px solid var(--color-border-light);
+}
+
+.degraded-tip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(230, 162, 60, 0.12);
+  color: #b8860b;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .sources-title {
