@@ -7,6 +7,8 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+from PIL import Image as PILImage
+
 from flask import Blueprint, request, current_app, Response
 from markupsafe import escape
 from werkzeug.datastructures import FileStorage
@@ -859,8 +861,12 @@ def _build_history_pdf(item):
         _pdf_section_title(pdf, '四、检测图片')
     for label, path in available:
         try:
-            pdf.image(path, w=110, new_x='LMARGIN', new_y='NEXT')
-        except RuntimeError:
+            with PILImage.open(path) as img:
+                img_w, img_h = img.size
+            # image() 不支持 new_x/new_y，按宽度换算高度后手动下移光标
+            pdf.image(path, x=pdf.l_margin, w=110)
+            pdf.ln(110 * img_h / img_w + 2)
+        except (OSError, RuntimeError):
             # 图片损坏时跳过，不阻断报告生成
             continue
         pdf.set_font('msyh', '', 9)

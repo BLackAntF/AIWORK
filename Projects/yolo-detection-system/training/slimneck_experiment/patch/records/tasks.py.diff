@@ -1,6 +1,6 @@
 --- ultralytics/nn/tasks.py.orig
 +++ ultralytics/nn/tasks.py.slimneck
-@@ -2027,6 +2027,8 @@
+@@ -2028,6 +2028,8 @@
      return model, ckpt
  
  
@@ -9,7 +9,7 @@
  def parse_model(d, ch, verbose=True):
      """Parse a YOLO model.yaml dictionary into a PyTorch model.
  
-@@ -2069,6 +2071,8 @@
+@@ -2070,6 +2072,8 @@
      layers, save, c2 = [], [], ch[-1]  # layers, savelist, ch out
      base_modules = frozenset(
          {
@@ -18,7 +18,7 @@
              Classify,
              Conv,
              ConvTranspose,
-@@ -2107,6 +2111,7 @@
+@@ -2108,6 +2112,7 @@
      )
      repeat_modules = frozenset(  # modules with 'repeat' arguments
          {

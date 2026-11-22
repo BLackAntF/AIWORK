@@ -76,7 +76,7 @@ def test_sample_pool_flow(headers):
     resp2 = requests.post(f"{BASE_URL}/sample-pool", headers=headers, json={
         "history_id": history_id, "mark_type": "correct"
     }, timeout=10)
-    check("sample-pool 防重复返回 400", resp2.status_code == 400, resp2.text[:120])
+    check("sample-pool 防重复返回 400", resp2.json().get("code") == 400, resp2.text[:120])
     return history_id
 
 

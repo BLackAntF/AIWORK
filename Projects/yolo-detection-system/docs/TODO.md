@@ -266,19 +266,21 @@ H5 逐页验证通过：登录 admin/password123 后，10 个主页面 + 知识�
 
 **E0. Slim-Neck 对比实验已结案（不替换线上）**
 
-| 指标 | 基线 best@182 | Slim-Neck best@67 | 差值 |
+| 指标 | 基线 @ep57 | Slim-Neck @ep66 | 差值 |
 |---|---|---|---|
-| mAP50 | 0.9578 | 0.9562 | −0.16pp |
-| mAP50-95 | 0.9367 | 0.9200 | **−1.67pp** |
-| Precision | 0.9763 | 0.9697 | −0.66pp |
-| Recall | 0.8988 | 0.9049 | +0.61pp |
+| mAP50（峰值行） | 0.96232 | 0.95638 | −0.59pp |
+| mAP50-95（峰值行） | 0.93667 @ep182 | 0.92001 @ep67 | **−1.67pp** |
+| Precision | 0.96568 | 0.96519 | −0.05pp |
+| Recall | 0.90423 | 0.90673 | +0.25pp |
 | 参数量 | 2.572M | 2.457M | −4.49% |
-| GFLOPs | 6.2 | 5.6 | −9.68% |
+| GFLOPs | 6.24 | 5.6 | −9.68% |
+
+> 口径更正（2026-11-22）：主指标改为 mAP50 后，基线应取 mAP50 峰值行 0.96232（@ep57），而非 mAP50-95 峰值行的 0.95778（@ep182）。
 
 - [x] 200 轮完整训练，产物备份至 `training/slimneck_experiment/run_output/`（best/last.pt、results.csv、args.yaml、results.png、混淆矩阵、BoxPR/P/R/F1 曲线、train/val_batch 图）
 - [x] 源码改动快照备份至 `training/slimneck_experiment/source_patch_snapshot/`（tasks.py.slimneck、tasks.py.bak_slimneck、Slim_Neck.py）
 - [x] AutoDL 服务器回滚至官方 ultralytics 8.4.174（重装 + 删注入文件，4 项验证通过：残留引用 0 / Slim_Neck.py 已删 / 版本 8.4.174 / 官方 yolo26n 构建 2,572,280 参数）
-- [x] 结论：mAP50 在 0.3pp 阈值内算持平，但 mAP50-95 退 1.67pp，省下的算力（每图约 1.7ms）在服务器端场景无价值 → **不替换线上模型**；作为可复现负结果留档
+- [x] 结论：mAP50 −0.59pp（略超 0.3pp 阈值，但基线自身轮间波动达 0.45pp，不足以判定优劣），mAP50-95 退 1.67pp，省下的算力在服务器端场景价值有限 → **不替换线上模型**；作为可复现负结果留档（后续以「Slim-Neck + 蒸馏 + 训练策略」组合形式继续验证，见实验三）
 
 **E1. 数据集诊断结论（2026-10-29 实测）**
 
@@ -348,3 +350,26 @@ H5 逐页验证通过：登录 admin/password123 后，10 个主页面 + 知识�
 - [x] **Web 窄视口人工复测**：用户确认知识详情可正常滚动，相关推荐可点击且详情正确更新，底部菜单不影响操作；本项不扩展为移动端真机验收结论。
 
 本轮未创建 Git commit；完整功能、代码证据与验证边界见 [系统功能清单](系统功能清单.md)。
+
+## 2026-11-22 晚记录（实验三 C 模型部署上线）
+
+### 部署内容
+
+- 线上模型由基线 yolo26n（`backend/data/model/best.pt`）切换为**实验三 C**：YOLO26n-SlimNeck + yolo26s 知识蒸馏 + cls_pw/close_mosaic 训练策略。10 类实测 mAP@0.5 0.9599（基线 0.9623，−0.25pp，判定持平）、mAP@0.5:0.95 0.9220；参数量 2,392,116（较基线 2,507,700 降 4.61%）、GFLOPs 5.32（降 9.98%）。
+- 蒸馏 checkpoint 含教师投影层，已提取 student 并 strip 为纯 `DetectionModel` 后部署，避免线上加载蒸馏封装。
+- 原基线权重备份为 `backend/data/model/baseline_yolo26n_best.pt`，可经管理端「激活」回切；`models` 表激活记录同步为真实部署路径，修正此前 `./models/default.pt` 的 mock 记录。
+- 检测记录的 `model_version` 由硬编码 `yolo26n-tomato` 改为读取 `config.MODEL_VERSION`（默认 `yolo26n-slimneck-distill`，可用环境变量覆盖），模型版本对比页将据此把新检测单独分组。
+- 同步更新 [功能清单与操作手册](功能清单与操作手册.md) 版本号与当前激活模型说明、[系统功能清单](系统功能清单.md) 部署模型说明。
+
+### 验证结果
+
+- 默认配置加载：参数量 2,392,116、10 类类别名正确、真实图片检测返回正常；管理端按 `models` 表路径加载同样成功。
+- `python backend/test_new_features.py`：**13 passed / 0 failed**（含 PDF 报告、样本池防重复、模型版本对比）。
+- `python backend/tests/test_new_features_1029.py`：**42 passed / 0 failed**。
+
+### 顺带修复
+
+- 历史 PDF 报告导出报 `FPDF.image() got an unexpected keyword argument 'new_x'`（fpdf2 的 `image()` 不支持 `new_x/new_y`），改为按图片宽高比手动下移光标，PDF 魔数校验通过。
+- 集成测试「sample-pool 防重复返回 400」断言由 HTTP 状态改为响应体 `code`，与项目「接口错误统一返回 HTTP 200 + body code」的既有约定一致。
+
+本次未修改 `training/`、`dataset/`；未创建 Git commit。

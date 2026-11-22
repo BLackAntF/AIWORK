@@ -49,6 +49,8 @@ class Config:
     YOLO_CONF_THRESHOLD = float(os.environ.get('YOLO_CONF_THRESHOLD', 0.5))
     YOLO_IOU_THRESHOLD = float(os.environ.get('YOLO_IOU_THRESHOLD', 0.45))
     YOLO_USE_MOCK = _str_to_bool(os.environ.get('YOLO_USE_MOCK', 'false'))
+    # 当前部署模型版本标识，写入检测记录并用于模型版本对比分组
+    MODEL_VERSION = os.environ.get('MODEL_VERSION', 'yolo26n-slimneck-distill')
 
     # 低置信度兜底阈值：最高置信度低于该值时提示候选并自动采集样本
     LOW_CONFIDENCE_THRESHOLD = float(os.environ.get('LOW_CONFIDENCE_THRESHOLD', 0.5))
