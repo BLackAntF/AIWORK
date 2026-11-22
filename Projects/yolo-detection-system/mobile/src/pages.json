@@ -119,6 +119,14 @@
 				"navigationBarTitleText": "修改密码",
 				"navigationStyle": "custom"
 			}
+		},
+		{
+			"path": "pages/mine/samples",
+			"style": {
+				"navigationBarTitleText": "我的样本",
+				"navigationStyle": "custom",
+				"enablePullDownRefresh": true
+			}
 		}
 	],
 	"globalStyle": {

@@ -21,12 +21,6 @@
           <el-option label="配置更新" value="config_update" />
           <el-option label="模型上传" value="model_upload" />
         </el-select>
-        <el-select v-model="filters.level" placeholder="日志级别" clearable @change="fetchList" style="width: 120px">
-          <el-option label="全部级别" value="" />
-          <el-option label="INFO" value="info" />
-          <el-option label="WARN" value="warn" />
-          <el-option label="ERROR" value="error" />
-        </el-select>
         <el-date-picker
           v-model="filters.dateRange"
           type="daterange"
@@ -84,17 +78,10 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="description" label="操作描述" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="detail" label="操作描述" min-width="200" show-overflow-tooltip />
         <el-table-column prop="ip_address" label="IP地址" width="150" align="center">
           <template #default="{ row }">
             <span class="ip-text">{{ row.ip_address || '-' }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="level" label="级别" width="80" align="center">
-          <template #default="{ row }">
-            <el-tag :type="getLevelTagType(row.level)" effect="dark" size="small">
-              {{ row.level }}
-            </el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="created_at" label="操作时间" width="180" align="center">
@@ -134,7 +121,6 @@ const filters = reactive({
   page: 1,
   page_size: 20,
   action: '',
-  level: '',
   keyword: '',
   dateRange: null
 })
@@ -181,15 +167,6 @@ function getActionTagType(action) {
   return typeMap[action] || 'info'
 }
 
-function getLevelTagType(level) {
-  const typeMap = {
-    info: 'primary',
-    warn: 'warning',
-    error: 'danger'
-  }
-  return typeMap[level] || 'info'
-}
-
 async function fetchList() {
   loading.value = true
   try {
@@ -198,7 +175,6 @@ async function fetchList() {
       page_size: filters.page_size
     }
     if (filters.action) params.action = filters.action
-    if (filters.level) params.level = filters.level
     if (filters.keyword) params.keyword = filters.keyword
     if (filters.dateRange && filters.dateRange.length === 2) {
       params.start_date = filters.dateRange[0].toISOString().split('T')[0]

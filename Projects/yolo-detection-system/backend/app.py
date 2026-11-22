@@ -1,8 +1,9 @@
 import os
+import time
 from dotenv import load_dotenv
 load_dotenv()
 
-from flask import Flask, jsonify, send_from_directory
+from flask import Flask, jsonify, send_from_directory, g, request
 from werkzeug.exceptions import HTTPException
 from config import Config
 from extensions import db, jwt, cors
@@ -98,6 +99,20 @@ def create_app(config_class=Config):
             'expose_headers': ['Content-Disposition']
         }
     })
+
+    @app.before_request
+    def start_request_timer():
+        g.request_started_at = time.perf_counter()
+
+    @app.after_request
+    def log_request_timing(response):
+        """记录 API 请求耗时，不记录查询参数或请求体"""
+        if request.path.startswith('/api/'):
+            started_at = getattr(g, 'request_started_at', time.perf_counter())
+            duration_ms = (time.perf_counter() - started_at) * 1000
+            app.logger.info('%s %s -> %s %.1fms', request.method, request.path,
+                            response.status_code, duration_ms)
+        return response
 
     # 注册蓝图
     from routes import auth_bp, detection_bp, knowledge_bp, history_bp, health_bp, admin_bp, \

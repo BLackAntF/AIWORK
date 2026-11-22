@@ -2,17 +2,19 @@ import base64
 import csv
 import io
 import json
+import os
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from flask import Blueprint, request, current_app, Response
 from markupsafe import escape
+from werkzeug.datastructures import FileStorage
 from models import DetectionHistory, DiseaseProfile, ShareLink, db, iso_utc
-from utils.response import success, bad_request, not_found, forbidden, server_error
+from utils.response import success, bad_request, not_found, forbidden, server_error, error
 from utils.file_utils import url_to_fs_path
 from utils.params import parse_pagination
-from middleware.auth_middleware import login_required
+from middleware.auth_middleware import login_required, check_rate_limit
 
 history_bp = Blueprint('history', __name__, url_prefix='/api/history')
 
@@ -229,8 +231,17 @@ def get_history_stats(current_user):
         else:
             disease_count += 1
 
+    # created_at 按 UTC 存储，统计时转换为服务器本地自然日
+    today = datetime.now().astimezone().date()
+    today_count = sum(
+        1 for item in records
+        if item.created_at
+        and item.created_at.replace(tzinfo=timezone.utc).astimezone().date() == today
+    )
     return success(data={
         'total': len(records),
+        'today': today_count,
+        'image_count': sum(1 for item in records if item.type == 'image'),
         'disease_count': disease_count,
         'healthy_count': healthy_count
     })
@@ -293,6 +304,55 @@ def get_history_detail(current_user, history_id):
         return not_found('记录不存在')
 
     return success(data=item.to_dict(include_detail=True))
+
+
+def _resolve_history_image(item: DetectionHistory) -> Optional[str]:
+    """将历史原图 URL 安全还原为静态目录内的真实文件路径"""
+    static_dir = os.path.realpath(os.path.join(current_app.root_path, 'static'))
+    source_path = url_to_fs_path(item.original_path, static_dir)
+    if not source_path:
+        return None
+    source_path = os.path.realpath(source_path)
+    try:
+        if os.path.commonpath([static_dir, source_path]) != static_dir:
+            return None
+    except ValueError:
+        return None
+    return source_path if os.path.isfile(source_path) else None
+
+
+@history_bp.route('/<int:history_id>/redetect', methods=['POST'])
+@login_required
+def redetect_history(current_user, history_id):
+    """使用本人历史原图再次检测，保留旧记录并生成新记录"""
+    limit = current_app.config['DETECTION_RATE_LIMIT_PER_MINUTE']
+    if not check_rate_limit(f'detection:{current_user.id}', limit):
+        return error(code=429, message='检测请求过于频繁，请 1 分钟后再试')
+    item = DetectionHistory.query.filter_by(
+        id=history_id, user_id=current_user.id
+    ).first()
+    if not item:
+        return not_found('记录不存在')
+    if item.type != 'image':
+        return bad_request('仅图片检测记录支持重新检测')
+
+    source_path = _resolve_history_image(item)
+    if not source_path:
+        return not_found('原始图片不存在，无法重新检测')
+
+    # 局部导入避免 history 与 detection 蓝图在模块加载阶段形成循环依赖
+    from routes.detection import _detect_one
+    try:
+        with open(source_path, 'rb') as stream:
+            upload = FileStorage(stream=stream, filename=item.original_filename)
+            result = _detect_one(upload, current_user.id, save_history=True)
+    except OSError:
+        current_app.logger.warning('重新检测读取原图失败: history_id=%s', history_id)
+        return server_error('原始图片读取失败，请稍后重试')
+
+    if not result.get('success'):
+        return server_error('重新检测失败，请稍后重试')
+    return success(data=result, message='重新检测完成，已生成新记录')
 
 
 # ==================== 检测结果分享 ====================

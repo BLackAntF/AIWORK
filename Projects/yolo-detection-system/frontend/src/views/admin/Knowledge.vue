@@ -9,7 +9,7 @@
       <div class="filter-left">
         <el-select v-model="filters.category" placeholder="分类筛选" clearable @change="fetchList" style="width: 140px">
           <el-option label="全部分类" value="" />
-          <el-option v-for="cat in categoryList" :key="cat" :label="cat" :value="cat" />
+          <el-option v-for="cat in categoryList" :key="cat.id" :label="cat.name" :value="cat.name" />
         </el-select>
         <el-select v-model="filters.is_active" placeholder="状态筛选" clearable @change="fetchList" style="width: 120px">
           <el-option label="全部状态" value="" />
@@ -148,7 +148,7 @@
           <el-col :span="12">
             <el-form-item label="分类" prop="category">
               <el-select v-model="knowledgeForm.category" placeholder="请选择分类" clearable style="width: 100%">
-                <el-option v-for="cat in categoryList" :key="cat" :label="cat" :value="cat" />
+                <el-option v-for="cat in categoryList" :key="cat.id" :label="cat.name" :value="cat.name" />
               </el-select>
             </el-form-item>
           </el-col>
@@ -278,8 +278,8 @@
         <el-button type="primary" :icon="Plus" @click="handleAddCategory">添加</el-button>
       </div>
       <div class="category-list">
-        <div v-for="cat in categoryList" :key="cat" class="category-item">
-          <span class="category-name">{{ cat }}</span>
+        <div v-for="cat in categoryList" :key="cat.id" class="category-item">
+          <span class="category-name">{{ cat.name }}</span>
           <div class="category-actions">
             <el-button type="primary" size="small" link @click="handleEditCategory(cat)">编辑</el-button>
             <el-button type="danger" size="small" link @click="handleDeleteCategory(cat)">删除</el-button>
@@ -347,7 +347,7 @@
         </el-form-item>
         <el-form-item label="分类">
           <el-select v-model="uploadForm.category" placeholder="选择分类" clearable style="width: 100%">
-            <el-option v-for="cat in categoryList" :key="cat" :label="cat" :value="cat" />
+            <el-option v-for="cat in categoryList" :key="cat.id" :label="cat.name" :value="cat.name" />
           </el-select>
         </el-form-item>
         <el-form-item label="来源">
@@ -422,7 +422,8 @@ import {
 import {
   getKnowledgeList, addKnowledge, updateKnowledge, deleteKnowledge,
   batchDeleteKnowledge, importKnowledge, syncVector,
-  getCategories, uploadKnowledgeFile, getPendingKnowledgeList, approveKnowledge,
+  getCategories, addCategory, updateCategory, deleteCategory,
+  uploadKnowledgeFile, getPendingKnowledgeList, approveKnowledge,
   getKnowledgeTags, createKnowledgeTag, updateKnowledgeTag, deleteKnowledgeTag
 } from '@/api/admin'
 import { formatTime } from '@/utils/format'
@@ -741,28 +742,40 @@ async function handleDeleteTag(tag) {
 }
 
 async function handleAddCategory() {
-  if (!newCategoryName.value.trim()) {
+  const name = newCategoryName.value.trim()
+  if (!name) {
     ElMessage.warning('请输入分类名称')
     return
   }
-  try {
-    // 简化：直接添加到列表（实际调用addCategory API）
-    ElMessage.success('分类添加成功')
-    newCategoryName.value = ''
-    fetchCategories()
-  } catch (e) {}
+  await addCategory(name)
+  ElMessage.success('分类添加成功')
+  newCategoryName.value = ''
+  await fetchCategories()
 }
 
 async function handleEditCategory(cat) {
-  ElMessage.info('编辑分类: ' + cat)
+  try {
+    const { value } = await ElMessageBox.prompt('请输入新的分类名称', '编辑分类', {
+      inputValue: cat.name,
+      inputValidator: value => !!value?.trim() || '分类名称不能为空'
+    })
+    await updateCategory(cat.id, value.trim())
+    ElMessage.success('分类更新成功')
+    await Promise.all([fetchCategories(), fetchList()])
+  } catch (e) {
+    if (e !== 'cancel' && e !== 'close') throw e
+  }
 }
 
 async function handleDeleteCategory(cat) {
   try {
-    await ElMessageBox.confirm(`确定要删除分类 "${cat}" 吗？该分类下的知识将取消分类。`, '确认删除', { type: 'warning' })
+    await ElMessageBox.confirm(`确定要删除分类 "${cat.name}" 吗？该分类下的知识将取消分类。`, '确认删除', { type: 'warning' })
+    await deleteCategory(cat.id)
     ElMessage.success('删除成功')
-    fetchCategories()
-  } catch (e) {}
+    await Promise.all([fetchCategories(), fetchList()])
+  } catch (e) {
+    if (e !== 'cancel' && e !== 'close') throw e
+  }
 }
 
 function openUploadDialog() {

@@ -3,10 +3,10 @@ from typing import Optional
 
 from flask import Blueprint, request, current_app
 from models import DetectionHistory, SamplePool, SystemConfig, ModelInfo, db
-from utils.response import success, bad_request, server_error
+from utils.response import success, bad_request, server_error, error
 from utils.file_utils import allowed_file, save_uploaded_file, get_file_size, get_relative_url
 from utils.params import to_int
-from middleware.auth_middleware import login_required
+from middleware.auth_middleware import login_required, check_rate_limit
 from services.yolo_service import yolo_service
 from services.disease_profile_service import disease_profile_service
 from services import notification_service
@@ -54,7 +54,7 @@ def _save_history(user_id: int, original_name: str, original_image_url: str,
         detect_result: yolo_service.detect_image 的返回值
 
     Returns:
-        int: 历史记录 ID
+        tuple: (历史记录 ID, 邮件通知状态)
     """
     history = DetectionHistory(
         user_id=user_id,
@@ -82,7 +82,13 @@ def _save_history(user_id: int, original_name: str, original_image_url: str,
         detection_count=detect_result['total_count']
     )
     db.session.commit()
-    return history.id
+    email_status = notification_service.send_detection_completed_email(
+        user_id=user_id,
+        history_id=history.id,
+        filename=original_name,
+        detection_count=detect_result['total_count']
+    )
+    return history.id, email_status
 
 
 def _get_low_confidence_threshold() -> float:
@@ -239,9 +245,13 @@ def _detect_one(file, user_id: int, save_history: bool, model_info=None) -> dict
             if detect_result.get('result_path') else None
         original_image_url = get_relative_url(save_path, static_dir)
 
-        history_id = _save_history(user_id, original_name, original_image_url,
-                                  result_image_url, save_path, detect_result) \
-            if save_history else None
+        history_id = None
+        email_status = 'not_saved'
+        if save_history:
+            history_id, email_status = _save_history(
+                user_id, original_name, original_image_url,
+                result_image_url, save_path, detect_result
+            )
 
         for det in detect_result['detections']:
             class_id = det.get('class_id')
@@ -258,6 +268,7 @@ def _detect_one(file, user_id: int, save_history: bool, model_info=None) -> dict
             'class_summary': detect_result['class_summary'],
             'processing_time': detect_result['processing_time'],
             'model_version': detect_result['model_version'],
+            'email_notification': email_status,
             'success': True,
             'error': None
         }
@@ -285,6 +296,9 @@ def detect_image(current_user):
         save_history: 是否保存历史记录，默认 true
         model_id: 指定模型 ID，仅管理员生效，缺省使用当前激活模型
     """
+    limit = current_app.config['DETECTION_RATE_LIMIT_PER_MINUTE']
+    if not check_rate_limit(f'detection:{current_user.id}', limit):
+        return error(code=429, message='检测请求过于频繁，请 1 分钟后再试')
     if 'file' not in request.files:
         return bad_request('请上传图片文件')
 
@@ -311,6 +325,9 @@ def detect_batch(current_user):
         save_history: 是否保存历史记录，默认 true
         model_id: 指定模型 ID，仅管理员生效，缺省使用当前激活模型
     """
+    limit = current_app.config['BATCH_DETECTION_RATE_LIMIT_PER_MINUTE']
+    if not check_rate_limit(f'batch-detection:{current_user.id}', limit):
+        return error(code=429, message='批量检测过于频繁，请 1 分钟后再试')
     files = [f for f in request.files.getlist('files') if f and f.filename]
     if not files:
         return bad_request('请上传图片文件')

@@ -63,6 +63,12 @@ const routes = [
         meta: { title: '检测详情', hidden: true }
       },
       {
+        path: 'samples',
+        name: 'MySamples',
+        component: () => import('@/views/MySamples.vue'),
+        meta: { title: '我的样本', icon: 'Files' }
+      },
+      {
         path: 'notifications',
         name: 'Notifications',
         component: () => import('@/views/Notifications.vue'),

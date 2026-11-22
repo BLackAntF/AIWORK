@@ -85,12 +85,13 @@
               v-for="item in relatedList"
               :key="item.id"
               class="related-item"
-              @click="goToDetail(item.id)"
             >
               <el-tag :type="getCategoryType(item.category)" effect="light" size="small">
                 {{ getCategoryLabel(item.category) }}
               </el-tag>
-              <h4 class="related-item-title">{{ item.title }}</h4>
+              <router-link :to="`/knowledge-list/${item.id}`" class="related-item-title">
+                {{ item.title }}
+              </router-link>
               <div class="related-item-tags" v-if="item.tags?.length">
                 <el-tag
                   v-for="tag in item.tags.slice(0, 2)"
@@ -111,7 +112,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { DocumentDelete, View, Clock, Link, Edit, ChatDotRound, ArrowLeft, Connection, Star, StarFilled } from '@element-plus/icons-vue'
@@ -186,9 +187,8 @@ async function fetchKnowledgeDetail() {
 
 async function fetchRelatedKnowledge(id, tags) {
   try {
-    const tagIds = tags.map(t => t.id).join(',')
     const res = await getRelatedKnowledge(id, { limit: 4 })
-    relatedList.value = (res || []).filter(item => item.id !== Number(id)).slice(0, 4)
+    relatedList.value = (res.list || []).filter(item => item.id !== Number(id)).slice(0, 4)
   } catch (e) {
     relatedList.value = []
   }
@@ -244,10 +244,11 @@ async function toggleFavorite() {
   }
 }
 
-onMounted(() => {
+watch(() => route.params.id, () => {
+  relatedList.value = []
   fetchKnowledgeDetail()
   fetchFavoriteStatus()
-})
+}, { immediate: true })
 </script>
 
 <style scoped>

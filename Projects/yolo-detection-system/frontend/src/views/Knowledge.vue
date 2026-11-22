@@ -406,7 +406,6 @@ async function streamAskQuestion(data, { onDelta, onDone }) {
         onDelta(payload.text || '')
       } else if (payload.type === 'done') {
         onDone(payload)
-        return
       } else if (payload.type === 'error') {
         throw new Error(payload.message || 'AI 服务暂时不可用，请稍后重试')
       }

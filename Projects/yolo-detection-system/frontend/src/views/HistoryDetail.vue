@@ -22,9 +22,18 @@
             <el-icon><ChatDotRound /></el-icon>
             <span>AI 问诊</span>
           </el-button>
-          <el-button type="primary" @click="handleRedetect">
+          <el-button
+            type="primary"
+            :loading="redetectLoading"
+            :disabled="detail?.type !== 'image'"
+            @click="handleRedetect"
+          >
             <el-icon><Refresh /></el-icon>
             <span>重新检测</span>
+          </el-button>
+          <el-button @click="openFeedback">
+            <el-icon><EditPen /></el-icon>
+            <span>检测反馈</span>
           </el-button>
           <el-button :loading="shareLoading" @click="handleShare">
             <el-icon><Share /></el-icon>
@@ -241,24 +250,55 @@
         </template>
       </div>
     </el-dialog>
+
+    <el-dialog v-model="feedbackVisible" title="检测反馈" width="480px" append-to-body>
+      <p class="feedback-tip">反馈将进入样本池，用于管理员复核与后续模型改进。</p>
+      <el-radio-group v-model="feedbackForm.mark_type" class="feedback-options">
+        <el-radio-button v-for="opt in markOptions" :key="opt.value" :value="opt.value">
+          {{ opt.label }}
+        </el-radio-button>
+      </el-radio-group>
+      <el-input
+        v-if="feedbackForm.mark_type === 'misclassified'"
+        v-model="feedbackForm.corrected_class"
+        maxlength="100"
+        placeholder="请输入正确的病害类别"
+        class="feedback-corrected"
+      />
+      <el-input
+        v-model="feedbackForm.note"
+        type="textarea"
+        :rows="4"
+        maxlength="200"
+        show-word-limit
+        placeholder="补充说明（选填，最多 200 字）"
+      />
+      <template #footer>
+        <el-button @click="feedbackVisible = false">取消</el-button>
+        <el-button type="primary" :loading="feedbackSubmitting" @click="handleSubmitFeedback">
+          提交反馈
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  ArrowLeft, ChatDotRound, Refresh, Delete, DataAnalysis,
+  ArrowLeft, ChatDotRound, Refresh, Delete, DataAnalysis, EditPen,
   CollectionTag, Timer, ZoomIn, Warning, VideoCamera, Document, Download, Share
 } from '@element-plus/icons-vue'
-import { getHistoryDetail, deleteHistory, getHistoryReport, downloadHistoryReportPdf, shareHistory } from '@/api/history'
+import { getHistoryDetail, redetectHistory, deleteHistory, getHistoryReport, downloadHistoryReportPdf, shareHistory, submitSampleFeedback } from '@/api/history'
 import { getFullUrl } from '@/utils/format'
 
 const route = useRoute()
 const router = useRouter()
 
 const loading = ref(false)
+const redetectLoading = ref(false)
 const detail = ref(null)
 const showImagePreview = ref(false)
 const exportLoading = ref(false)
@@ -267,6 +307,15 @@ const shareVisible = ref(false)
 const shareLoading = ref(false)
 const shareError = ref('')
 const shareData = ref(null)
+const feedbackVisible = ref(false)
+const feedbackSubmitting = ref(false)
+const feedbackForm = ref({ mark_type: 'correct', corrected_class: '', note: '' })
+const markOptions = [
+  { value: 'correct', label: '标注正确' },
+  { value: 'misclassified', label: '识别错误' },
+  { value: 'missed', label: '漏检' },
+  { value: 'uncertain', label: '不确定' }
+]
 
 const resultImageUrl = computed(() => {
   const img = detail.value?.result_path || detail.value?.original_path
@@ -383,12 +432,9 @@ const categoryDistribution = computed(() => {
 
 const categoryCount = computed(() => categoryDistribution.value.length)
 
-onMounted(() => {
-  const id = route.params.id
-  if (id) {
-    loadDetail(id)
-  }
-})
+watch(() => route.params.id, (id) => {
+  if (id) loadDetail(id)
+}, { immediate: true })
 
 function formatDateTime(time) {
   if (!time) return '-'
@@ -429,6 +475,32 @@ async function loadDetail(id) {
   }
 }
 
+function openFeedback() {
+  feedbackForm.value = { mark_type: 'correct', corrected_class: '', note: '' }
+  feedbackVisible.value = true
+}
+
+async function handleSubmitFeedback() {
+  const form = feedbackForm.value
+  if (form.mark_type === 'misclassified' && !form.corrected_class.trim()) {
+    ElMessage.warning('识别错误时请填写正确的病害类别')
+    return
+  }
+  feedbackSubmitting.value = true
+  try {
+    await submitSampleFeedback({
+      history_id: Number(route.params.id),
+      mark_type: form.mark_type,
+      corrected_class: form.mark_type === 'misclassified' ? form.corrected_class.trim() : '',
+      note: form.note.trim()
+    })
+    feedbackVisible.value = false
+    ElMessage.success('反馈已提交，可在我的样本中查看审核状态')
+  } finally {
+    feedbackSubmitting.value = false
+  }
+}
+
 function goBack() {
   router.back()
 }
@@ -450,8 +522,22 @@ async function handleDelete() {
   }
 }
 
-function handleRedetect() {
-  ElMessage.info('重新检测功能开发中...')
+async function handleRedetect() {
+  const id = route.params.id
+  if (!id || redetectLoading.value) return
+  redetectLoading.value = true
+  try {
+    const result = await redetectHistory(id)
+    if (!result?.id) throw new Error('重新检测未返回新记录')
+    if (['failed', 'not_configured'].includes(result.email_notification)) {
+      ElMessage.warning('重新检测完成，但邮件通知发送失败')
+    } else {
+      ElMessage.success('重新检测完成，已生成新记录')
+    }
+    await router.push(`/history/${result.id}`)
+  } finally {
+    redetectLoading.value = false
+  }
 }
 
 async function handleExportReport() {
@@ -715,6 +801,22 @@ function goToKnowledge() {
   margin: 0;
   font-size: 13px;
   color: var(--color-text-secondary);
+}
+
+.feedback-tip {
+  margin: 0 0 16px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+.feedback-options {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.feedback-corrected {
+  margin-bottom: 16px;
 }
 
 .share-content {

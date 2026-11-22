@@ -56,6 +56,19 @@ class Config:
     # 分享链接对外访问地址（如 http://192.168.1.10:5173）；留空时自动把 localhost 换成本机局域网 IP
     SHARE_PUBLIC_BASE_URL = os.environ.get('SHARE_PUBLIC_BASE_URL', '')
 
+    # 可选检测完成邮件通知；默认关闭，密码仅从环境变量读取
+    DETECTION_EMAIL_NOTIFICATIONS = _str_to_bool(
+        os.environ.get('DETECTION_EMAIL_NOTIFICATIONS', 'false')
+    )
+    SMTP_HOST = os.environ.get('SMTP_HOST', '')
+    SMTP_PORT = int(os.environ.get('SMTP_PORT', 587))
+    SMTP_USERNAME = os.environ.get('SMTP_USERNAME', '')
+    SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD', '')
+    SMTP_FROM = os.environ.get('SMTP_FROM') or SMTP_USERNAME
+    SMTP_USE_TLS = _str_to_bool(os.environ.get('SMTP_USE_TLS', 'true'))
+    SMTP_USE_SSL = _str_to_bool(os.environ.get('SMTP_USE_SSL', 'false'))
+    SMTP_TIMEOUT_SECONDS = int(os.environ.get('SMTP_TIMEOUT_SECONDS', 10))
+
     LLM_API_KEY = os.environ.get('LLM_API_KEY') or ''
     LLM_BASE_URL = os.environ.get('LLM_BASE_URL') or ''
     LLM_MODEL = os.environ.get('LLM_MODEL') or 'qwen-turbo'
@@ -63,9 +76,18 @@ class Config:
     LLM_TIMEOUT_SECONDS = int(os.environ.get('LLM_TIMEOUT_SECONDS', 20))
     LLM_FALLBACK_TO_MOCK = _str_to_bool(os.environ.get('LLM_FALLBACK_TO_MOCK', 'true'))
 
-    # 知识问答每分钟提问上限
+    # 关键接口进程内限流；多 worker 部署需使用共享限流存储
     KNOWLEDGE_ASK_RATE_LIMIT_PER_MINUTE = int(
         os.environ.get('KNOWLEDGE_ASK_RATE_LIMIT_PER_MINUTE', 20)
+    )
+    DETECTION_RATE_LIMIT_PER_MINUTE = int(
+        os.environ.get('DETECTION_RATE_LIMIT_PER_MINUTE', 30)
+    )
+    BATCH_DETECTION_RATE_LIMIT_PER_MINUTE = int(
+        os.environ.get('BATCH_DETECTION_RATE_LIMIT_PER_MINUTE', 5)
+    )
+    SAMPLE_FEEDBACK_RATE_LIMIT_PER_MINUTE = int(
+        os.environ.get('SAMPLE_FEEDBACK_RATE_LIMIT_PER_MINUTE', 20)
     )
 
     # 批量检测单次上传图片上限

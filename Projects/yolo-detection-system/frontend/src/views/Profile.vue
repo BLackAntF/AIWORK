@@ -210,7 +210,7 @@ import {
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/modules/user'
 import { changePassword } from '@/api/auth'
-import { getHistoryList } from '@/api/history'
+import { getHistoryStats } from '@/api/history'
 import { getMyFavorites, removeFavorite } from '@/api/knowledge'
 
 const router = useRouter()
@@ -319,26 +319,10 @@ const formatDate = (dateStr) => {
 
 const fetchStats = async () => {
   try {
-    const res = await getHistoryList({ page: 1, pageSize: 1000 })
-    const list = res.items || res.data?.items || []
-    
-    stats.total = res.total || res.data?.total || list.length
-    
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    stats.today = list.filter(item => {
-      const itemDate = new Date(item.created_at)
-      return itemDate >= today
-    }).length
-    
-    stats.image = list.filter(item => item.type === 'image' || item.detection_type === 'image').length
-    
-    if (stats.total === 0 && list.length > 0) {
-      stats.total = list.length
-    }
-    if (stats.image === 0 && list.length > 0) {
-      stats.image = list.length
-    }
+    const res = await getHistoryStats()
+    stats.total = res.total || 0
+    stats.today = res.today || 0
+    stats.image = res.image_count || 0
   } catch (error) {
     console.error('获取统计数据失败:', error)
   }

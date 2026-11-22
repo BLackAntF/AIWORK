@@ -168,7 +168,7 @@ def ask_question(current_user):
             return bad_request('detected_class_id 必须为整数')
         disease_profile = disease_profile_service.get_profile_for_llm(class_id)
 
-    knowledge_list = knowledge_service.search(question, top_k=3)
+    knowledge_list = knowledge_service.search_with_titles(question, top_k=3)
 
     if stream:
         return Response(

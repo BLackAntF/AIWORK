@@ -23,6 +23,10 @@
           <el-icon><Clock /></el-icon>
           <template #title>历史记录</template>
         </el-menu-item>
+        <el-menu-item index="/samples">
+          <el-icon><Files /></el-icon>
+          <template #title>我的样本</template>
+        </el-menu-item>
         <el-menu-item index="/profile">
           <el-icon><User /></el-icon>
           <template #title>个人中心</template>
@@ -45,7 +49,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Search, ChatDotRound, Collection, Clock, User, Fold, Expand, Setting } from '@element-plus/icons-vue'
+import { Search, ChatDotRound, Collection, Clock, Files, User, Fold, Expand, Setting } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/modules/user'
 
 defineProps({

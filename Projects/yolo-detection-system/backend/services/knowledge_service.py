@@ -253,7 +253,7 @@ class KnowledgeService:
             top_k: 返回数量
 
         Returns:
-            list: [{'title': ..., 'content': ...}, ...]
+            list: [{'knowledge_id': ..., 'title': ..., 'content': ...}, ...]
         """
         all_knowledge = self._active_knowledge()
         if not all_knowledge:
@@ -264,8 +264,8 @@ class KnowledgeService:
 
         ranked = self._rank(query_tokens, top_k)
 
-        return [{'title': item[1].title, 'content': item[1].content}
-                for item in ranked[:top_k]]
+        return [{'knowledge_id': item[1].id, 'title': item[1].title,
+                 'content': item[1].content} for item in ranked[:top_k]]
 
     def add_knowledge(self, title, content, category=None, source=None, summary=None, tag_ids=None):
         """添加知识条目

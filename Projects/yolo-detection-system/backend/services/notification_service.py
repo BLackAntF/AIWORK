@@ -1,10 +1,10 @@
-"""站内通知服务
-
-集中封装通知的创建、查询与已读操作，供路由层调用。
-"""
+"""站内通知与可选 SMTP 邮件服务"""
+import smtplib
+from email.message import EmailMessage
 from typing import Optional
 
-from models import Notification, db
+from flask import current_app
+from models import Notification, User, db
 
 MAX_PAGE_SIZE = 100
 DEFAULT_PAGE_SIZE = 20
@@ -64,6 +64,48 @@ def notify_detection_completed(user_id: int, history_id: int, filename: str,
         related_type='detection',
         related_id=history_id
     )
+
+
+def _deliver_email(recipient: str, subject: str, content: str) -> None:
+    """通过环境变量配置的 SMTP 服务发送纯文本邮件"""
+    config = current_app.config
+    message = EmailMessage()
+    message['From'] = config['SMTP_FROM']
+    message['To'] = recipient
+    message['Subject'] = subject
+    message.set_content(content)
+    smtp_class = smtplib.SMTP_SSL if config['SMTP_USE_SSL'] else smtplib.SMTP
+    with smtp_class(config['SMTP_HOST'], config['SMTP_PORT'],
+                    timeout=config['SMTP_TIMEOUT_SECONDS']) as client:
+        if config['SMTP_USE_TLS'] and not config['SMTP_USE_SSL']:
+            client.starttls()
+        if config['SMTP_USERNAME']:
+            client.login(config['SMTP_USERNAME'], config['SMTP_PASSWORD'])
+        client.send_message(message)
+
+
+def send_detection_completed_email(user_id: int, history_id: int, filename: str,
+                                   detection_count: int) -> str:
+    """发送检测完成邮件并返回真实状态，失败不影响站内通知和检测结果"""
+    if not current_app.config['DETECTION_EMAIL_NOTIFICATIONS']:
+        return 'disabled'
+    user = db.session.get(User, user_id)
+    if not user or not user.email:
+        return 'no_email'
+    if not current_app.config['SMTP_HOST'] or not current_app.config['SMTP_FROM']:
+        current_app.logger.warning('邮件通知已启用但 SMTP_HOST/SMTP_FROM 未配置')
+        return 'not_configured'
+
+    content = (f'您的图片《{filename}》已完成检测，共识别到 {detection_count} 个目标。\n'
+               f'检测记录编号：{history_id}\n请登录番茄卫士查看详细结果。')
+    try:
+        _deliver_email(user.email, '番茄卫士：图片检测完成', content)
+    except (OSError, ValueError, smtplib.SMTPException):
+        current_app.logger.exception('检测完成邮件发送失败: user_id=%s history_id=%s',
+                                     user_id, history_id)
+        return 'failed'
+    current_app.logger.info('检测完成邮件已发送: user_id=%s history_id=%s', user_id, history_id)
+    return 'sent'
 
 
 def notify_knowledge_review(user_id: int, kb_id: int, title: str, approved: bool) -> Notification:

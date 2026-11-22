@@ -54,15 +54,24 @@
 		</view>
 
 		<view class="action-section">
-			<view class="action-btn primary-btn" @click="goToKnowledge">
-				<AppIcon name="chat" :size="34" color="#FFFFFF" />
-				<text class="btn-text">AI 问诊</text>
+				<view class="action-btn primary-btn" @click="goToKnowledge">
+					<AppIcon name="chat" :size="34" color="#FFFFFF" />
+					<text class="btn-text">AI 问诊</text>
+				</view>
+				<view class="action-btn outline-btn" @click="openFeedback">
+					<AppIcon name="edit" :size="34" color="#C8442F" />
+					<text class="btn-text brand-text">检测反馈</text>
+				</view>
+				<view
+					v-if="record.type === 'image'"
+					class="action-btn outline-btn"
+					:class="{ disabled: redetecting }"
+					@click="handleRedetect"
+				>
+					<AppIcon name="refresh" :size="34" color="#C8442F" />
+					<text class="btn-text brand-text">{{ redetecting ? '检测中' : '重新检测' }}</text>
+				</view>
 			</view>
-			<view class="action-btn outline-btn" @click="openFeedback">
-				<AppIcon name="edit" :size="34" color="#C8442F" />
-				<text class="btn-text brand-text">检测反馈</text>
-			</view>
-		</view>
 
 			<view class="detection-section">
 				<text class="section-title">检测结果</text>
@@ -164,7 +173,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
-import { getHistoryDetail, submitSampleFeedback } from '@/api/history'
+import { getHistoryDetail, redetectHistory, submitSampleFeedback } from '@/api/history'
 import { getFullUrl } from '@/utils/format'
 import { showError } from '@/utils/error'
 import LoadingOverlay from '@/components/LoadingOverlay.vue'
@@ -177,6 +186,7 @@ import { useChatStore } from '@/store/chat'
 const chatStore = useChatStore()
 
 const loading = ref(true)
+const redetecting = ref(false)
 const record = ref(null)
 const originalImageBroken = ref(false)
 const resultImageBroken = ref(false)
@@ -242,6 +252,28 @@ function goToKnowledge() {
 		detections: detections.value
 	})
 	uni.switchTab({ url: '/pages/chat/index' })
+}
+
+async function handleRedetect() {
+	if (redetecting.value || !record.value?.id) return
+	redetecting.value = true
+	uni.showLoading({ title: '正在重新检测', mask: true })
+	try {
+		const result = await redetectHistory(record.value.id)
+		if (!result?.id) throw new Error('未返回新记录')
+		uni.hideLoading()
+		const emailFailed = ['failed', 'not_configured'].includes(result.email_notification)
+		uni.showToast({
+			title: emailFailed ? '已生成新记录，邮件发送失败' : '已生成新记录',
+			icon: emailFailed ? 'none' : 'success'
+		})
+		uni.redirectTo({ url: `/pages/history/detail?id=${result.id}` })
+	} catch (e) {
+		uni.hideLoading()
+		showError(e, '重新检测失败')
+	} finally {
+		redetecting.value = false
+	}
 }
 
 function openFeedback() {
@@ -550,6 +582,10 @@ onMounted(() => {
 	display: flex;
 	gap: 20rpx;
 	margin: 0 24rpx;
+}
+
+.action-btn.disabled {
+	opacity: 0.6;
 }
 
 .action-btn {

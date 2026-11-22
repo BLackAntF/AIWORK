@@ -18,6 +18,11 @@ export function getHistoryDetail(id) {
   return request({ url: `/history/${id}` })
 }
 
+/** 基于历史原图重新检测并生成新记录 */
+export function redetectHistory(id) {
+  return request({ url: `/history/${id}/redetect`, method: 'POST' })
+}
+
 /** 删除检测历史记录 */
 export function deleteHistory(id) {
   return request({ url: `/history/${id}`, method: 'DELETE' })
@@ -26,4 +31,9 @@ export function deleteHistory(id) {
 /** 提交检测样本反馈（增量数据池） */
 export function submitSampleFeedback(data) {
   return request({ url: '/sample-pool', method: 'POST', data })
+}
+
+/** 获取本人样本反馈及审核状态 */
+export function getMySamples(params) {
+  return request({ url: '/sample-pool', data: params })
 }

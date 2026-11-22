@@ -60,7 +60,7 @@
 					</view>
 					<view class="weather-location">
 						<AppIcon name="pin" :size="24" color="#8A938C" />
-						<text class="weather-location-text">当前位置</text>
+						<text class="weather-location-text">{{ usingDefaultLocation ? '默认位置：北京' : '当前位置' }}</text>
 					</view>
 				</view>
 
@@ -83,6 +83,12 @@
 					/>
 					<text class="advice-text">{{ adviceText }}</text>
 				</view>
+			</view>
+		</view>
+		<view v-else-if="weatherError" class="weather-section" @click="retryWeather">
+			<view class="weather-error-card">
+				<AppIcon name="alert" :size="28" color="#D9A11E" />
+				<text>{{ weatherError }}，点击重试</text>
 			</view>
 		</view>
 
@@ -178,7 +184,9 @@ const records = ref([])
 const brokenImages = ref([])
 const stats = ref({ total: 0, disease_count: 0, healthy_count: 0 })
 const weather = ref(null)
+const weatherError = ref('')
 const weatherRequested = ref(false)
+const usingDefaultLocation = ref(false)
 
 const DEFAULT_LOCATION = { lat: 39.9042, lon: 116.4074 }
 
@@ -223,12 +231,17 @@ function resolveLocation() {
 			type: 'wgs84',
 			success: (res) => {
 				if (typeof res.latitude === 'number' && typeof res.longitude === 'number') {
+					usingDefaultLocation.value = false
 					resolve({ lat: res.latitude, lon: res.longitude })
 				} else {
+					usingDefaultLocation.value = true
 					resolve(DEFAULT_LOCATION)
 				}
 			},
-			fail: () => resolve(DEFAULT_LOCATION)
+			fail: () => {
+				usingDefaultLocation.value = true
+				resolve(DEFAULT_LOCATION)
+			}
 		})
 	})
 }
@@ -236,13 +249,19 @@ function resolveLocation() {
 async function loadWeather() {
 	if (weatherRequested.value) return
 	weatherRequested.value = true
+	weatherError.value = ''
 	try {
 		const location = await resolveLocation()
 		weather.value = await getWeather(location.lat, location.lon)
 	} catch (e) {
-		// 天气加载失败静默降级，不显示卡片，不影响首页其他内容
 		weather.value = null
+		weatherError.value = '天气服务暂不可用，不影响检测'
 	}
+}
+
+function retryWeather() {
+	weatherRequested.value = false
+	loadWeather()
 }
 
 const HEALTHY_NAMES = ['健康', '健康叶片', '健康叶子', '正常叶片', 'Healthy']
@@ -532,6 +551,18 @@ onShow(() => {
 }
 
 /* 天气卡片 */
+.weather-error-card {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 12rpx;
+	padding: 24rpx;
+	border-radius: 20rpx;
+	background: rgba(217, 161, 30, 0.1);
+	color: var(--text-2);
+	font-size: 25rpx;
+}
+
 .weather-section {
 	padding: 0 28rpx;
 	margin-top: 24rpx;

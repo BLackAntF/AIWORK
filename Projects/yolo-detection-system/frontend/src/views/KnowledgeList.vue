@@ -295,7 +295,7 @@ function resetFilters() {
 }
 
 function goToDetail(id) {
-  router.push(`/knowledge-detail/${id}`)
+  router.push(`/knowledge-list/${id}`)
 }
 
 // 文件上传

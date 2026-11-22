@@ -3,6 +3,26 @@ import time
 from flask import current_app
 
 
+def _knowledge_contents(knowledge_list):
+    """提取知识正文，兼容历史字符串列表与带元数据的知识字典。"""
+    return [item.get('content', '') if isinstance(item, dict) else item
+            for item in knowledge_list or []]
+
+
+def _knowledge_sources(knowledge_list):
+    """来源仅返回标题与知识 ID，避免把富文本正文暴露为来源名称。"""
+    sources = []
+    for item in (knowledge_list or [])[:3]:
+        if isinstance(item, dict):
+            sources.append({
+                'knowledge_id': item.get('knowledge_id') or item.get('id'),
+                'title': item.get('title') or '相关知识'
+            })
+        else:
+            sources.append(item[:50] + '...' if len(item) > 50 else item)
+    return sources
+
+
 class LLMService:
     _instance = None
     _client = None
@@ -89,7 +109,7 @@ class LLMService:
 生物防治：{disease_profile.get('biological_control', '未知')}"""
             context_parts = [profile_text]
             if knowledge_list:
-                context_parts.append(f"【相关知识】\n{chr(10).join(knowledge_list)}")
+                context_parts.append(f"【相关知识】\n{chr(10).join(_knowledge_contents(knowledge_list))}")
             if detection_context:
                 context_parts.append(f"【检测结果】{detection_context}")
             full_context = chr(10).join(context_parts)
@@ -105,7 +125,7 @@ class LLMService:
 
         sources = []
         if knowledge_list:
-            sources = [k[:30] + '...' if len(k) > 30 else k for k in knowledge_list[:3]]
+            sources = _knowledge_sources(knowledge_list)
         elif disease_profile:
             sources = [f"{disease_profile.get('disease_name', '病害档案')} - 病害详细资料"]
         else:
@@ -140,7 +160,7 @@ class LLMService:
             context_parts.append(profile_text)
 
         if knowledge_list:
-            context_parts.append(f"【相关知识】\n{chr(10).join(knowledge_list)}")
+            context_parts.append(f"【相关知识】\n{chr(10).join(_knowledge_contents(knowledge_list))}")
 
         if detection_context:
             context_parts.append(f"【检测结果】{detection_context}")
@@ -234,7 +254,7 @@ class LLMService:
 
         answer = response.choices[0].message.content
 
-        sources = [k[:50] + '...' for k in knowledge_list] if knowledge_list else []
+        sources = _knowledge_sources(knowledge_list)
 
         return {
             'answer': answer,
@@ -298,7 +318,7 @@ class LLMService:
             )
             return
 
-        sources = [k[:50] + '...' for k in knowledge_list] if knowledge_list else []
+        sources = _knowledge_sources(knowledge_list)
         yield {
             'type': 'meta',
             'sources': sources,

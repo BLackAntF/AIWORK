@@ -146,6 +146,7 @@ def update_user_role(current_user, user_id):
     if role not in ('user', 'admin'):
         return bad_request('角色值无效，只能是 user 或 admin')
 
+    old_role = user.role
     user.role = role
     db.session.commit()
 
@@ -154,7 +155,7 @@ def update_user_role(current_user, user_id):
         username=current_user.username,
         action='change_user_role',
         target_user_id=user_id,
-        detail=f"将用户 {user.username} 的角色从 {user.role} 改为 {role}"
+        detail=f"将用户 {user.username} 的角色从 {old_role} 改为 {role}"
     )
 
     return success(message='角色已更新')

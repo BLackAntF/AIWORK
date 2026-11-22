@@ -349,6 +349,9 @@ def update_category(current_user, cat_id):
         existing = KnowledgeCategory.query.filter_by(name=name).first()
         if existing and existing.id != cat_id:
             return bad_request('分类名称已存在')
+        Knowledge.query.filter_by(category=old_name).update(
+            {Knowledge.category: name}, synchronize_session=False
+        )
         category.name = name
 
     if description is not None:

@@ -325,7 +325,14 @@ async function handleDetect() {
 		const result = await detectImage(imagePath.value, saveHistory.value, selectedModelId.value)
 		detectionResult.value = result
 		resultImageBroken.value = false
-		uni.showToast({ title: '检测完成', icon: 'success' })
+		if (['failed', 'not_configured'].includes(result.email_notification)) {
+			uni.showToast({ title: '检测完成，邮件发送失败', icon: 'none' })
+		} else if (result.email_notification === 'no_email') {
+			uni.showToast({ title: '检测完成，账号未设置邮箱', icon: 'none' })
+		} else {
+			const title = result.email_notification === 'sent' ? '检测完成，邮件已发送' : '检测完成'
+			uni.showToast({ title, icon: result.email_notification === 'sent' ? 'none' : 'success' })
+		}
 	} catch (e) {
 		showError(e, '检测失败，请重试')
 	} finally {

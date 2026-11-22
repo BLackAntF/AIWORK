@@ -24,6 +24,11 @@
 					<view v-if="unreadCount > 0" class="badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</view>
 					<text class="menu-arrow">›</text>
 				</view>
+				<view class="menu-item" @click="goSamples">
+					<AppIcon class="menu-icon" name="inbox" :size="36" color="#8A938F" />
+					<text class="menu-text">我的样本</text>
+					<text class="menu-arrow">›</text>
+				</view>
 				<view class="menu-item" @click="goKnowledge">
 					<AppIcon class="menu-icon" name="book" :size="36" color="#8A938F" />
 					<text class="menu-text">知识库浏览</text>
@@ -101,6 +106,10 @@ function goChangePassword() {
 
 function goNotifications() {
 	uni.navigateTo({ url: '/pages/notifications/index' })
+}
+
+function goSamples() {
+	uni.navigateTo({ url: '/pages/mine/samples' })
 }
 
 function goKnowledge() {

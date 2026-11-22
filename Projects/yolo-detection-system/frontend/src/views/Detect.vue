@@ -5,6 +5,8 @@
       <p class="page-subtitle">上传图片，AI 快速识别目标</p>
     </div>
 
+    <WeatherCard />
+
     <div class="detect-container">
       <div class="left-panel">
         <div class="upload-section glass-card">
@@ -29,7 +31,7 @@
               <el-icon :size="56" class="upload-icon"><Picture /></el-icon>
               <p class="upload-text">点击或拖拽图片到此处上传</p>
               <p class="upload-tip">支持 JPG、PNG、BMP、WEBP 格式，可多选批量检测</p>
-              <p class="upload-info">单张图片不超过 10MB，单次最多 20 张</p>
+              <p class="upload-info">单张原图不超过 10MB，单次最多 20 张，大图上传前自动压缩</p>
             </div>
             <div v-else class="preview-grid">
               <div
@@ -421,6 +423,7 @@ import { getModelList } from '@/api/admin'
 import { useUserStore } from '@/store/modules/user'
 import { useChatStore } from '@/store/modules/chat'
 import { getFullUrl } from '@/utils/format'
+import WeatherCard from '@/components/WeatherCard.vue'
 
 const router = useRouter()
 const chatStore = useChatStore()
@@ -455,6 +458,9 @@ onMounted(async () => {
 // 与后端 config.MAX_BATCH_IMAGES 保持一致
 const MAX_BATCH_IMAGES = 20
 const MAX_FILE_SIZE = 10 * 1024 * 1024
+const COMPRESS_THRESHOLD = 1024 * 1024
+const MAX_IMAGE_EDGE = 1920
+const JPEG_QUALITY = 0.82
 
 const saveHistory = ref(true)
 const isDetecting = ref(false)
@@ -469,6 +475,7 @@ const previewImageUrl = ref('')
 const imageInput = ref(null)
 const imageFiles = ref([])
 const isDragOver = ref(false)
+const isPreparingImages = ref(false)
 
 let progressTimer = null
 
@@ -500,7 +507,7 @@ function getCategoryColor(categoryName) {
 }
 
 const canDetect = computed(() => {
-  return imageFiles.value.length > 0
+  return imageFiles.value.length > 0 && !isPreparingImages.value
 })
 
 const detectButtonText = computed(() => {
@@ -589,7 +596,39 @@ function validateImageFile(file) {
   return true
 }
 
-function addFiles(fileList) {
+async function compressImage(file) {
+  if (file.size <= COMPRESS_THRESHOLD || !window.createImageBitmap) return file
+  try {
+    const bitmap = await window.createImageBitmap(file)
+    const scale = Math.min(1, MAX_IMAGE_EDGE / Math.max(bitmap.width, bitmap.height))
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale))
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale))
+    const context = canvas.getContext('2d')
+    context.fillStyle = '#FFFFFF'
+    context.fillRect(0, 0, canvas.width, canvas.height)
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+    bitmap.close()
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', JPEG_QUALITY))
+    if (!blob || blob.size >= file.size) return file
+    const filename = `${file.name.replace(/\.[^.]+$/, '')}.jpg`
+    return new File([blob], filename, { type: 'image/jpeg' })
+  } catch (error) {
+    return file
+  }
+}
+
+function readImagePreview(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = event => resolve(event.target?.result)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
+async function addFiles(fileList) {
+  if (isPreparingImages.value) return
   const incoming = Array.from(fileList || []).filter(validateImageFile)
   if (incoming.length === 0) return
 
@@ -602,15 +641,19 @@ function addFiles(fileList) {
     ElMessage.warning(`单次最多上传 ${MAX_BATCH_IMAGES} 张图片，已保留前 ${remain} 张`)
   }
 
-  incoming.slice(0, remain).forEach((file) => {
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      imageFiles.value.push({ file, preview: e.target?.result })
+  isPreparingImages.value = true
+  try {
+    for (const originalFile of incoming.slice(0, remain)) {
+      const file = await compressImage(originalFile)
+      const preview = await readImagePreview(file)
+      imageFiles.value.push({ file, preview })
     }
-    reader.readAsDataURL(file)
-  })
-
-  resetResults()
+    resetResults()
+  } catch (error) {
+    ElMessage.error('图片读取失败，请重新选择')
+  } finally {
+    isPreparingImages.value = false
+  }
 }
 
 function resetResults() {
@@ -667,11 +710,19 @@ async function handleDetect() {
       batchRows.value = res.list || []
       stopProgressSimulation()
       ElMessage.success(`批量检测完成：成功 ${res.success_count} 张，失败 ${res.failed_count} 张`)
+      const emailFailed = batchRows.value.some(item => ['failed', 'not_configured'].includes(item.email_notification))
+      if (emailFailed) ElMessage.warning('部分邮件通知发送失败，请检查 SMTP 配置')
     } else {
       const result = await detectImage(imageFiles.value[0].file, saveHistory.value, selectedModelId.value || null)
       detectionResult.value = result
       stopProgressSimulation()
-      ElMessage.success('检测完成')
+      if (['failed', 'not_configured'].includes(result.email_notification)) {
+        ElMessage.warning('检测已完成，但邮件通知发送失败')
+      } else if (result.email_notification === 'no_email') {
+        ElMessage.info('检测完成；账号未设置邮箱，未发送邮件通知')
+      } else {
+        ElMessage.success(result.email_notification === 'sent' ? '检测完成，邮件通知已发送' : '检测完成')
+      }
     }
   } catch (error) {
     stopProgressSimulation()

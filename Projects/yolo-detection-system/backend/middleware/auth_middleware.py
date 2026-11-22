@@ -1,9 +1,27 @@
+import time
+from collections import defaultdict
 from functools import wraps
 from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
 from flask_jwt_extended.exceptions import JWTExtendedException
 from jwt.exceptions import PyJWTError
 from models import User
 from utils.response import unauthorized, forbidden
+
+
+# 进程内滑动窗口，重启失效；多 worker 部署需改用 Redis 等共享存储
+_rate_store = defaultdict(list)
+RATE_WINDOW_SECONDS = 60
+
+
+def check_rate_limit(key: str, limit: int) -> bool:
+    """检查认证接口的进程内滑动窗口限流"""
+    now = time.time()
+    timestamps = _rate_store[key]
+    timestamps[:] = [item for item in timestamps if now - item < RATE_WINDOW_SECONDS]
+    if len(timestamps) >= limit:
+        return False
+    timestamps.append(now)
+    return True
 
 
 def _load_user(user_id):

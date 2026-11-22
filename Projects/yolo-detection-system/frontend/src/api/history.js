@@ -8,6 +8,14 @@ export function getHistoryDetail(id) {
   return request.get(`/history/${id}`)
 }
 
+export function getHistoryStats() {
+  return request.get('/history/stats')
+}
+
+export function redetectHistory(id) {
+  return request.post(`/history/${id}/redetect`)
+}
+
 export function deleteHistory(id) {
   return request.delete(`/history/${id}`)
 }
@@ -38,4 +46,12 @@ export function shareHistory(id, expires_days = 7) {
 
 export function getSharedResult(token) {
   return request.get(`/share/${token}`, { skipErrorMessage: true })
+}
+
+export function submitSampleFeedback(data) {
+  return request.post('/sample-pool', data)
+}
+
+export function getMySamples(params) {
+  return request.get('/sample-pool', { params })
 }
